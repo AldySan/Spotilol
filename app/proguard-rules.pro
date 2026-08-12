@@ -1,6 +1,3 @@
--keepclassmembers class com.project.lol.bridge.SpotifyBridge {
-    @android.webkit.JavascriptInterface <methods>;
-}
 -keep class com.project.lol.bridge.SpotifyBridge { *; }
 -keep class com.project.lol.webview.SpotifyWebViewClient { *; }
 -keep class com.project.lol.webview.SpotifyWebChromeClient { *; }

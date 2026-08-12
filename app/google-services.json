@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "728772157576",
+    "project_id": "spotilol",
+    "storage_bucket": "spotilol.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:728772157576:android:89e6120c44164941c8ff3d",
+        "android_client_info": {
+          "package_name": "com.project.lol"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBE0qobVaFJlBU5q1uBH_vBV6xNKHlQ3zE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

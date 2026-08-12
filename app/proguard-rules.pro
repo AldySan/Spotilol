@@ -10,8 +10,6 @@
 -keep class com.project.lol.proxy.LocalProxyManager { *; }
 -keep class com.project.lol.ui.SplashActivity { *; }
 -keep class com.project.lol.ui.MainActivity { *; }
--keep class com.project.lol.ui.SettingsActivity { *; }
--keep class com.project.lol.update.UpdateChecker { *; }
 -keep class org.bouncycastle.** { *; }
 -dontwarn org.bouncycastle.**
 -dontwarn javax.annotation.concurrent.GuardedBy

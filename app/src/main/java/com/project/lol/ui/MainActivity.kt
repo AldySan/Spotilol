@@ -6,6 +6,7 @@ import android.app.PendingIntent
 import android.app.PictureInPictureParams
 import android.app.RemoteAction
 import android.content.Intent
+import android.content.SharedPreferences
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.content.res.Configuration
@@ -23,6 +24,8 @@ import android.widget.Toast
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.webkit.CookieManager
+import android.webkit.WebStorage
 import android.webkit.WebView
 import android.widget.FrameLayout
 import android.widget.ImageView
@@ -61,7 +64,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -72,12 +75,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -92,10 +96,12 @@ import androidx.webkit.WebSettingsCompat
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.project.lol.R
 import com.project.lol.bridge.SpotifyBridge
+import com.project.lol.profile.ProfileManager
 import com.project.lol.proxy.LocalProxyManager
 import com.project.lol.service.MediaNotificationService
+import com.project.lol.ui.components.SettingsDrawer
 import com.project.lol.ui.theme.SpotifyTheme
-import com.project.lol.update.UpdateChecker
+import com.project.lol.util.UpdateChecker
 import com.project.lol.webview.SpotifyWebChromeClient
 import com.project.lol.webview.SpotifyWebViewClient
 import com.project.lol.webview.helpers.buildAmoledJs
@@ -128,6 +134,7 @@ class MainActivity : ComponentActivity() {
     private val serviceEnabledState = mutableStateOf(true)
     private val materialYouState = mutableStateOf(false)
     private val amoledState = mutableStateOf(false)
+    private val paletteSeedState = mutableStateOf<String?>(null)
 
     private val showSleepTimerDialog = mutableStateOf(false)
     private val sleepTimerSelectedMinutes = mutableIntStateOf(0)
@@ -154,6 +161,8 @@ class MainActivity : ComponentActivity() {
         60 to "60 min"
     )
 
+    private lateinit var prefs: SharedPreferences
+
     private val analytics: FirebaseAnalytics by lazy { FirebaseAnalytics.getInstance(this) }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -167,7 +176,7 @@ class MainActivity : ComponentActivity() {
             putString(FirebaseAnalytics.Param.SCREEN_CLASS, "MainActivity")
         })
 
-        val prefs = getSharedPreferences("spotilol_prefs", MODE_PRIVATE)
+        prefs = getSharedPreferences("spotilol_prefs", MODE_PRIVATE)
         val useProxy = prefs.getString("ConnectionMode", "normal") == "proxy"
 
         // After an OOM kill, Android can resume directly at MainActivity
@@ -197,39 +206,97 @@ class MainActivity : ComponentActivity() {
         serviceEnabledState.value = prefs.getBoolean("ServiceOn", true)
         materialYouState.value = prefs.getBoolean("MaterialYou", false)
         amoledState.value = prefs.getBoolean("AmoledTheme", false)
+        paletteSeedState.value = prefs.getString("PaletteSeed", null)
 
         setContent {
             val serviceEnabled = serviceEnabledState.value
             val materialYou = materialYouState.value
             val amoled = amoledState.value
+            val paletteSeed = paletteSeedState.value
             val showDialog = showSleepTimerDialog.value
             val timerActive = sleepTimerActive.value
             val loadProgress = loadingProgress.intValue
 
-            SpotifyTheme(useDynamicColor = materialYou, amoled = amoled) {
-                Scaffold(
-                    topBar = {
-                        TopAppBar(
-                            title = {
-                                Text(
-                                    "Spotilol",
-                                    fontWeight = FontWeight.Bold
-                                )
-                            },
-                            actions = {
-                                IconButton(onClick = {
-                                    analytics.logEvent("open_settings", Bundle().apply {
-                                        putString(FirebaseAnalytics.Param.SCREEN_NAME, "SettingsActivity")
-                                    })
-                                    startActivity(Intent(this@MainActivity, SettingsActivity::class.java))
-                                }) {
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.ic_settings),
-                                        contentDescription = "Settings",
-                                        tint = MaterialTheme.colorScheme.onSurface
-                                    )
-                                }
-                                Spacer(Modifier.width(4.dp))
+            var settingsDrawerOpen by remember { mutableStateOf(false) }
+            val versionName = remember {
+                runCatching { packageManager.getPackageInfo(packageName, 0).versionName }
+                    .getOrNull() ?: ""
+            }
+            val seedColor = paletteSeed?.let { hex ->
+                runCatching { Color(android.graphics.Color.parseColor(hex)) }.getOrNull()
+            }
+
+            BackHandler(enabled = settingsDrawerOpen || webView?.canGoBack() == true) {
+                if (settingsDrawerOpen) {
+                    settingsDrawerOpen = false
+                } else {
+                    webView?.goBack()
+                }
+            }
+
+            SpotifyTheme(useDynamicColor = materialYou, amoled = amoled, seedColor = seedColor) {
+                SettingsDrawer(
+                    visible = settingsDrawerOpen,
+                    onClose = { settingsDrawerOpen = false },
+                    prefs = prefs,
+                    materialYou = materialYou,
+                    onMaterialYouChange = { enabled ->
+                        materialYouState.value = enabled
+                        prefs.edit().putBoolean("MaterialYou", enabled).apply()
+                    },
+                    amoledThemeState = amoled,
+                    onAmoledThemeChange = { enabled ->
+                        amoledState.value = enabled
+                        prefs.edit().putBoolean("AmoledTheme", enabled).apply()
+                    },
+                    paletteSeed = paletteSeed,
+                    onPaletteSeedChange = { hex ->
+                        paletteSeedState.value = hex
+                        if (hex.isNullOrBlank()) {
+                            prefs.edit().remove("PaletteSeed").apply()
+                        } else {
+                            prefs.edit().putString("PaletteSeed", hex).apply()
+                        }
+                    },
+                    onConnectionModeChange = { switchConnectionMode(it) },
+                    onSaveProfile = { name, cookies -> saveProfile(name, cookies) },
+                    onLoadProfile = { cookies -> loadProfile(cookies) },
+                    onDeleteProfile = { name -> deleteProfile(name) },
+                    onClearCache = { clearWebViewCache() },
+                    onClearData = { clearAllData() }
+                ) {
+                    Scaffold(
+                        topBar = {
+                            CenterAlignedTopAppBar(
+                                title = {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = "Spotilol",
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Spacer(Modifier.width(6.dp))
+                                        Text(
+                                            text = "v$versionName",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                },
+                                navigationIcon = {
+                                    IconButton(onClick = {
+                                        analytics.logEvent("open_settings", Bundle().apply {
+                                            putString(FirebaseAnalytics.Param.SCREEN_NAME, "SettingsDrawer")
+                                        })
+                                        settingsDrawerOpen = true
+                                    }) {
+                                        Icon(
+                                            imageVector = Icons.Default.Menu,
+                                            contentDescription = "Settings",
+                                            tint = MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
+                                },
+                                actions = {
                                 Switch(
                                     checked = serviceEnabled,
                                     onCheckedChange = { newValue ->
@@ -259,11 +326,12 @@ class MainActivity : ComponentActivity() {
                                 )
                                 Spacer(Modifier.width(8.dp))
                             },
-                            colors = TopAppBarDefaults.topAppBarColors(
-                                containerColor = MaterialTheme.colorScheme.surface,
-                                titleContentColor = MaterialTheme.colorScheme.onSurface,
-                                actionIconContentColor = MaterialTheme.colorScheme.onSurface
-                            )
+                                colors = TopAppBarDefaults.topAppBarColors(
+                                    containerColor = MaterialTheme.colorScheme.surface,
+                                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
+                                    actionIconContentColor = MaterialTheme.colorScheme.onSurface
+                                )
                         )
                     }
                 ) { innerPadding ->
@@ -296,9 +364,7 @@ class MainActivity : ComponentActivity() {
                                 handleMediaStatus(json)
                             }
 
-                            BackHandler(enabled = webView?.canGoBack() == true) {
-                                webView?.goBack()
-                            }
+
 
                             AndroidView(
                                 factory = { context ->
@@ -446,8 +512,69 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
+            }
 
         }
+    }
+
+    private fun switchConnectionMode(mode: String) {
+        prefs.edit().putString("ConnectionMode", mode).apply()
+        prefs.edit().putBoolean("ServiceOn", false).apply()
+        stopService(Intent(this, MediaNotificationService::class.java))
+        LocalProxyManager.stop()
+        val intent = Intent(this, SplashActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+        startActivity(intent)
+        finish()
+    }
+
+    private fun saveProfile(name: String, cookies: String) {
+        ProfileManager.saveProfile(this, name, cookies)
+        Toast.makeText(this, "Account saved", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun loadProfile(cookies: String) {
+        if (!ProfileManager.applyProfile(this, cookies)) {
+            Toast.makeText(this, "Profile could not be loaded", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val intent = Intent(this, SplashActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+        startActivity(intent)
+        finish()
+    }
+
+    private fun deleteProfile(name: String) {
+        ProfileManager.deleteProfile(this, name)
+        Toast.makeText(this, "Profile deleted", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun clearWebViewCache() {
+        val wv = WebView(applicationContext)
+        wv.clearCache(true)
+        wv.clearHistory()
+        wv.destroy()
+        Toast.makeText(this, "Cache cleared successfully", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun clearAllData() {
+        val wv = WebView(applicationContext)
+        wv.clearCache(true)
+        wv.clearHistory()
+        wv.clearFormData()
+        wv.destroy()
+        WebStorage.getInstance().deleteAllData()
+        CookieManager.getInstance().removeAllCookies(null)
+        CookieManager.getInstance().flush()
+        prefs.edit().putBoolean("LoggedIn", false).apply()
+        Toast.makeText(this, "All data cleared, please login again", Toast.LENGTH_SHORT).show()
+        val intent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+        }
+        startActivity(intent)
+        finish()
     }
 
     private fun startSleepTimer(minutes: Int) {
@@ -938,10 +1065,11 @@ class MainActivity : ComponentActivity() {
             putString(FirebaseAnalytics.Param.SCREEN_CLASS, "MainActivity")
         })
 
-        val prefs = getSharedPreferences("spotilol_prefs", MODE_PRIVATE)
+        prefs = getSharedPreferences("spotilol_prefs", MODE_PRIVATE)
         serviceEnabledState.value = prefs.getBoolean("ServiceOn", true)
         materialYouState.value = prefs.getBoolean("MaterialYou", false)
         amoledState.value = prefs.getBoolean("AmoledTheme", false)
+        paletteSeedState.value = prefs.getString("PaletteSeed", null)
 
         val customCss = prefs.getString("CustomCss", "") ?: ""
         val amoledEnabled = prefs.getBoolean("AmoledTheme", false)

@@ -47,9 +47,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -58,8 +57,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.RadioButtonDefaults
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -82,8 +80,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -137,7 +135,7 @@ class MainActivity : ComponentActivity() {
     private val paletteSeedState = mutableStateOf<String?>(null)
 
     private val showSleepTimerDialog = mutableStateOf(false)
-    private val sleepTimerSelectedMinutes = mutableIntStateOf(0)
+    private val sleepTimerInputText = mutableStateOf("")
     private var sleepTimer: CountDownTimer? = null
     private val sleepTimerRemainingMs = mutableLongStateOf(0L)
     private val sleepTimerActive = mutableStateOf(false)
@@ -151,15 +149,6 @@ class MainActivity : ComponentActivity() {
     private val btPermLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { _ -> requestNotificationPermission() }
-
-    private val sleepTimerOptions = listOf(
-        0 to "Off",
-        5 to "5 min",
-        10 to "10 min",
-        15 to "15 min",
-        30 to "30 min",
-        60 to "60 min"
-    )
 
     private lateinit var prefs: SharedPreferences
 
@@ -348,7 +337,7 @@ class MainActivity : ComponentActivity() {
                             bridge.onTimerDialogRequest = {
                                 showSleepTimerDialog.value = true
                                 if (!timerActive) {
-                                    sleepTimerSelectedMinutes.intValue = 0
+                                    sleepTimerInputText.value = ""
                                 }
                             }
 
@@ -477,8 +466,8 @@ class MainActivity : ComponentActivity() {
                                 SleepTimerDialog(
                                     timerActive = timerActive,
                                     timerRemainingMs = sleepTimerRemainingMs.longValue,
-                                    selectedMinutes = sleepTimerSelectedMinutes.intValue,
-                                    onSelectMinute = { sleepTimerSelectedMinutes.intValue = it },
+                                    inputText = sleepTimerInputText.value,
+                                    onInputChange = { sleepTimerInputText.value = it },
                                     onSetTimer = { minutes ->
                                         showSleepTimerDialog.value = false
                                         if (minutes > 0) {
@@ -624,12 +613,13 @@ class MainActivity : ComponentActivity() {
     private fun SleepTimerDialog(
         timerActive: Boolean,
         timerRemainingMs: Long,
-        selectedMinutes: Int,
-        onSelectMinute: (Int) -> Unit,
+        inputText: String,
+        onInputChange: (String) -> Unit,
         onSetTimer: (Int) -> Unit,
         onCancelTimer: () -> Unit,
         onDismiss: () -> Unit
     ) {
+        val minutes = inputText.toIntOrNull() ?: 0
         if (timerActive) {
             val remainingSecs = timerRemainingMs / 1000
             val mins = remainingSecs / 60
@@ -708,34 +698,28 @@ class MainActivity : ComponentActivity() {
                     )
                 },
                 text = {
-                    Column(Modifier.selectableGroup()) {
-                        sleepTimerOptions.forEach { (minutes, label) ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(48.dp)
-                                    .selectable(
-                                        selected = selectedMinutes == minutes,
-                                        onClick = { onSelectMinute(minutes) },
-                                        role = Role.RadioButton
-                                    )
-                                    .padding(horizontal = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                RadioButton(
-                                    selected = selectedMinutes == minutes,
-                                    onClick = null,
-                                    colors = RadioButtonDefaults.colors(
-                                        selectedColor = MaterialTheme.colorScheme.primary
-                                    )
-                                )
-                                Spacer(Modifier.width(12.dp))
-                                Text(
-                                    text = label,
-                                    style = MaterialTheme.typography.bodyLarge
-                                )
-                            }
-                        }
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "Set minutes:",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        OutlinedTextField(
+                            value = inputText,
+                            onValueChange = { new ->
+                                if (new.length <= 5 && new.all { it.isDigit() }) {
+                                    onInputChange(new)
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            placeholder = { Text("e.g. 25") },
+                            trailingIcon = { Text("min", style = MaterialTheme.typography.bodyMedium) }
+                        )
                     }
                 },
                 confirmButton = {
@@ -748,12 +732,10 @@ class MainActivity : ComponentActivity() {
                         }
                         Spacer(Modifier.width(12.dp))
                         Button(
-                            onClick = { onSetTimer(selectedMinutes) },
-                            enabled = selectedMinutes > 0
+                            onClick = { onSetTimer(minutes) },
+                            enabled = minutes > 0
                         ) {
-                            Text(
-                                if (selectedMinutes > 0) "Set Timer" else "Off"
-                            )
+                            Text("Set Timer")
                         }
                     }
                 },

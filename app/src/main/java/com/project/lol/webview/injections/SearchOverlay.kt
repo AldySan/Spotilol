@@ -57,6 +57,7 @@ object SearchOverlay {
                         '#global-nav-bar input[data-testid="search-input"]{display:none!important}',
                         '#global-nav-bar form[role="search"]{min-width:48px!important;width:48px!important;max-width:48px!important;height:48px!important;min-height:48px!important;display:flex!important;align-items:center!important}',
                         '#global-nav-bar form[role="search"] .e-10750-form-input-icon__icon{position:static!important;top:auto!important;transform:none!important}',
+                        '#global-nav-bar form[role="search"] > :not(.e-10750-form-input-icon__icon--leading){display:none!important}',
                         'html.spl-search-active [data-testid="search-dropdown"],html.spl-search-active [data-testid="search-page-searchbar-searchbar-dropdown"]{display:none!important}',
                         '#splSearchPanel{position:fixed;z-index:99999;background:rgba(24,24,24,.98);border:1px solid rgba(255,255,255,.08);border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,.6);display:none;flex-direction:column;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#fff}',
                         '#splSearchPanel .spl-sph{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid rgba(255,255,255,.06)}',

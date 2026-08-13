@@ -52,6 +52,7 @@ import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Smartphone
 import androidx.compose.material.icons.filled.TouchApp
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -143,6 +144,8 @@ fun SettingsContent(
     onMaterialYouChange: (Boolean) -> Unit,
     amoledThemeState: Boolean,
     onAmoledThemeChange: (Boolean) -> Unit,
+    hideTopBar: Boolean,
+    onHideTopBarChange: (Boolean) -> Unit,
     paletteSeed: String?,
     onPaletteSeedChange: (String?) -> Unit,
     onConnectionModeChange: (String) -> Unit,
@@ -251,6 +254,19 @@ fun SettingsContent(
                     amoledTheme = enabled
                     onAmoledThemeChange(enabled)
                     prefs.edit().putBoolean("AmoledTheme", enabled).apply()
+                }
+            )
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+
+            SettingSwitchTile(
+                title = "Hide Top Bar",
+                subtitle = "Swipe down from the top to show it",
+                icon = Icons.Default.VisibilityOff,
+                checked = hideTopBar,
+                onCheckedChange = { enabled ->
+                    onHideTopBarChange(enabled)
+                    prefs.edit().putBoolean("HideTopBar", enabled).apply()
                 }
             )
         }
@@ -1418,6 +1434,8 @@ fun SettingsContentPreview() {
             onMaterialYouChange = {},
             amoledThemeState = false,
             onAmoledThemeChange = {},
+            hideTopBar = false,
+            onHideTopBarChange = {},
             paletteSeed = null,
             onPaletteSeedChange = {},
             onConnectionModeChange = {},

@@ -82,6 +82,7 @@ object SearchOverlay {
                         '#splSearchPanel .spl-sname{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3}',
                         '#splSearchPanel .spl-sname a,#splSearchPanel .spl-ssub a{color:inherit;text-decoration:none}',
                         '#splSearchPanel .spl-sname a:hover,#splSearchPanel .spl-ssub a:hover{color:#1DB954}',
+                        '#splSearchPanel .spl-sbadge{display:inline-flex;align-items:center;justify-content:center;background:#b3b3b3;color:#121212;font-size:10.5px;font-weight:600;line-height:14px;border-radius:2px;padding:1px 5px;margin-right:5px;vertical-align:middle;font-family:inherit}',
                         '#splSearchPanel .spl-ssub{font-size:11px;color:rgba(255,255,255,.55);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3;margin-top:2px}',
                         '#splSearchPanel .spl-stitle{font-size:12px;font-weight:700;color:rgba(255,255,255,.85);padding:8px 10px 4px}',
                         '#splSearchPanel .spl-sem{display:flex;align-items:center;justify-content:center;gap:8px;padding:14px;font-size:12px;color:rgba(255,255,255,.5)}',
@@ -265,9 +266,20 @@ object SearchOverlay {
                         var cv = pickImg(d.albumOfTrack && d.albumOfTrack.coverArt && d.albumOfTrack.coverArt.sources);
                         if(cv){ var im2=document.createElement('img'); im2.src=cv; icon.appendChild(im2); } else { icon.innerHTML = iconFor('track'); }
                         name.appendChild(linkTo('/track/' + (d.uri||'').replace('spotify:track:',''), d.name || ''));
+                        var isExplicit = !!(d.contentRating && d.contentRating.label === 'EXPLICIT');
+                        if(isExplicit){
+                            var eb = document.createElement('span');
+                            eb.className = 'spl-sbadge';
+                            eb.setAttribute('aria-label','Explicit');
+                            eb.textContent = 'E';
+                            sub.appendChild(eb);
+                        }
+                        sub.appendChild(document.createTextNode('Song'));
                         var arts = d.artists && d.artists.items || [];
-                        if(arts.length){ sub.appendChild(artistLinks(arts, ', ')); }
-                        else { sub.textContent = 'Song'; }
+                        if(arts.length){
+                            sub.appendChild(document.createTextNode(' • '));
+                            sub.appendChild(artistLinks(arts, ', '));
+                        }
                     } else if(t === 'AlbumResponseWrapper'){
                         el.setAttribute('data-kind','album');
                         el.setAttribute('data-uri',d.uri || '');

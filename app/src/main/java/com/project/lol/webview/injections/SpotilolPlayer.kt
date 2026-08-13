@@ -93,8 +93,7 @@ object SpotilolPlayer {
                 document.getElementById('spl-timer').onclick=function(){AndBridge.openTimerDialog()};
                 document.getElementById('spl-pip').onclick=function(){
                     var pv=document.querySelector('.VideoPlayer__container video');
-                    var isPodcast=!!pv&&(document.querySelector('[data-testid="episode"]')||document.querySelector('[data-testid="context-item-info-show"]'));
-                    if(isPodcast){
+                    if(pv){
                         var w=pv.videoWidth||0,h=pv.videoHeight||0;
                         try{pv.requestFullscreen();}catch(e){}
                         AndBridge.enterPipVideo(w,h);

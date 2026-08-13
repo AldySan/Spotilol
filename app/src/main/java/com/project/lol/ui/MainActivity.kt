@@ -931,6 +931,14 @@ class MainActivity : ComponentActivity() {
         pipVideoCallback = null
         pipVideoPending = false
         hidePipOverlay()
+        if (isInPictureInPictureMode) {
+            pipVideoAspect = Rational(1, 1)
+            if (pipCoverBitmap == null && lastPipCoverUrl.isNotEmpty()) {
+                fetchPipCover(lastPipCoverUrl)
+            }
+            showPipOverlay()
+            updatePipParams()
+        }
     }
 
     override fun onPictureInPictureModeChanged(

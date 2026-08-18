@@ -24,6 +24,7 @@ import android.util.Rational
 import android.widget.Toast
 import android.view.LayoutInflater
 import android.view.View
+import android.view.WindowManager
 import android.view.ViewGroup
 import android.webkit.CookieManager
 import android.webkit.WebStorage
@@ -148,6 +149,7 @@ class MainActivity : ComponentActivity() {
     private val amoledState = mutableStateOf(false)
     private val hideTopBarState = mutableStateOf(false)
     private val landscapeModeState = mutableStateOf(false)
+    private val keepScreenOnState = mutableStateOf(false)
     private val paletteSeedState = mutableStateOf<String?>(null)
 
     private val showSleepTimerDialog = mutableStateOf(false)
@@ -213,8 +215,10 @@ class MainActivity : ComponentActivity() {
         amoledState.value = prefs.getBoolean("AmoledTheme", false)
         hideTopBarState.value = prefs.getBoolean("HideTopBar", false)
         landscapeModeState.value = prefs.getBoolean("LandscapeMode", false)
+        keepScreenOnState.value = prefs.getBoolean("KeepScreenOn", false)
         paletteSeedState.value = prefs.getString("PaletteSeed", null)
         applyOrientation()
+        applyKeepScreenOn()
 
         setContent {
             val serviceEnabled = serviceEnabledState.value
@@ -222,6 +226,7 @@ class MainActivity : ComponentActivity() {
             val amoled = amoledState.value
             val hideTopBar = hideTopBarState.value
             val landscapeMode = landscapeModeState.value
+            val keepScreenOn = keepScreenOnState.value
             val paletteSeed = paletteSeedState.value
             val showDialog = showSleepTimerDialog.value
             val timerActive = sleepTimerActive.value
@@ -270,6 +275,12 @@ class MainActivity : ComponentActivity() {
                         landscapeModeState.value = enabled
                         prefs.edit().putBoolean("LandscapeMode", enabled).apply()
                         applyOrientation()
+                    },
+                    keepScreenOn = keepScreenOn,
+                    onKeepScreenOnChange = { enabled ->
+                        keepScreenOnState.value = enabled
+                        prefs.edit().putBoolean("KeepScreenOn", enabled).apply()
+                        applyKeepScreenOn()
                     },
                     paletteSeed = paletteSeed,
                     onPaletteSeedChange = { hex ->
@@ -1152,6 +1163,14 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun applyKeepScreenOn() {
+        if (keepScreenOnState.value) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        } else {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+    }
+
     private fun startMediaService() {
         if (MediaNotificationService.instance != null) {
             MediaNotificationService.webView = webView
@@ -1221,8 +1240,10 @@ class MainActivity : ComponentActivity() {
         amoledState.value = prefs.getBoolean("AmoledTheme", false)
         hideTopBarState.value = prefs.getBoolean("HideTopBar", false)
         landscapeModeState.value = prefs.getBoolean("LandscapeMode", false)
+        keepScreenOnState.value = prefs.getBoolean("KeepScreenOn", false)
         paletteSeedState.value = prefs.getString("PaletteSeed", null)
         applyOrientation()
+        applyKeepScreenOn()
 
         val customCss = prefs.getString("CustomCss", "") ?: ""
         val amoledEnabled = prefs.getBoolean("AmoledTheme", false)

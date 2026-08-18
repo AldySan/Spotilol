@@ -49,6 +49,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.PowerSettingsNew
+import androidx.compose.material.icons.filled.ScreenRotation
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Smartphone
 import androidx.compose.material.icons.filled.TouchApp
@@ -146,6 +147,8 @@ fun SettingsContent(
     onAmoledThemeChange: (Boolean) -> Unit,
     hideTopBar: Boolean,
     onHideTopBarChange: (Boolean) -> Unit,
+    landscapeMode: Boolean,
+    onLandscapeModeChange: (Boolean) -> Unit,
     paletteSeed: String?,
     onPaletteSeedChange: (String?) -> Unit,
     onConnectionModeChange: (String) -> Unit,
@@ -267,6 +270,19 @@ fun SettingsContent(
                 onCheckedChange = { enabled ->
                     onHideTopBarChange(enabled)
                     prefs.edit().putBoolean("HideTopBar", enabled).apply()
+                }
+            )
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+
+            SettingSwitchTile(
+                title = "Landscape Mode",
+                subtitle = "Allow rotating to landscape",
+                icon = Icons.Default.ScreenRotation,
+                checked = landscapeMode,
+                onCheckedChange = { enabled ->
+                    onLandscapeModeChange(enabled)
+                    prefs.edit().putBoolean("LandscapeMode", enabled).apply()
                 }
             )
         }
@@ -1436,6 +1452,8 @@ fun SettingsContentPreview() {
             onAmoledThemeChange = {},
             hideTopBar = false,
             onHideTopBarChange = {},
+            landscapeMode = false,
+            onLandscapeModeChange = {},
             paletteSeed = null,
             onPaletteSeedChange = {},
             onConnectionModeChange = {},

@@ -7,6 +7,7 @@ import android.app.PictureInPictureParams
 import android.app.RemoteAction
 import android.content.Intent
 import android.content.SharedPreferences
+import android.content.pm.ActivityInfo
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.content.res.Configuration
@@ -146,6 +147,7 @@ class MainActivity : ComponentActivity() {
     private val materialYouState = mutableStateOf(false)
     private val amoledState = mutableStateOf(false)
     private val hideTopBarState = mutableStateOf(false)
+    private val landscapeModeState = mutableStateOf(false)
     private val paletteSeedState = mutableStateOf<String?>(null)
 
     private val showSleepTimerDialog = mutableStateOf(false)
@@ -210,13 +212,16 @@ class MainActivity : ComponentActivity() {
         materialYouState.value = prefs.getBoolean("MaterialYou", false)
         amoledState.value = prefs.getBoolean("AmoledTheme", false)
         hideTopBarState.value = prefs.getBoolean("HideTopBar", false)
+        landscapeModeState.value = prefs.getBoolean("LandscapeMode", false)
         paletteSeedState.value = prefs.getString("PaletteSeed", null)
+        applyOrientation()
 
         setContent {
             val serviceEnabled = serviceEnabledState.value
             val materialYou = materialYouState.value
             val amoled = amoledState.value
             val hideTopBar = hideTopBarState.value
+            val landscapeMode = landscapeModeState.value
             val paletteSeed = paletteSeedState.value
             val showDialog = showSleepTimerDialog.value
             val timerActive = sleepTimerActive.value
@@ -259,6 +264,12 @@ class MainActivity : ComponentActivity() {
                     onHideTopBarChange = { enabled ->
                         hideTopBarState.value = enabled
                         prefs.edit().putBoolean("HideTopBar", enabled).apply()
+                    },
+                    landscapeMode = landscapeMode,
+                    onLandscapeModeChange = { enabled ->
+                        landscapeModeState.value = enabled
+                        prefs.edit().putBoolean("LandscapeMode", enabled).apply()
+                        applyOrientation()
                     },
                     paletteSeed = paletteSeed,
                     onPaletteSeedChange = { hex ->
@@ -1133,6 +1144,14 @@ class MainActivity : ComponentActivity() {
         MediaNotificationService.webView = null
     }
 
+    private fun applyOrientation() {
+        requestedOrientation = if (landscapeModeState.value) {
+            ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        } else {
+            ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        }
+    }
+
     private fun startMediaService() {
         if (MediaNotificationService.instance != null) {
             MediaNotificationService.webView = webView
@@ -1201,7 +1220,9 @@ class MainActivity : ComponentActivity() {
         materialYouState.value = prefs.getBoolean("MaterialYou", false)
         amoledState.value = prefs.getBoolean("AmoledTheme", false)
         hideTopBarState.value = prefs.getBoolean("HideTopBar", false)
+        landscapeModeState.value = prefs.getBoolean("LandscapeMode", false)
         paletteSeedState.value = prefs.getString("PaletteSeed", null)
+        applyOrientation()
 
         val customCss = prefs.getString("CustomCss", "") ?: ""
         val amoledEnabled = prefs.getBoolean("AmoledTheme", false)

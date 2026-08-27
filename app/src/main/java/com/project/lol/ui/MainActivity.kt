@@ -99,6 +99,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.webkit.ProxyConfig
@@ -862,7 +863,8 @@ class MainActivity : ComponentActivity() {
                 Popup(
                     alignment = Alignment.TopCenter,
                     offset = IntOffset(0, with(LocalDensity.current) { 64.dp.toPx() }.toInt()),
-                    onDismissRequest = onDismissMenu
+                    onDismissRequest = onDismissMenu,
+                    properties = PopupProperties(focusable = true)
                 ) {
                     Card(
                         shape = RoundedCornerShape(16.dp),

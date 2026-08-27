@@ -31,6 +31,8 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
+import android.net.Uri
+import android.webkit.ValueCallback
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -148,8 +150,10 @@ class MainActivity : ComponentActivity() {
     private var pipVideoCallback: android.webkit.WebChromeClient.CustomViewCallback? = null
     private var pipVideoAspect: Rational? = null
     private var pipVideoPending = false
-    private val pipVideoTimeout = Handler(Looper.getMainLooper())
+    @Volatile
+    private var filePathCallback: ValueCallback<Array<Uri>>? = null
 
+    private val pipVideoTimeout = Handler(Looper.getMainLooper())
     private val serviceEnabledState = mutableStateOf(true)
     private val materialYouState = mutableStateOf(false)
     private val amoledState = mutableStateOf(false)
@@ -175,6 +179,14 @@ class MainActivity : ComponentActivity() {
     private val btPermLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { _ -> requestNotificationPermission() }
+
+    private val filePickerLauncher = registerForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        val callback = filePathCallback
+        filePathCallback = null
+        callback?.onReceiveValue(uri?.let { arrayOf(it) })
+    }
 
     private lateinit var prefs: SharedPreferences
 
@@ -450,6 +462,12 @@ class MainActivity : ComponentActivity() {
                                             },
                                             onHideCustomView = {
                                                 handleCustomViewHidden()
+                                            },
+                                            onFileChooser = { callback, _ ->
+                                                filePathCallback?.onReceiveValue(null)
+                                                filePathCallback = callback
+                                                filePickerLauncher.launch("image/*")
+                                                true
                                             }
                                         )
 

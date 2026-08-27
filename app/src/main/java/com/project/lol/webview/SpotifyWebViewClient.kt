@@ -80,6 +80,7 @@ class SpotifyWebViewClient(
             view?.evaluateJavascript(staticJs("BrowserSpoof", BrowserSpoof.CONTENT), null)
         }
         view?.evaluateJavascript(staticJs("FetchOverride", FetchOverride.CONTENT), null)
+        view?.evaluateJavascript(staticJs("WorkerNeutralize", WorkerNeutralize.CONTENT), null)
     }
 
     override fun onRenderProcessGone(view: WebView?, detail: RenderProcessGoneDetail?): Boolean {

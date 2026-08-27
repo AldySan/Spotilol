@@ -1,9 +1,11 @@
 package com.project.lol.webview
 
+import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.view.View
 import android.webkit.PermissionRequest
+import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -11,7 +13,8 @@ import android.webkit.WebViewClient
 class SpotifyWebChromeClient(
     private val onProgressChanged: ((Int) -> Unit)? = null,
     private val onShowCustomView: ((View?, CustomViewCallback?) -> Unit)? = null,
-    private val onHideCustomView: (() -> Unit)? = null
+    private val onHideCustomView: (() -> Unit)? = null,
+    private val onFileChooser: ((ValueCallback<Array<Uri>>, Array<String>) -> Boolean)? = null
 ) : WebChromeClient() {
 
     private var childWebView: WebView? = null
@@ -35,6 +38,7 @@ class SpotifyWebChromeClient(
         }
         val newWebView = WebView(view?.context ?: return false).apply {
             webViewClient = object : WebViewClient() {
+                @Deprecated("Deprecated in Java")
                 @Suppress("DEPRECATION")
                 override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
                     view?.loadUrl(url ?: return false)
@@ -47,6 +51,16 @@ class SpotifyWebChromeClient(
         transport?.webView = newWebView
         resultMsg?.sendToTarget()
         return true
+    }
+
+    override fun onShowFileChooser(
+        webView: WebView?,
+        filePathCallback: ValueCallback<Array<Uri>>?,
+        fileChooserParams: FileChooserParams?
+    ): Boolean {
+        if (filePathCallback == null) return false
+        val acceptTypes = fileChooserParams?.acceptTypes ?: emptyArray()
+        return onFileChooser?.invoke(filePathCallback, acceptTypes) ?: false
     }
 
     @Suppress("DEPRECATION")
@@ -62,6 +76,7 @@ class SpotifyWebChromeClient(
         }
     }
 
+    @Deprecated("Deprecated in Java")
     override fun onConsoleMessage(message: String?, lineNumber: Int, sourceId: String?) {
         android.util.Log.d("SpotifyJS", "$message [$sourceId:$lineNumber]")
     }

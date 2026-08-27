@@ -8,7 +8,9 @@ fun isAnalyticsDomain(url: String): Boolean {
             url.contains("t.6sc.co") ||
             url.contains("tracker.samplicio.us") ||
             url.contains("adsrvr.org") ||
-            url.contains("aet.spotify.com")
+            url.contains("aet.spotify.com") ||
+            url.contains("workbox-window") ||
+            url.contains("retargeting-pixels")
 }
 
 fun isAdAudioUrl(url: String): Boolean {

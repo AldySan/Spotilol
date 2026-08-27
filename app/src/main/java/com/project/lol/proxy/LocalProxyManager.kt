@@ -9,6 +9,7 @@ import android.os.Environment
 import android.provider.MediaStore
 import android.util.Base64
 import android.util.Log
+import androidx.core.content.edit
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKeys
 import org.bouncycastle.asn1.x500.X500Name
@@ -24,7 +25,6 @@ import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
 import java.math.BigInteger
-import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
 import java.security.KeyPair
@@ -53,7 +53,8 @@ object LocalProxyManager {
     private const val CA_ALIAS = "spotilol-ca"
     private const val KEYSTORE_TYPE = "PKCS12"
 
-    private var serverSocket: ServerSocket? = null
+    @Volatile private var serverSocket: ServerSocket? = null
+    @Volatile private var acceptorThread: Thread? = null
     @Volatile private var caKeyPair: KeyPair? = null
     @Volatile private var caCert: X509Certificate? = null
 	@Volatile private var leafKeyPair: KeyPair? = null
@@ -82,7 +83,7 @@ object LocalProxyManager {
             random.nextBytes(bytes)
             password = Base64.encodeToString(bytes, Base64.NO_WRAP)
             try {
-                prefs.edit().putString(KEY_PASSWORD, password).apply()
+                prefs.edit { putString(KEY_PASSWORD, password) }
             } catch (_: Exception) {}
         }
         return password
@@ -130,7 +131,7 @@ object LocalProxyManager {
             try {
                 Log.d(TAG, "Loading existing CA certificate")
                 loadCA(ksFile, password)
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 try {
                     Log.d(TAG, "Migrating keystore to new password")
                     val ks = KeyStore.getInstance(KEYSTORE_TYPE)
@@ -211,34 +212,43 @@ object LocalProxyManager {
         Log.d(TAG, "CA certificate loaded")
     }
 
+    @Synchronized
     fun start() {
-        if (serverSocket != null) return
-        threadPool.execute {
+        if (acceptorThread?.isAlive == true) return
+        acceptorThread = Thread({
             try {
-                serverSocket = ServerSocket(0, 128, java.net.InetAddress.getByName("127.0.0.1"))
-                Log.d(TAG, "Proxy started on port ${serverSocket!!.localPort}")
+                val ss = ServerSocket(0, 128, java.net.InetAddress.getByName("127.0.0.1"))
+                serverSocket = ss
+                Log.d(TAG, "Proxy started on port ${ss.localPort} (dedicated acceptor)")
 
-                while (!serverSocket!!.isClosed) {
-                    try {
-                        val client = serverSocket!!.accept()
-                        threadPool.execute { handleConnection(client) }
-                    } catch (_: Exception) {}
+                while (!ss.isClosed) {
+                    val client = try {
+                        ss.accept()
+                    } catch (_: Exception) {
+                        break
+                    }
+                    threadPool.execute { handleConnection(client) }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to start proxy", e)
             }
+        }, "LocalProxy-Acceptor").apply {
+            isDaemon = true
+            start()
         }
     }
 
+    @Synchronized
     fun stop() {
         try {
             serverSocket?.close()
-            serverSocket = null
-            closeAllPooledUpstreamSockets()
             Log.d(TAG, "Proxy stopped")
         } catch (e: Exception) {
             Log.e(TAG, "Error stopping proxy", e)
+        } finally {
+            serverSocket = null
         }
+        closeAllPooledUpstreamSockets()
     }
 
     private fun poolKey(host: String, port: Int) = "$host:$port"
@@ -418,7 +428,7 @@ object LocalProxyManager {
                         if (!fromPool) throw e
                         Log.d(TAG, "Pooled upstream for $host was stale, reconnecting")
                         try { upstream.close() } catch (_: Exception) {}
-                        upstream = openUpstreamSocket(host, targetPort, useHttp2)
+                        upstream = openUpstreamSocket(host, targetPort, false)
                         upstreamSSLSocket = upstream
                         fromPool = false
                         upstreamIn = upstream.inputStream
@@ -746,52 +756,32 @@ object LocalProxyManager {
     }
 
     fun isCAInstalled(): Boolean {
-        if (!isRunning) return false
+        val ourCa = caCert ?: run {
+            Log.e(TAG, "CA cert not loaded yet - cannot check installation")
+            return false
+        }
 
-        return try {
-            val sock = Socket()
-            sock.connect(InetSocketAddress("127.0.0.1", port), 5000)
-            sock.soTimeout = 5000
+        try {
+            val ourEncoded = ourCa.encoded
+            val ks = KeyStore.getInstance("AndroidCAStore")
+            ks.load(null, null)
 
-            sock.outputStream.write(
-                "CONNECT open.spotify.com:443 HTTP/1.1\r\nHost: open.spotify.com\r\n\r\n".toByteArray()
-            )
-            sock.outputStream.flush()
-
-            val reader = sock.inputStream.bufferedReader()
-            val status = reader.readLine() ?: run {
-                sock.close()
-                return false
+            val aliases = ks.aliases()
+            while (aliases.hasMoreElements()) {
+                val alias = aliases.nextElement()
+                val cert = ks.getCertificate(alias) as? X509Certificate ?: continue
+                try {
+                    if (cert.encoded.contentEquals(ourEncoded)) {
+                        Log.d(TAG, "CA found in trust store under alias: $alias")
+                        return true
+                    }
+                } catch (_: Exception) {}
             }
-
-            if (!status.contains("200")) {
-                sock.close()
-                return false
-            }
-
-            var line: String
-            do {
-                line = reader.readLine() ?: break
-            } while (line.isNotEmpty())
-
-            val sslContext = SSLContext.getDefault()
-            val ssl = sslContext.socketFactory.createSocket(
-                sock, "open.spotify.com", 443, true
-            ) as SSLSocket
-            ssl.useClientMode = true
-            ssl.startHandshake()
-
-            val peerCerts = ssl.session.peerCertificates
-            ssl.close()
-
-            Log.d(TAG, "CA is installed (${peerCerts.size} peer certs verified)")
-            true
-        } catch (e: javax.net.ssl.SSLHandshakeException) {
-            Log.d(TAG, "CA not installed: SSL handshake failed")
-            false
+            Log.d(TAG, "CA not found in Android trust store")
+            return false
         } catch (e: Exception) {
-            Log.e(TAG, "CA check error", e)
-            false
+            Log.e(TAG, "Failed to query AndroidCAStore", e)
+            return false
         }
     }
 
@@ -842,7 +832,11 @@ object LocalProxyManager {
                     }
                     resolver.update(uri, clearPending, null, null)
                     Log.d(TAG, "CA exported to Downloads via MediaStore")
-                    return "/sdcard/Download/Spotilol_CA.pem"
+                    val downloadsDir = File(
+                        Environment.getExternalStorageDirectory(),
+                        Environment.DIRECTORY_DOWNLOADS
+                    )
+                    return File(downloadsDir, "Spotilol_CA.pem").absolutePath
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to export CA certificate", e)
@@ -866,4 +860,64 @@ object LocalProxyManager {
         return "export failed"
     }
 
+    /**
+     * TRUE iff the system's DEFAULT trust pipeline accepts our CA *right now*.
+     *
+     * We serve a one-shot TLS endpoint signed by our CA on localhost, connect
+     * with the platform-default SSLSocketFactory, and require the full
+     * handshake + hostname verification to succeed. That exercises the real
+     * trust decision (freshly constructed TrustManagerImpl), so it cannot be
+     * fooled by stale keystore-enumeration views — the exact staleness that
+     * made isCAInstalled() lie to us mid-session until an app restart.
+     */
+    fun isCATrustedLive(): Boolean {
+        if (caCert == null) return false
+        var listener: ServerSocket? = null
+        var serverTls: SSLSocket? = null
+        var accepted: Socket? = null
+        var client: SSLSocket? = null
+
+        return try {
+            val ctx = getOrCreateSSLContext("localhost")
+
+            listener = ServerSocket(0, 1, java.net.InetAddress.getByName("127.0.0.1"))
+            val port = listener.localPort
+
+            val serverThread = Thread({
+                try {
+                    accepted = listener.accept()
+                    val tls = ctx.socketFactory.createSocket(
+                        accepted, "localhost", port, true
+                    ) as SSLSocket
+                    serverTls = tls
+                    tls.useClientMode = false
+                    tls.startHandshake()
+                    tls.outputStream.write(0x01)
+                } catch (_: Exception) {}
+            }, "LocalProxy-CATrustProbe")
+            serverThread.isDaemon = true
+            serverThread.start()
+
+            client = SSLSocketFactory.getDefault()
+                .createSocket("127.0.0.1", port) as SSLSocket
+            client.soTimeout = 3000
+            client.startHandshake()
+
+            HttpsURLConnection.getDefaultHostnameVerifier()
+                .verify("localhost", client.session)
+
+            true
+        } catch (_: Exception) {
+            false
+        } finally {
+            try { client?.close() } catch (_: Exception) {}
+            try { serverTls?.close() } catch (_: Exception) {}
+            try { accepted?.close() } catch (_: Exception) {}
+            try { listener?.close() } catch (_: Exception) {}
+        }
+    }
+
+    /** Combined verdict: fast path first, live handshake as the tiebreaker. */
+    fun isCAEffectivelyInstalled(): Boolean =
+        isCAInstalled() || isCATrustedLive()
 }

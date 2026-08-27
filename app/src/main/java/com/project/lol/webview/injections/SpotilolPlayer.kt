@@ -190,8 +190,15 @@ object SpotilolPlayer {
                     }
                 }
                 pl.addEventListener('touchstart',function(e){if(e.target.closest('#spl-bar')||e.target.closest('#spl-edgebar'))return;var t=e.touches[0];splDragStart(t.clientX,t.clientY);},{passive:true});
-                pl.addEventListener('touchmove',function(e){if(splDrag&&splDrag.moving)e.preventDefault();if(!splDrag)return;var t=e.touches[0];splDragMove(t.clientX,t.clientY);},{passive:false});
-                pl.addEventListener('touchend',function(e){if(splDrag&&splDrag.moving)e.preventDefault();splDragEnd();});
+                pl.addEventListener('touchmove',function(e){
+                    if(!splDrag)return;
+                    if(e.cancelable)e.preventDefault();
+                    var t=e.touches[0];splDragMove(t.clientX,t.clientY);
+                },{passive:false});
+                pl.addEventListener('touchend',function(e){
+                    if(splDrag&&splDrag.moving&&e.cancelable)e.preventDefault();
+                    splDragEnd();
+                });
                 pl.addEventListener('touchcancel',function(){splDragEnd();});
                 pl.addEventListener('mousedown',function(e){if(e.button!==0)return;if(e.target.closest('#spl-bar')||e.target.closest('#spl-edgebar')||e.target.closest('button'))return;splDragStart(e.clientX,e.clientY);});
                 document.addEventListener('mousemove',function(e){splDragMove(e.clientX,e.clientY);});

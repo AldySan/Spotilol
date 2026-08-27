@@ -11,8 +11,10 @@ import java.lang.ref.WeakReference
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.Locale
+import androidx.core.content.edit
+import com.project.lol.util.DebugLogStore
 
-class SpotifyBridge(activityRef: WeakReference<Activity>) {
+class SpotifyBridge(private val activityRef: WeakReference<Activity>) {
 
     companion object {
         private const val DESKTOP_UA =
@@ -28,7 +30,6 @@ class SpotifyBridge(activityRef: WeakReference<Activity>) {
         )
     }
 
-    private val activityRef = activityRef
     var onLoginDetected: (() -> Unit)? = null
     var onPlayLoaded: (() -> Unit)? = null
     var onMediaStatus: ((String) -> Unit)? = null
@@ -37,18 +38,20 @@ class SpotifyBridge(activityRef: WeakReference<Activity>) {
     var onEnterPipRequest: (() -> Unit)? = null
     var onEnterPipVideoRequest: ((Int, Int) -> Unit)? = null
 
+    @Suppress("unused")
     @JavascriptInterface
     fun loginDetected() {
         val activity = activityRef.get() ?: return
         activity.getSharedPreferences("spotilol_prefs", Activity.MODE_PRIVATE)
-            .edit()
-            .putBoolean("LoggedIn", true)
-            .apply()
+            .edit {
+                putBoolean("LoggedIn", true)
+            }
         activity.runOnUiThread {
             onLoginDetected?.invoke()
         }
     }
 
+    @Suppress("unused", "DEPRECATION")
     @JavascriptInterface
     fun deferMessage(msg: String?) {
         val activity = activityRef.get() ?: return
@@ -63,24 +66,42 @@ class SpotifyBridge(activityRef: WeakReference<Activity>) {
         }
     }
 
+    @Suppress("unused")
+    @JavascriptInterface
+    fun dbg(level: String?, msg: String?) {
+        val m = msg ?: return
+        val tag = when (level) {
+            "w" -> "js.warn"
+            "e" -> "js.err"
+            "s" -> "js.sys"
+            else -> "js"
+        }
+        DebugLogStore.log(tag, m)
+    }
+
+    @Suppress("unused")
     @JavascriptInterface
     fun isWoke(): Boolean {
         val activity = activityRef.get() ?: return false
         return activity.window?.decorView?.visibility == View.VISIBLE
     }
 
+    @Suppress("unused")
     @JavascriptInterface
     fun wakeUp() {
     }
 
+    @Suppress("unused")
     @JavascriptInterface
     fun wakeOff() {
     }
 
+    @Suppress("unused")
     @JavascriptInterface
     fun cssInjected() {
     }
 
+    @Suppress("unused")
     @JavascriptInterface
     fun playLoaded() {
         val activity = activityRef.get() ?: return
@@ -89,12 +110,14 @@ class SpotifyBridge(activityRef: WeakReference<Activity>) {
         }
     }
 
+    @Suppress("unused")
     @JavascriptInterface
     fun recMediaPosition(position: Long) {
         onMediaPosition?.invoke(position)
         MediaNotificationService.instance?.updatePlaybackPosition(position)
     }
 
+    @Suppress("unused")
     @JavascriptInterface
     fun recMediaStatus(json: String?) {
         json?.let {
@@ -103,26 +126,30 @@ class SpotifyBridge(activityRef: WeakReference<Activity>) {
         }
     }
 
+    @Suppress("unused")
     @JavascriptInterface
     fun manageTShut(enabled: Boolean) {
     }
 
+    @Suppress("unused")
     @JavascriptInterface
     fun manageTSleep(enabled: Boolean) {
     }
 
+    @Suppress("unused")
     @JavascriptInterface
     fun recAccountName(name: String) {
         val activity = activityRef.get() ?: return
         val trimmed = name.trim()
         if (trimmed.isNotEmpty()) {
             activity.getSharedPreferences("spotilol_prefs", Activity.MODE_PRIVATE)
-                .edit()
-                .putString("CurrentAccountName", trimmed)
-                .apply()
+                .edit {
+                    putString("CurrentAccountName", trimmed)
+                }
         }
     }
 
+    @Suppress("unused")
     @JavascriptInterface
     fun openTimerDialog() {
         val activity = activityRef.get() ?: return
@@ -131,6 +158,7 @@ class SpotifyBridge(activityRef: WeakReference<Activity>) {
         }
     }
 
+    @Suppress("unused")
     @JavascriptInterface
     fun enterPip() {
         val activity = activityRef.get() ?: return
@@ -139,6 +167,7 @@ class SpotifyBridge(activityRef: WeakReference<Activity>) {
         }
     }
 
+    @Suppress("unused")
     @JavascriptInterface
     fun enterPipVideo(w: Int, h: Int) {
         val activity = activityRef.get() ?: return
@@ -147,6 +176,7 @@ class SpotifyBridge(activityRef: WeakReference<Activity>) {
         }
     }
 
+    @Suppress("unused")
     @JavascriptInterface
     fun nFetch(url: String, optsJson: String?): String {
         val errorResult = { e: Exception ->

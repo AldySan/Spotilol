@@ -6,13 +6,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.ClickableText
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -21,12 +18,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.dp
 
 private const val URL_TAG = "MarkdownUrl"
@@ -146,15 +146,13 @@ fun MarkdownText(
                         else -> MaterialTheme.typography.titleMedium
                     }
                     InlineText(
-                        text = inlineAnnotated(block.text, linkColor, codeColor),
-                        style = style.copy(fontWeight = FontWeight.Bold),
-                        onLinkClick = onLinkClick
+                        text = inlineAnnotated(block.text, linkColor, codeColor, onLinkClick),
+                        style = style.copy(fontWeight = FontWeight.Bold)
                     )
                 }
                 is MarkdownBlock.Paragraph -> InlineText(
-                    text = inlineAnnotated(block.text, linkColor, codeColor),
-                    style = MaterialTheme.typography.bodyMedium,
-                    onLinkClick = onLinkClick
+                    text = inlineAnnotated(block.text, linkColor, codeColor, onLinkClick),
+                    style = MaterialTheme.typography.bodyMedium
                 )
                 is MarkdownBlock.BulletList -> block.items.forEachIndexed { _, item ->
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -164,9 +162,8 @@ fun MarkdownText(
                             color = MaterialTheme.colorScheme.primary
                         )
                         InlineText(
-                            text = inlineAnnotated(item, linkColor, codeColor),
+                            text = inlineAnnotated(item, linkColor, codeColor, onLinkClick),
                             style = MaterialTheme.typography.bodyMedium,
-                            onLinkClick = onLinkClick,
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -179,9 +176,8 @@ fun MarkdownText(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         InlineText(
-                            text = inlineAnnotated(item, linkColor, codeColor),
+                            text = inlineAnnotated(item, linkColor, codeColor, onLinkClick),
                             style = MaterialTheme.typography.bodyMedium,
-                            onLinkClick = onLinkClick,
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -223,7 +219,6 @@ fun MarkdownText(
 private fun InlineText(
     text: AnnotatedString,
     style: TextStyle,
-    onLinkClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val baseColor = if (style.color == Color.Unspecified) {
@@ -231,25 +226,24 @@ private fun InlineText(
     } else {
         style.color
     }
-    ClickableText(
+    Text(
         text = text,
         style = style.copy(color = baseColor),
-        modifier = modifier,
-        onClick = { offset ->
-            text.getStringAnnotations(URL_TAG, offset, offset)
-                .firstOrNull()
-                ?.let { onLinkClick(it.item) }
-        }
+        modifier = modifier
     )
 }
 
-private fun inlineAnnotated(text: String, linkColor: Color, codeColor: Color): AnnotatedString {
+private fun inlineAnnotated(
+    text: String,
+    linkColor: Color,
+    codeColor: Color,
+    onLinkClick: (String) -> Unit
+): AnnotatedString {
     val b = AnnotatedString.Builder()
     var i = 0
     while (i < text.length) {
-        val c = text[i]
-        when {
-            c == '*' && i + 1 < text.length && text[i + 1] == '*' -> {
+        when (val c = text[i]) {
+            '*' if i + 1 < text.length && text[i + 1] == '*' -> {
                 val close = text.indexOf("**", i + 2)
                 if (close > i + 2) {
                     val start = b.length
@@ -261,7 +255,7 @@ private fun inlineAnnotated(text: String, linkColor: Color, codeColor: Color): A
                     i++
                 }
             }
-            c == '*' -> {
+            '*' -> {
                 val close = text.indexOf('*', i + 1)
                 if (close > i + 1) {
                     val start = b.length
@@ -273,7 +267,7 @@ private fun inlineAnnotated(text: String, linkColor: Color, codeColor: Color): A
                     i++
                 }
             }
-            c == '`' -> {
+            '`' -> {
                 val close = text.indexOf('`', i + 1)
                 if (close > i + 1) {
                     val start = b.length
@@ -288,20 +282,23 @@ private fun inlineAnnotated(text: String, linkColor: Color, codeColor: Color): A
                     i++
                 }
             }
-            c == '[' -> {
+            '[' -> {
                 val closeBracket = text.indexOf(']', i + 1)
                 if (closeBracket > i + 1 && closeBracket + 1 < text.length && text[closeBracket + 1] == '(') {
                     val closeParen = text.indexOf(')', closeBracket + 2)
                     if (closeParen > closeBracket + 2) {
                         val label = text.substring(i + 1, closeBracket)
                         val url = text.substring(closeBracket + 2, closeParen)
-                        val start = b.length
-                        b.append(label)
-                        b.addStyle(
-                            SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline),
-                            start, b.length
+                        val link = LinkAnnotation.Url(
+                            url = url,
+                            styles = TextLinkStyles(
+                                SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline)
+                            ),
+                            linkInteractionListener = { onLinkClick(url) }
                         )
-                        b.addStringAnnotation(URL_TAG, url, start, b.length)
+                        b.withLink(link) {
+                            b.append(label)
+                        }
                         i = closeParen + 1
                     } else {
                         b.append(c)
@@ -312,27 +309,27 @@ private fun inlineAnnotated(text: String, linkColor: Color, codeColor: Color): A
                     i++
                 }
             }
-            c == 'h' -> {
-                val urlMatch = UrlRegex.find(text, i)
-                if (urlMatch != null && urlMatch.range.first == i) {
+            'h' -> {
+                val urlMatch = UrlRegex.matchAt(text, i)
+                if (urlMatch != null) {
                     val url = urlMatch.value
-                    val start = b.length
-                    b.append(url)
-                    b.addStyle(
-                        SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline),
-                        start, b.length
+                    val link = LinkAnnotation.Url(
+                        url = url,
+                        styles = TextLinkStyles(
+                            SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline)
+                        ),
+                        linkInteractionListener = { onLinkClick(url) }
                     )
-                    b.addStringAnnotation(URL_TAG, url, start, b.length)
+                    b.withLink(link) {
+                        b.append(url)
+                    }
                     i += url.length
                 } else {
                     b.append(c)
                     i++
                 }
             }
-            else -> {
-                b.append(c)
-                i++
-            }
+            else -> b.append(c).also { i++ }
         }
     }
     return b.toAnnotatedString()

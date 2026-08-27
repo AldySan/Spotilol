@@ -14,10 +14,18 @@ import java.io.ByteArrayInputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.Locale
+import androidx.core.net.toUri
+import androidx.core.content.edit
 
 class SpotifyWebViewClient(
-    private val onLoginRequired: () -> Unit
+    private val onLoginRequired: () -> Unit,
+    private val onNavStateChanged: ((Boolean) -> Unit)? = null
 ) : WebViewClient() {
+
+    override fun doUpdateVisitedHistory(view: WebView?, url: String?, isReload: Boolean) {
+        super.doUpdateVisitedHistory(view, url, isReload)
+        onNavStateChanged?.invoke(view?.canGoBack() == true)
+    }
 
     private var currentWebView: WebView? = null
     private var prefsListener: android.content.SharedPreferences.OnSharedPreferenceChangeListener? = null
@@ -53,7 +61,7 @@ class SpotifyWebViewClient(
         view.evaluateJavascript(LogoutCheck.CONTENT) { result ->
             if (result == "\"out\"") {
                 view.context.getSharedPreferences("spotilol_prefs", 0)
-                    .edit().putBoolean("LoggedIn", false).apply()
+                    .edit { putBoolean("LoggedIn", false) }
                 view.loadUrl("https://accounts.spotify.com/login")
             }
         }
@@ -97,6 +105,9 @@ class SpotifyWebViewClient(
             .getString("ConnectionMode", "normal") == "proxy"
 
         if (!useProxy) {
+            val isGoogle = isGoogleAuthUrl(url)
+            if (!isGoogle && !isAdAudioUrl(url)) return null
+
             try {
                 val conn = URL(url).openConnection() as HttpURLConnection
                 try {
@@ -104,7 +115,6 @@ class SpotifyWebViewClient(
                     conn.instanceFollowRedirects = true
                     conn.connectTimeout = 5000
                     conn.readTimeout = 5000
-                    val isGoogle = isGoogleAuthUrl(url)
                     for ((k, v) in request.requestHeaders) {
                         val lk = k.lowercase(Locale.ROOT)
                         if (lk != "x-requested-with" && lk != "sec-gpc" && !lk.startsWith("sec-ch-ua") &&
@@ -161,7 +171,7 @@ class SpotifyWebViewClient(
 
     private fun isGoogleAuthUrl(url: String?): Boolean {
         if (url == null) return false
-        val host = runCatching { android.net.Uri.parse(url).host }.getOrNull()
+        val host = runCatching { url.toUri().host }.getOrNull()
             ?.lowercase() ?: return false
         return host == "google.com" ||
             host.endsWith(".google.com") ||
@@ -183,6 +193,10 @@ class SpotifyWebViewClient(
             append("window.autoPlayMode='$autoPlayMode';\n")
             append("window.closeNpPref=$closeNowPlay;\n")
             append("window.__spotilolUseProxy=$useProxy;\n")
+            if (prefs.getBoolean("DebugOverlay", false)) {
+                append(DevLogPrelude.js())
+                append("\n")
+            }
             append(PlayerCore.CONTENT)
             append(ClassicBridge.CONTENT)
             append(MediaUpdater.CONTENT)
@@ -209,6 +223,10 @@ class SpotifyWebViewClient(
                 })();
             """.trimIndent())
             append(CssHack.CONTENT)
+            append(PlaylistSort.CONTENT)
+            append(ModalFix.CONTENT)
+            append(ToastFix.CONTENT)
+            append(LyricsSyncFix.CONTENT)
             if (playerMode == "spotilol") {
                 append(SpotilolPlayer.CONTENT)
             }
@@ -217,7 +235,7 @@ class SpotifyWebViewClient(
                 buildAmoledJs(amoledEnabled) + "\n" +
                 buildCustomCssJs(customCss)
         if (playerMode == "original") {
-            view.evaluateJavascript(cleanJs + "\n(function(){var s=document.createElement('style');s.id='spl-np-show';s.textContent='aside[data-testid=\"now-playing-bar\"]{display:flex!important}';document.head.appendChild(s);})();", null)
+            view.evaluateJavascript("$cleanJs\n(function(){var s=document.createElement('style');s.id='spl-np-show';s.textContent='aside[data-testid=\"now-playing-bar\"]{display:flex!important}';document.head.appendChild(s);})();", null)
         } else {
             view.evaluateJavascript(cleanJs, null)
         }

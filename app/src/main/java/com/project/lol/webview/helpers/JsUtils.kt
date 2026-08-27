@@ -5,5 +5,5 @@ object JsUtils {
         return CONSOLE_LOG_PATTERN.replace(code, "")
     }
 
-    private val CONSOLE_LOG_PATTERN = Regex("console\\.log\\([^)]*\\);?")
+    private val CONSOLE_LOG_PATTERN = Regex("console\\.log\\((?:[^()]|\\([^()]*\\))*\\);?")
 }

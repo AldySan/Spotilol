@@ -2,11 +2,14 @@ package com.project.lol.profile
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.os.Handler
+import android.os.Looper
 import android.webkit.CookieManager
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKeys
 import org.json.JSONArray
 import org.json.JSONObject
+import androidx.core.content.edit
 
 object ProfileManager {
 
@@ -39,7 +42,7 @@ object ProfileManager {
                 EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
                 EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
             )
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             try {
                 val ks = java.security.KeyStore.getInstance("AndroidKeyStore")
                 ks.load(null)
@@ -98,10 +101,10 @@ object ProfileManager {
                     .put("savedAt", p.savedAt)
             )
         }
-        prefs(context).edit().putString(KEY_PROFILES, arr.toString()).apply()
+        prefs(context).edit { putString(KEY_PROFILES, arr.toString()) }
     }
 
-    fun captureSession(context: Context): String? {
+    fun captureSession(): String? {
         val map = JSONObject()
         var hasSpDc = false
         for (domain in COOKIE_DOMAINS) {
@@ -115,7 +118,7 @@ object ProfileManager {
         return map.toString()
     }
 
-    fun applyProfile(context: Context, json: String): Boolean {
+    fun applyProfile(context: Context, json: String, onComplete: (Boolean) -> Unit) {
         val entries = try {
             val map = JSONObject(json)
             val out = mutableListOf<Pair<String, String>>()
@@ -128,23 +131,36 @@ object ProfileManager {
         } catch (_: Exception) {
             emptyList()
         }
-        if (entries.isEmpty()) return false
+        if (entries.isEmpty()) {
+            postComplete(onComplete, false)
+            return
+        }
 
         CookieManager.getInstance().removeAllCookies {
-            for ((domain, cookies) in entries) {
-                for (pair in cookies.split(";")) {
-                    val cookie = pair.trim()
-                    if (cookie.contains("=")) {
-                        CookieManager.getInstance().setCookie(domain, cookie)
+            try {
+                for ((domain, cookies) in entries) {
+                    for (pair in cookies.split(";")) {
+                        val cookie = pair.trim()
+                        if (cookie.contains("=")) {
+                            CookieManager.getInstance().setCookie(domain, cookie)
+                        }
                     }
                 }
+                CookieManager.getInstance().flush()
+                context.getSharedPreferences("spotilol_prefs", Context.MODE_PRIVATE)
+                    .edit { putBoolean("LoggedIn", true) }
+                postComplete(onComplete, true)
+            } catch (_: Exception) {
+                postComplete(onComplete, false)
             }
-            CookieManager.getInstance().flush()
-            context.getSharedPreferences("spotilol_prefs", Context.MODE_PRIVATE)
-                .edit()
-                .putBoolean("LoggedIn", true)
-                .apply()
         }
-        return true
+    }
+
+    private fun postComplete(onComplete: (Boolean) -> Unit, result: Boolean) {
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            onComplete(result)
+        } else {
+            Handler(Looper.getMainLooper()).post { onComplete(result) }
+        }
     }
 }

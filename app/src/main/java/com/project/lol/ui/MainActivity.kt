@@ -14,29 +14,30 @@ import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.drawable.Icon
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.CountDownTimer
 import android.os.Handler
 import android.os.Looper
 import android.util.Rational
-import android.widget.Toast
 import android.view.LayoutInflater
 import android.view.View
-import android.view.WindowManager
 import android.view.ViewGroup
+import android.view.WindowManager
 import android.webkit.CookieManager
 import android.webkit.WebStorage
 import android.webkit.WebView
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -54,10 +55,17 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -67,10 +75,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -80,32 +84,28 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.animation.core.tween
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Popup
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import androidx.webkit.ProxyConfig
 import androidx.webkit.ProxyController
+import androidx.webkit.WebSettingsCompat
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
-import androidx.webkit.WebSettingsCompat
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.project.lol.R
 import com.project.lol.bridge.SpotifyBridge
@@ -120,12 +120,17 @@ import com.project.lol.webview.SpotifyWebViewClient
 import com.project.lol.webview.helpers.buildAmoledJs
 import com.project.lol.webview.helpers.buildCustomCssJs
 import com.project.lol.webview.injections.LogoutCheck
+import org.json.JSONObject
 import java.lang.ref.WeakReference
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.Executors
 import kotlin.math.min
-import org.json.JSONObject
+import androidx.core.content.edit
+import androidx.core.graphics.scale
+import androidx.core.graphics.toColorInt
+import com.project.lol.webview.helpers.DevLogPrelude
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 class MainActivity : ComponentActivity() {
@@ -160,6 +165,8 @@ class MainActivity : ComponentActivity() {
 
     private val loadingProgress = mutableIntStateOf(100)
 
+    private val canGoBackState = mutableStateOf(false)
+
     private val notifPermLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { _ -> }
@@ -172,7 +179,7 @@ class MainActivity : ComponentActivity() {
 
     private val analytics: FirebaseAnalytics by lazy { FirebaseAnalytics.getInstance(this) }
 
-    @SuppressLint("SetJavaScriptEnabled")
+    @SuppressLint("SetJavaScriptEnabled", "JavascriptInterface", "RequiresFeature", "InflateParams")
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
@@ -203,7 +210,7 @@ class MainActivity : ComponentActivity() {
             Toast.makeText(this, "A new update is available", Toast.LENGTH_SHORT).show()
             Handler(Looper.getMainLooper()).postDelayed({
                 try {
-                    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                    startActivity(Intent(Intent.ACTION_VIEW, url.toUri()))
                 } catch (_: Exception) {}
             }, 2000)
         }
@@ -231,6 +238,7 @@ class MainActivity : ComponentActivity() {
             val showDialog = showSleepTimerDialog.value
             val timerActive = sleepTimerActive.value
             val loadProgress = loadingProgress.intValue
+            val canGoBack = canGoBackState.value
 
             var settingsDrawerOpen by remember { mutableStateOf(false) }
             var showMiniMenu by remember { mutableStateOf(false) }
@@ -239,10 +247,10 @@ class MainActivity : ComponentActivity() {
                     .getOrNull() ?: ""
             }
             val seedColor = paletteSeed?.let { hex ->
-                runCatching { Color(android.graphics.Color.parseColor(hex)) }.getOrNull()
+                runCatching { Color(hex.toColorInt()) }.getOrNull()
             }
 
-            BackHandler(enabled = settingsDrawerOpen || webView?.canGoBack() == true) {
+            BackHandler(enabled = settingsDrawerOpen || canGoBack) {
                 if (settingsDrawerOpen) {
                     settingsDrawerOpen = false
                 } else {
@@ -258,37 +266,37 @@ class MainActivity : ComponentActivity() {
                     materialYou = materialYou,
                     onMaterialYouChange = { enabled ->
                         materialYouState.value = enabled
-                        prefs.edit().putBoolean("MaterialYou", enabled).apply()
+                        prefs.edit { putBoolean("MaterialYou", enabled) }
                     },
                     amoledThemeState = amoled,
                     onAmoledThemeChange = { enabled ->
                         amoledState.value = enabled
-                        prefs.edit().putBoolean("AmoledTheme", enabled).apply()
+                        prefs.edit { putBoolean("AmoledTheme", enabled) }
                     },
                     hideTopBar = hideTopBar,
                     onHideTopBarChange = { enabled ->
                         hideTopBarState.value = enabled
-                        prefs.edit().putBoolean("HideTopBar", enabled).apply()
+                        prefs.edit { putBoolean("HideTopBar", enabled) }
                     },
                     landscapeMode = landscapeMode,
                     onLandscapeModeChange = { enabled ->
                         landscapeModeState.value = enabled
-                        prefs.edit().putBoolean("LandscapeMode", enabled).apply()
+                        prefs.edit { putBoolean("LandscapeMode", enabled) }
                         applyOrientation()
                     },
                     keepScreenOn = keepScreenOn,
                     onKeepScreenOnChange = { enabled ->
                         keepScreenOnState.value = enabled
-                        prefs.edit().putBoolean("KeepScreenOn", enabled).apply()
+                        prefs.edit { putBoolean("KeepScreenOn", enabled) }
                         applyKeepScreenOn()
                     },
                     paletteSeed = paletteSeed,
                     onPaletteSeedChange = { hex ->
                         paletteSeedState.value = hex
                         if (hex.isNullOrBlank()) {
-                            prefs.edit().remove("PaletteSeed").apply()
+                            prefs.edit { remove("PaletteSeed") }
                         } else {
-                            prefs.edit().putString("PaletteSeed", hex).apply()
+                            prefs.edit { putString("PaletteSeed", hex) }
                         }
                     },
                     onConnectionModeChange = { switchConnectionMode(it) },
@@ -296,7 +304,14 @@ class MainActivity : ComponentActivity() {
                     onLoadProfile = { cookies -> loadProfile(cookies) },
                     onDeleteProfile = { name -> deleteProfile(name) },
                     onClearCache = { clearWebViewCache() },
-                    onClearData = { clearAllData() }
+                    onClearData = { clearAllData() },
+                    onDebugToggle = { enabled ->
+                        webView?.evaluateJavascript(
+                            if (enabled) DevLogPrelude.js()
+                            else "window.dbg=null;window.dbgw=null;window.dbge=null;",
+                            null
+                        )
+                    },
                 ) {
                     Scaffold(
                         topBar = {
@@ -440,21 +455,31 @@ class MainActivity : ComponentActivity() {
                                         webViewClient = SpotifyWebViewClient(
                                             onLoginRequired = {
                                                 loadUrl("https://accounts.spotify.com/login")
-                                            }
+                                            },
+                                            onNavStateChanged = { backable -> canGoBackState.value = backable }
                                         )
 
                                         val executor = Executors.newSingleThreadExecutor()
                                         if (useProxy && LocalProxyManager.isRunning) {
+                                            // ProxyController requires a scheme (http://, socks://, or direct).
+                                            // A bare "host:port" is parsed as scheme="host" and silently falls
+                                            // back to DIRECT, so MITM never actually happens. Always include
+                                            // the http:// scheme and surface errors via the callback instead
+                                            // of swallowing them.
                                             val proxyConfig = ProxyConfig.Builder()
-                                                .addProxyRule("localhost:${LocalProxyManager.port}")
+                                                .addProxyRule("http://localhost:${LocalProxyManager.port}")
                                                 .build()
                                             ProxyController.getInstance().setProxyOverride(
                                                 proxyConfig,
-                                                executor,
-                                                { }
-                                            )
+                                                executor
+                                            ) {
+                                                android.util.Log.d(
+                                                    "MainActivity",
+                                                    "Proxy override applied: http://localhost:${LocalProxyManager.port}"
+                                                )
+                                            }
                                         } else {
-                                            ProxyController.getInstance().clearProxyOverride(executor, { })
+                                            ProxyController.getInstance().clearProxyOverride(executor) { }
                                         }
 
                                         if (loggedIn) {
@@ -551,7 +576,7 @@ class MainActivity : ComponentActivity() {
 
     private fun setServiceEnabled(newValue: Boolean) {
         serviceEnabledState.value = newValue
-        prefs.edit().putBoolean("ServiceOn", newValue).apply()
+        prefs.edit { putBoolean("ServiceOn", newValue) }
         if (!newValue) {
             analytics.logEvent("service_toggle", Bundle().apply {
                 putString("enabled", "off")
@@ -567,8 +592,8 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun switchConnectionMode(mode: String) {
-        prefs.edit().putString("ConnectionMode", mode).apply()
-        prefs.edit().putBoolean("ServiceOn", false).apply()
+        prefs.edit { putString("ConnectionMode", mode)}
+        prefs.edit { putBoolean("ServiceOn", false) }
         stopService(Intent(this, MediaNotificationService::class.java))
         LocalProxyManager.stop()
         val intent = Intent(this, SplashActivity::class.java).apply {
@@ -584,15 +609,17 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun loadProfile(cookies: String) {
-        if (!ProfileManager.applyProfile(this, cookies)) {
-            Toast.makeText(this, "Profile could not be loaded", Toast.LENGTH_SHORT).show()
-            return
+        ProfileManager.applyProfile(this, cookies) { ok ->
+            if (!ok) {
+                Toast.makeText(this, "Profile could not be loaded", Toast.LENGTH_SHORT).show()
+                return@applyProfile
+            }
+            val intent = Intent(this, SplashActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            }
+            startActivity(intent)
+            finish()
         }
-        val intent = Intent(this, SplashActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-        }
-        startActivity(intent)
-        finish()
     }
 
     private fun deleteProfile(name: String) {
@@ -617,7 +644,7 @@ class MainActivity : ComponentActivity() {
         WebStorage.getInstance().deleteAllData()
         CookieManager.getInstance().removeAllCookies(null)
         CookieManager.getInstance().flush()
-        prefs.edit().putBoolean("LoggedIn", false).apply()
+        prefs.edit { putBoolean("LoggedIn", false) }
         Toast.makeText(this, "All data cleared, please login again", Toast.LENGTH_SHORT).show()
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
@@ -684,7 +711,7 @@ class MainActivity : ComponentActivity() {
             val remainingSecs = timerRemainingMs / 1000
             val mins = remainingSecs / 60
             val secs = remainingSecs % 60
-            val timeStr = String.format("%d:%02d min remaining", mins, secs)
+            val timeStr = String.format(Locale.ROOT, "%d:%02d min remaining", mins, secs)
 
             AlertDialog(
                 onDismissRequest = onDismiss,
@@ -1116,7 +1143,7 @@ class MainActivity : ComponentActivity() {
                     val scale = min(target.toFloat() / raw.width, target.toFloat() / raw.height)
                     val w = (raw.width * scale).toInt().coerceAtLeast(1)
                     val h = (raw.height * scale).toInt().coerceAtLeast(1)
-                    val scaled = Bitmap.createScaledBitmap(raw, w, h, true)
+                    val scaled = raw.scale(w, h)
                     if (scaled != raw) raw.recycle()
                     pipCoverBitmap = scaled
                     runOnUiThread {
@@ -1132,6 +1159,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun destroyWebView() {
+        canGoBackState.value = false
         pipVideoTimeout.removeCallbacksAndMessages(null)
         pipVideoView = null
         pipVideoCallback = null
@@ -1140,7 +1168,14 @@ class MainActivity : ComponentActivity() {
         webView?.let {
             it.stopLoading()
             it.removeJavascriptInterface("AndBridge")
-            if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_VIEW_RENDERER_TERMINATE)) {
+            // Two separate feature flags guard this call:
+            //  - GET_WEB_VIEW_RENDERER -> required by WebViewCompat.getWebViewRenderProcess()
+            //  - WEB_VIEW_RENDERER_TERMINATE -> required by WebViewRenderProcess.terminate()
+            // Checking only the terminate flag would still let getWebViewRenderProcess()
+            // throw on WebView versions that don't expose it.
+            if (WebViewFeature.isFeatureSupported(WebViewFeature.GET_WEB_VIEW_RENDERER) &&
+                WebViewFeature.isFeatureSupported(WebViewFeature.WEB_VIEW_RENDERER_TERMINATE)
+            ) {
                 try {
                     WebViewCompat.getWebViewRenderProcess(it)?.terminate()
                 } catch (_: Exception) {}
@@ -1260,7 +1295,7 @@ class MainActivity : ComponentActivity() {
 
             view.evaluateJavascript(LogoutCheck.CONTENT) { result ->
                 if (result == "\"out\"") {
-                    prefs.edit().putBoolean("LoggedIn", false).apply()
+                    prefs.edit {putBoolean("LoggedIn", false)}
                     view.loadUrl("https://accounts.spotify.com/login")
                 }
             }

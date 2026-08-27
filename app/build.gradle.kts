@@ -22,7 +22,7 @@ android {
     defaultConfig {
         applicationId = "com.project.lol"
         minSdk = 28
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 9
         versionName = "1.0.10"
         ndk {
@@ -60,6 +60,7 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+    compileSdkMinor = 0
 }
 
 dependencies {

@@ -29,6 +29,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BatterySaver
 import androidx.compose.material.icons.filled.BrightnessHigh
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Check
@@ -186,6 +187,7 @@ fun SettingsContent(
     var btAutoResume by remember { mutableStateOf(prefs.getBoolean("BtAutoResume", false)) }
     var playerMode by remember { mutableStateOf(prefs.getString("PlayerMode", "spotilol") ?: "spotilol") }
     var connectionMode by remember { mutableStateOf(prefs.getString("ConnectionMode", "normal") ?: "normal") }
+    var powerSave by remember { mutableStateOf(prefs.getBoolean("PowerSave", false)) }
 
     val context = LocalContext.current
     val platformLocale = LocalLocale.current.platformLocale
@@ -386,6 +388,19 @@ fun SettingsContent(
                     prefs.edit { putBoolean("CloseNowPlay", it) }
                 }
             )
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+
+            SettingSwitchTile(
+                title = "Power Save Mode",
+                subtitle = "Music only, freezing video, throttles polling",
+                icon = Icons.Default.BatterySaver,
+                checked = powerSave,
+                onCheckedChange = {
+                    powerSave = it
+                    prefs.edit { putBoolean("PowerSave", it) }
+                }
+            )
         }
 
         SettingSectionCard(
@@ -467,7 +482,7 @@ fun SettingsContent(
             }
             SettingTile(
                 title = "MITM Proxy Mode",
-                subtitle = "$modeLabel — restarts the app",
+                subtitle = "$modeLabel - restarts the app",
                 icon = Icons.Default.Shield,
                 onClick = { showConnectionModeDialog = true }
             )

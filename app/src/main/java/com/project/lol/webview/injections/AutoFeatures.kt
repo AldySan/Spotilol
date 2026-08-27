@@ -2,53 +2,33 @@ package com.project.lol.webview.injections
 
 object AutoFeatures {
     const val CONTENT = """
-            window.armAutoPlay = function(){
-                if(window.__splApArmed) return;
-                window.__splApArmed = true;
+            window.splAutoPlay = function(){
                 if(window.autoPlayMode==='disabled') return;
+                if(window.__splApRan) return;
+                window.__splApRan = true;
                 window.__splApActive = true;
+
                 var attempts = 0;
                 var noBtnTicks = 0;
-                var confirmed = false;
-                var labelObs = null;
 
-                function done(){
+                function done(unlocked){
                     window.__splApActive = false;
+                    if(unlocked) window.__splUnlocked = true;
                     clearInterval(iv);
-                    if(labelObs){ try{ labelObs.disconnect(); }catch(e){} labelObs = null; }
-                }
-
-                function watchLabel(pb){
-                    if(labelObs || !pb || !window.MutationObserver) return;
-                    try{
-                        labelObs = new MutationObserver(function(){
-                            confirmed = true;
-                            done();
-                        });
-                        labelObs.observe(pb, { attributes: true, attributeFilter: ['aria-label'] });
-                    }catch(e){}
                 }
 
                 var tick = function(){
                     var pb = window.pBtn;
-                    if(confirmed) return;
                     if(!pb){
-                        if(++noBtnTicks > 15) done();
+                        if(++noBtnTicks > 15) done(false);
                         return;
                     }
-                    watchLabel(pb);
+                    if(reqPause){ done(false); return; }
                     if(pb.getAttribute('aria-label')!=='Play'){
-                        done();
+                        done(true);
                         return;
                     }
-                    if(reqPause || ulFlag){
-                        done();
-                        return;
-                    }
-                    if(attempts >= 4){
-                        done();
-                        return;
-                    }
+                    if(attempts >= 4){ done(false); return; }
                     attempts++;
                     pb.click();
                 };
@@ -69,7 +49,7 @@ object AutoFeatures {
                             if(cb) cb.click();
                         },500);
                     }
-                    if(window.autoPlayMode==='permanent' && 'pBtn' in window && !reqPause && !ulFlag && !window.__splApActive && pBtn.getAttribute('aria-label')==='Play') {
+                    if(window.autoPlayMode==='permanent' && 'pBtn' in window && window.__splUnlocked && !reqPause && !ulFlag && !window.__splApActive && pBtn.getAttribute('aria-label')==='Play') {
                         pBtn.click();
                     }
                 },5000);

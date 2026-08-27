@@ -1,5 +1,7 @@
 package com.project.lol.webview.helpers
 
+import java.util.Locale
+
 fun isAnalyticsDomain(url: String): Boolean {
     return url.contains("doubleclick.net") ||
             url.contains("googlesyndication.com") ||
@@ -22,6 +24,16 @@ fun isAdAudioUrl(url: String): Boolean {
             url.contains("2mdn.net") ||
             url.contains("adxcel.com") ||
             url.contains("adstudio-assets.scdn.co")
+}
+
+fun isPowerHogUrl(url: String): Boolean {
+    if (url.contains("canvasset.scdn.co")) return true
+    if (url.contains("canvas-repeater")) return true
+    if (url.contains("video-ak.spotify.com")) return true
+    if (url.contains("video-provider.net")) return true
+    if (url.contains("/audio/")) return false
+    val path = url.substringBefore('?').substringBefore('#').lowercase(Locale.ROOT)
+    return path.endsWith(".mp4") || path.endsWith(".m4s") || path.endsWith(".m3u8") || path.endsWith(".webm")
 }
 
 fun matchAdCdn(url: String): String? {

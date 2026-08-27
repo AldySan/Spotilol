@@ -108,7 +108,7 @@ class SplashActivity : ComponentActivity() {
                         delay(800.milliseconds)
                         // Was isCAInstalled() - keystore enumeration, which lies about a
                         // freshly-installed cert until process restart. The combined check
-                        // does a real TLS handshake through the default trust pipeline —
+                        // does a real TLS handshake through the default trust pipeline -
                         // same verdict source as the manual Check button. Costs one
                         // localhost handshake, and we're sleeping 800ms here anyway.
                         certInstalled = LocalProxyManager.isCAEffectivelyInstalled()

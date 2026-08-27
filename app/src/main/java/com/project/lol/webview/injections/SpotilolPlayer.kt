@@ -317,7 +317,7 @@ object SpotilolPlayer {
 
                     var rafLastTime=0;
                     function rafUpdate(timestamp){
-                        if(timestamp-rafLastTime>100){ splUpdate(); rafLastTime=timestamp; }
+                        if(timestamp-rafLastTime>(window.__splPsRafMs||100)){ splUpdate(); rafLastTime=timestamp; }
                         requestAnimationFrame(rafUpdate);
                     }
                     if(window.splMiniPref) splSetMini(true);

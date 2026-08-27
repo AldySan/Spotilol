@@ -62,7 +62,22 @@ object MainLoop {
                             if(ulFlag && pBtn.getAttribute('aria-label')==='Play') {
                                 AndBridge.deferMessage('unlock');
                                 actSkipForward();
-                            } else if(ulFlag) { ulFlag=false; }
+                                var uTries=0;
+                                var uIv=setInterval(function(){
+                                    uTries++;
+                                    if(pBtn.getAttribute('aria-label')!=='Play'){
+                                        window.__splUnlocked=true;
+                                        ulFlag=false;
+                                        clearInterval(uIv);
+                                    } else if(uTries>5){
+                                        clearInterval(uIv);
+                                        ulFlag=false;
+                                    }
+                                },1000);
+                            } else if(ulFlag) {
+                                ulFlag=false;
+                                window.__splUnlocked=true;
+                            }
                         },10000);
                     }
                 });
@@ -74,7 +89,6 @@ object MainLoop {
                     addAndAuto();
                     addAutoFeatures();
                     addCSSJSHack();
-                    armAutoPlay();
                 }
             };
             firstFuck();

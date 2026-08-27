@@ -5,13 +5,13 @@ package com.project.lol.webview.injections
  * GitHub: https://github.com/AldySan
  *
  * Unregisters Spotify's service worker and prevents re-registration.
- * The SW intercepts ALL network requests to check its cache map — pure
+ * The SW intercepts ALL network requests to check its cache map - pure
  * overhead on a mobile WebView that always has internet and has its own
  * HTTP cache + optional MITM proxy.
  *
  * Injected in onPageStarted so it runs before Spotify's scripts try to
  * register the SW via Workbox. The register() override returns a rejected
- * promise — Workbox catches this and continues without SW, falling back
+ * promise - Workbox catches this and continues without SW, falling back
  * to network-first behavior (which is what we want).
  *
  * Also throttles aggressive 250ms setInterval polling to 1000ms. The

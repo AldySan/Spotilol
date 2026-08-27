@@ -73,6 +73,8 @@ class SpotifyWebViewClient(
         super.onPageStarted(view, url, favicon)
         val useProxy = view?.context?.getSharedPreferences("spotilol_prefs", 0)
             ?.getString("ConnectionMode", "normal") == "proxy"
+        val powerSave = view?.context?.getSharedPreferences("spotilol_prefs", 0)
+            ?.getBoolean("PowerSave", false) ?: false
         view?.evaluateJavascript("window.__spotilolUseProxy=$useProxy;", null)
         // FIX: these payloads were injected raw - strip them like every other
         // injection, served from cache.
@@ -83,11 +85,13 @@ class SpotifyWebViewClient(
         }
         view?.evaluateJavascript(staticJs("FetchOverride", FetchOverride.CONTENT), null)
         view?.evaluateJavascript(staticJs("WorkerNeutralize", WorkerNeutralize.CONTENT), null)
+        view?.evaluateJavascript("window.__splPowerSavePref=$powerSave;", null)
+        view?.evaluateJavascript(staticJs("PowerSave", PowerSave.CONTENT), null)
     }
 
     override fun onRenderProcessGone(view: WebView?, detail: RenderProcessGoneDetail?): Boolean {
         Log.w(TAG, "Renderer process gone: crashed=${detail?.didCrash()}")
-        // Don't touch view.parent here — detaching from the UI thread is the
+        // Don't touch view.parent here - detaching from the UI thread is the
         // activity's job. We just destroy the dead WebView (mandatory per docs:
         // "the WebView can no longer be used") and notify up so MainActivity can
         // tear down its references and rebuild via a composition key bump.
@@ -108,6 +112,13 @@ class SpotifyWebViewClient(
         val url = request.url.toString()
 
         if (isAnalyticsDomain(url)) {
+            val headers = mapOf("Access-Control-Allow-Origin" to "*")
+            return WebResourceResponse("text/plain", "utf-8", 200, "OK", headers,
+                ByteArrayInputStream(ByteArray(0)))
+        }
+
+        if (view.context.getSharedPreferences("spotilol_prefs", 0)
+                .getBoolean("PowerSave", false) && isPowerHogUrl(url)) {
             val headers = mapOf("Access-Control-Allow-Origin" to "*")
             return WebResourceResponse("text/plain", "utf-8", 200, "OK", headers,
                 ByteArrayInputStream(ByteArray(0)))
@@ -272,6 +283,11 @@ class SpotifyWebViewClient(
                 val wv = currentWebView ?: return@OnSharedPreferenceChangeListener
                 val mode = prefs.getString("PlayerMode", "spotilol") ?: "spotilol"
                 switchPlayerMode(wv, mode)
+            }
+            if (key == "PowerSave") {
+                val wv = currentWebView ?: return@OnSharedPreferenceChangeListener
+                val on = prefs.getBoolean("PowerSave", false)
+                wv.evaluateJavascript("if(window.__splApplyPowerSave) window.__splApplyPowerSave($on);", null)
             }
         }
         prefs.registerOnSharedPreferenceChangeListener(prefsListener)

@@ -215,7 +215,7 @@ object LocalProxyManager {
 
     /**
      * FIX: stop() used to strand all 32 parked pool threads (they only die when
-     * the process does), and start() kept handing work to a shutdown pool —
+     * the process does), and start() kept handing work to a shutdown pool -
      * RejectedExecutionException, silent connection refusals. Lazily (re)create
      * the pool so every start() gets a live one.
      */
@@ -896,7 +896,7 @@ object LocalProxyManager {
      * with the platform-default SSLSocketFactory, and require the full
      * handshake + hostname verification to succeed. That exercises the real
      * trust decision (freshly constructed TrustManagerImpl), so it cannot be
-     * fooled by stale keystore-enumeration views — the exact staleness that
+     * fooled by stale keystore-enumeration views - the exact staleness that
      * made isCAInstalled() lie to us mid-session until an app restart.
      */
     fun isCATrustedLive(): Boolean {

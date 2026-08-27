@@ -408,6 +408,20 @@ class MainActivity : ComponentActivity() {
                                 handleMediaStatus(json)
                             }
 
+                            bridge.onPlayLoaded = {
+                                // Autoplay is now a native decision. JS self-triggering deadlocked on
+                                // the unlock flag - the only thing that could set the flag was a play
+                                // click, and the only play clicker was waiting on the flag. Native
+                                // breaks the circle: playLoaded fires, we evaluate, done.
+                                val mode = prefs.getString("APlayMode", "disabled") ?: "disabled"
+                                if (mode == "onetime" || mode == "permanent") {
+                                    webView?.evaluateJavascript(
+                                        "if(typeof splAutoPlay==='function') splAutoPlay();",
+                                        null
+                                    )
+                                }
+                            }
+
 
                             key(webViewGen.intValue) {
                                 AndroidView(
@@ -1175,7 +1189,7 @@ class MainActivity : ComponentActivity() {
                 conn.connect()
                 val raw = BitmapFactory.decodeStream(conn.inputStream)
                 if (raw != null) {
-                    val target = 1024
+                    val target = if (prefs.getBoolean("PowerSave", false)) 384 else 1024
                     val scale = min(target.toFloat() / raw.width, target.toFloat() / raw.height)
                     val w = (raw.width * scale).toInt().coerceAtLeast(1)
                     val h = (raw.height * scale).toInt().coerceAtLeast(1)

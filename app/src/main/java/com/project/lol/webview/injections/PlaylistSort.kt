@@ -56,7 +56,7 @@ object PlaylistSort {
                     if (d && d.error) msg = d.error.message || (typeof d.error === 'string' ? d.error : '');
                 } catch (e) {}
                 var s = prefix + ' (HTTP ' + r.status + ')';
-                if (msg) s += ' — ' + msg;
+                if (msg) s += ' - ' + msg;
                 return s;
             }
 
@@ -70,20 +70,20 @@ object PlaylistSort {
                     if (r.status !== 429) return r;
                     lastWait = splRetryAfter(r) || (t + 2);
                     if (t < SPL_TRIES) {
-                        var s = 'Rate limited (429) — retry ' + t + '/' + (SPL_TRIES - 1) + ' in ' + lastWait + 's';
+                        var s = 'Rate limited (429) - retry ' + t + '/' + (SPL_TRIES - 1) + ' in ' + lastWait + 's';
                         onStatus(s);
                         splToast(s);
                         await splSleep(lastWait * 1000);
                     }
                 }
-                throw new Error('Rate limited (HTTP 429) — still throttled after ' + (SPL_TRIES - 1) +
+                throw new Error('Rate limited (HTTP 429) - still throttled after ' + (SPL_TRIES - 1) +
                     ' retries (last backoff ' + lastWait + 's). Wait a minute, then sort again.');
             }
 
             window.splSortPlaylist = async function(direction, onStatus) {
                 onStatus = onStatus || function(){};
-                if (window._splSorting) throw new Error('A sort is already running — wait for it to finish');
-                if (!window.spotAuthToken) throw new Error('No auth token yet — play a track first, then sort');
+                if (window._splSorting) throw new Error('A sort is already running - wait for it to finish');
+                if (!window.spotAuthToken) throw new Error('No auth token yet - play a track first, then sort');
                 var m = location.pathname.match(/\/playlist\/([A-Za-z0-9]+)/);
                 if (!m) throw new Error('Not on a playlist page (no /playlist/<id> in the URL)');
                 var plId = m[1];
@@ -97,8 +97,8 @@ object PlaylistSort {
                             '/items?fields=total,snapshot_id,items(added_at,track(uri,name))' +
                             '&limit=100&offset=' + offset;
                         var r = await splApi('GET', url, null, onStatus);
-                        if (r.status === 403) throw new Error("Can't sort (HTTP 403) — you don't own this playlist");
-                        if (r.status === 401) throw new Error('Token expired (HTTP 401) — play a track to refresh it, then retry');
+                        if (r.status === 403) throw new Error("Can't sort (HTTP 403) - you don't own this playlist");
+                        if (r.status === 401) throw new Error('Token expired (HTTP 401) - play a track to refresh it, then retry');
                         if (r.status !== 200) throw new Error(splApiErr('Fetching tracks failed', r));
                         var d;
                         try { d = JSON.parse(r.body || '{}'); }
@@ -110,7 +110,7 @@ object PlaylistSort {
                         onStatus('Fetching tracks… ' + items.length + '/' + total);
                         if (!total) break;
                     }
-                    if (items.length < 2) return 'Nothing to sort — playlist has fewer than 2 tracks';
+                    if (items.length < 2) return 'Nothing to sort - playlist has fewer than 2 tracks';
 
                     var sorted = items.slice().sort(function(a, b) {
                         var x = a.added_at || '', y = b.added_at || '';
@@ -136,16 +136,16 @@ object PlaylistSort {
                         var body = { range_start: plan[p].from, insert_before: plan[p].to, range_length: 1 };
                         if (snapshotId) body.snapshot_id = snapshotId;
                         var pr = await splApi('PUT', putUrl, body, onStatus);
-                        if (pr.status === 403) throw new Error("Reorder rejected (HTTP 403) — you don't own this playlist. Applied " + p + '/' + plan.length + ' moves; playlist is PARTIALLY sorted — run the sort again');
-                        if (pr.status === 401) throw new Error('Token expired (HTTP 401) mid-sort. Applied ' + p + '/' + plan.length + ' moves; playlist is PARTIALLY sorted — play a track, then sort again');
-                        if (pr.status !== 201) throw new Error(splApiErr('Reorder failed at move ' + (p + 1) + '/' + plan.length + ' (applied ' + p + '; playlist is PARTIALLY sorted — run the sort again)', pr));
+                        if (pr.status === 403) throw new Error("Reorder rejected (HTTP 403) - you don't own this playlist. Applied " + p + '/' + plan.length + ' moves; playlist is PARTIALLY sorted - run the sort again');
+                        if (pr.status === 401) throw new Error('Token expired (HTTP 401) mid-sort. Applied ' + p + '/' + plan.length + ' moves; playlist is PARTIALLY sorted - play a track, then sort again');
+                        if (pr.status !== 201) throw new Error(splApiErr('Reorder failed at move ' + (p + 1) + '/' + plan.length + ' (applied ' + p + '; playlist is PARTIALLY sorted - run the sort again)', pr));
                         try { snapshotId = JSON.parse(pr.body || '{}').snapshot_id || snapshotId; } catch (e) {}
 
                         await splSleep(100);
                     }
 
                     var done = 'Sorted ' + (direction === 'desc' ? 'newest first' : 'oldest first') +
-                        ' — ' + plan.length + ' moves ✓';
+                        ' - ' + plan.length + ' moves ✓';
 
                     setTimeout(function() {
                         var first = document.querySelector('[data-testid="tracklist-row"] a[href*="/track/"]');

@@ -21,7 +21,7 @@ import androidx.collection.LruCache
  *  - FIX: `window.console.log(...)` was truncated to `window.`.
  *  - FIX: Literal "console.log(...)" text inside strings was stripped,
  *         silently changing runtime values.
- *  - FIX: Deleting the statement broke `if (x) console.log(x); next();` —
+ *  - FIX: Deleting the statement broke `if (x) console.log(x); next();` -
  *         `next()` became the if-body.
  *  - FIX (perf): every intercepted response was re-scanned. Results are
  *         now memoized in a bounded LRU cache, so each asset is scanned
@@ -29,7 +29,7 @@ import androidx.collection.LruCache
  *
  * The scanner resolves these by lexing string/comment/regex literals and
  * tracking balanced parentheses. Matched calls are replaced with the
- * expression `void 0` — the exact return value of console.log (undefined) —
+ * expression `void 0` - the exact return value of console.log (undefined) -
  * so the surrounding code remains valid in every syntactic position.
  *
  * Complexity is O(n) with no backtracking. Throughput is kept close to the
@@ -89,14 +89,14 @@ object JsUtils {
      */
     fun stripConsoleLogsCached(key: String, code: String): String {
         // FIX (perf): check the cache before scanning. LruCache synchronizes
-        // internally per call, so no lock is held while we scan — concurrent
+        // internally per call, so no lock is held while we scan - concurrent
         // misses on different URLs proceed in parallel.
         cache[key]?.let { return it }
 
         val stripped = stripConsoleLogs(code)
 
         // Note: on a concurrent duplicate miss, the second result simply
-        // overwrites the first — the outputs are deterministic, so this is
+        // overwrites the first - the outputs are deterministic, so this is
         // harmless.
         cache.put(key, stripped)
         return stripped
@@ -111,7 +111,7 @@ object JsUtils {
      * instance is returned without allocation.
      */
     fun stripConsoleLogs(code: String): String {
-        // FIX (perf): fast path — most assets contain no logging at all.
+        // FIX (perf): fast path - most assets contain no logging at all.
         if (!code.contains("console")) return code
 
         val sb = StringBuilder(code.length)
@@ -128,13 +128,13 @@ object JsUtils {
                     sb.append(code, i, end); i = end
                 }
                 '/' -> when {
-                    // Line comment — copied verbatim.
+                    // Line comment - copied verbatim.
                     i + 1 < n && code[i + 1] == '/' -> {
                         val nl = code.indexOf('\n', i)
                         val end = if (nl == -1) n else nl
                         sb.append(code, i, end); i = end
                     }
-                    // Block comment — copied verbatim.
+                    // Block comment - copied verbatim.
                     i + 1 < n && code[i + 1] == '*' -> {
                         val cm = code.indexOf("*/", i + 2)
                         val end = if (cm == -1) n else cm + 2
@@ -158,8 +158,8 @@ object JsUtils {
                             // the statement. Deleting broke single-statement
                             // bodies (`if (x) console.log(x); next();`) and
                             // expression positions. `void 0` evaluates to
-                            // undefined — identical to console.log's return
-                            // value — so behavior is preserved.
+                            // undefined - identical to console.log's return
+                            // value - so behavior is preserved.
                             sb.append("void 0")
                             i = close + 1 // consume ')'; a trailing ';' is harmless
                         } else { sb.append(c); i++ }
@@ -243,7 +243,7 @@ object JsUtils {
      *
      * Known limitation: a regex literal written directly after `)` (e.g.
      * `if (x) /re/.test(y)`) is classified as division. The consequence is
-     * that a call may be skipped — output is never corrupted.
+     * that a call may be skipped - output is never corrupted.
      */
     private fun isRegexStart(code: String, i: Int): Boolean {
         var j = i - 1

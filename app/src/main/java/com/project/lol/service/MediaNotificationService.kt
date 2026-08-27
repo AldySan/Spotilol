@@ -423,7 +423,8 @@ class MediaNotificationService : Service() {
                 val raw = BitmapFactory.decodeStream(stream)
                 stream.close()
                 if (raw != null) {
-                    val target = 512
+                    val powerSave = getSharedPreferences("spotilol_prefs", MODE_PRIVATE).getBoolean("PowerSave", false)
+                    val target = if (powerSave) 192 else 512
                     val scale = min(target.toFloat() / raw.width, target.toFloat() / raw.height)
                     val w = (raw.width * scale).toInt()
                     val h = (raw.height * scale).toInt()

@@ -19,7 +19,8 @@ import androidx.core.content.edit
 
 class SpotifyWebViewClient(
     private val onLoginRequired: () -> Unit,
-    private val onNavStateChanged: ((Boolean) -> Unit)? = null
+    private val onNavStateChanged: ((Boolean) -> Unit)? = null,
+    private val onRenderProcessGone: (() -> Unit)? = null
 ) : WebViewClient() {
 
     override fun doUpdateVisitedHistory(view: WebView?, url: String?, isReload: Boolean) {
@@ -29,6 +30,7 @@ class SpotifyWebViewClient(
 
     private var currentWebView: WebView? = null
     private var prefsListener: android.content.SharedPreferences.OnSharedPreferenceChangeListener? = null
+    private var boundPrefs: android.content.SharedPreferences? = null
 
     override fun onPageFinished(view: WebView?, url: String?) {
         super.onPageFinished(view, url)
@@ -85,10 +87,17 @@ class SpotifyWebViewClient(
 
     override fun onRenderProcessGone(view: WebView?, detail: RenderProcessGoneDetail?): Boolean {
         Log.w(TAG, "Renderer process gone: crashed=${detail?.didCrash()}")
-        view?.let {
-            it.stopLoading()
-            it.destroy()
-        }
+        // Don't touch view.parent here — detaching from the UI thread is the
+        // activity's job. We just destroy the dead WebView (mandatory per docs:
+        // "the WebView can no longer be used") and notify up so MainActivity can
+        // tear down its references and rebuild via a composition key bump.
+        try {
+            view?.let {
+                it.stopLoading()
+                it.destroy()
+            }
+        } catch (_: Exception) {}
+        onRenderProcessGone?.invoke()
         return true
     }
 
@@ -256,7 +265,8 @@ class SpotifyWebViewClient(
 
     private fun registerPrefsListener(view: WebView) {
         val prefs = view.context.getSharedPreferences("spotilol_prefs", 0)
-        prefsListener?.let { prefs.unregisterOnSharedPreferenceChangeListener(it) }
+        prefsListener?.let { boundPrefs?.unregisterOnSharedPreferenceChangeListener(it) }
+        boundPrefs = prefs
         prefsListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
             if (key == "PlayerMode") {
                 val wv = currentWebView ?: return@OnSharedPreferenceChangeListener
@@ -301,6 +311,18 @@ class SpotifyWebViewClient(
 
     private fun onPageFinishedClean(view: WebView, name: String, js: String) {
         view.evaluateJavascript(staticJs(name, js), null)
+    }
+
+    /**
+     * Detaches the prefs listener and drops the WebView reference so the client
+     * (and the whole view tree it points at) can be collected once the WebView
+     * is destroyed. Called from MainActivity.destroyWebView().
+     */
+    fun release() {
+        prefsListener?.let { boundPrefs?.unregisterOnSharedPreferenceChangeListener(it) }
+        prefsListener = null
+        boundPrefs = null
+        currentWebView = null
     }
 
     /**

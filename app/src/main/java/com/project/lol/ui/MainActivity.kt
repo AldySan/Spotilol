@@ -81,6 +81,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -139,6 +140,8 @@ import java.util.Locale
 class MainActivity : ComponentActivity() {
 
     private var webView: WebView? = null
+    private var activeWebViewClient: SpotifyWebViewClient? = null
+    private val webViewGen = mutableIntStateOf(0)
     private var serviceStarted = false
     @Volatile private var pipCoverBitmap: Bitmap? = null
     @Volatile private var pipPlaying = false
@@ -171,6 +174,7 @@ class MainActivity : ComponentActivity() {
     private val loadingProgress = mutableIntStateOf(100)
 
     private val canGoBackState = mutableStateOf(false)
+    private val pipCoverExecutor = Executors.newSingleThreadExecutor()
 
     private val notifPermLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -196,12 +200,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-
-        // Track screen view
-        analytics.logEvent(FirebaseAnalytics.Event.SCREEN_VIEW, Bundle().apply {
-            putString(FirebaseAnalytics.Param.SCREEN_NAME, "MainActivity")
-            putString(FirebaseAnalytics.Param.SCREEN_CLASS, "MainActivity")
-        })
 
         prefs = getSharedPreferences("spotilol_prefs", MODE_PRIVATE)
         val useProxy = prefs.getString("ConnectionMode", "normal") == "proxy"
@@ -411,107 +409,125 @@ class MainActivity : ComponentActivity() {
                             }
 
 
+                            key(webViewGen.intValue) {
+                                AndroidView(
+                                    factory = { context ->
+                                        WebView(context).apply {
+                                            layoutParams = ViewGroup.LayoutParams(
+                                                ViewGroup.LayoutParams.MATCH_PARENT,
+                                                ViewGroup.LayoutParams.MATCH_PARENT
+                                            )
 
-                            AndroidView(
-                                factory = { context ->
-                                    WebView(context).apply {
-                                        layoutParams = ViewGroup.LayoutParams(
-                                            ViewGroup.LayoutParams.MATCH_PARENT,
-                                            ViewGroup.LayoutParams.MATCH_PARENT
-                                        )
+                                            webView = this
 
-                                        webView = this
+                                            setLayerType(View.LAYER_TYPE_HARDWARE, null)
 
-                                        setLayerType(View.LAYER_TYPE_HARDWARE, null)
-
-                                        settings.apply {
-                                            userAgentString = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
-                                            javaScriptEnabled = true
-                                            domStorageEnabled = true
-                                            useWideViewPort = true
-                                            loadWithOverviewMode = true
-                                            setSupportZoom(true)
-                                            builtInZoomControls = true
-                                            displayZoomControls = false
-                                            allowFileAccess = false
-                                            allowContentAccess = false
-                                            mediaPlaybackRequiresUserGesture = false
-                                            setSupportMultipleWindows(true)
-                                            javaScriptCanOpenWindowsAutomatically = true
-                                            cacheMode = android.webkit.WebSettings.LOAD_DEFAULT
-                                            setGeolocationEnabled(false)
-                                            @Suppress("DEPRECATION")
-                                            saveFormData = false
-                                            mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_NEVER_ALLOW
-                                        }
-
-                                        setInitialScale(100)
-                                        setBackgroundColor(0xFF000000.toInt())
-
-                                        if (WebViewFeature.isFeatureSupported(WebViewFeature.BACK_FORWARD_CACHE)) {
-                                            WebSettingsCompat.setBackForwardCacheEnabled(settings, true)
-                                        }
-
-                                        addJavascriptInterface(bridge, "AndBridge")
-                                        webChromeClient = SpotifyWebChromeClient(
-                                            onProgressChanged = { progress ->
-                                                loadingProgress.intValue = progress
-                                            },
-                                            onShowCustomView = { view, callback ->
-                                                handleCustomViewShown(view, callback)
-                                            },
-                                            onHideCustomView = {
-                                                handleCustomViewHidden()
-                                            },
-                                            onFileChooser = { callback, _ ->
-                                                filePathCallback?.onReceiveValue(null)
-                                                filePathCallback = callback
-                                                filePickerLauncher.launch("image/*")
-                                                true
+                                            settings.apply {
+                                                userAgentString =
+                                                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+                                                javaScriptEnabled = true
+                                                domStorageEnabled = true
+                                                useWideViewPort = true
+                                                loadWithOverviewMode = true
+                                                setSupportZoom(true)
+                                                builtInZoomControls = true
+                                                displayZoomControls = false
+                                                allowFileAccess = false
+                                                allowContentAccess = false
+                                                mediaPlaybackRequiresUserGesture = false
+                                                setSupportMultipleWindows(true)
+                                                javaScriptCanOpenWindowsAutomatically = true
+                                                cacheMode = android.webkit.WebSettings.LOAD_DEFAULT
+                                                setGeolocationEnabled(false)
+                                                @Suppress("DEPRECATION")
+                                                saveFormData = false
+                                                mixedContentMode =
+                                                    android.webkit.WebSettings.MIXED_CONTENT_NEVER_ALLOW
                                             }
-                                        )
 
-                                        webViewClient = SpotifyWebViewClient(
-                                            onLoginRequired = {
-                                                loadUrl("https://accounts.spotify.com/login")
-                                            },
-                                            onNavStateChanged = { backable -> canGoBackState.value = backable }
-                                        )
+                                            setInitialScale(100)
+                                            setBackgroundColor(0xFF000000.toInt())
 
-                                        val executor = Executors.newSingleThreadExecutor()
-                                        if (useProxy && LocalProxyManager.isRunning) {
-                                            // ProxyController requires a scheme (http://, socks://, or direct).
-                                            // A bare "host:port" is parsed as scheme="host" and silently falls
-                                            // back to DIRECT, so MITM never actually happens. Always include
-                                            // the http:// scheme and surface errors via the callback instead
-                                            // of swallowing them.
-                                            val proxyConfig = ProxyConfig.Builder()
-                                                .addProxyRule("http://localhost:${LocalProxyManager.port}")
-                                                .build()
-                                            ProxyController.getInstance().setProxyOverride(
-                                                proxyConfig,
-                                                executor
-                                            ) {
-                                                android.util.Log.d(
-                                                    "MainActivity",
-                                                    "Proxy override applied: http://localhost:${LocalProxyManager.port}"
+                                            if (WebViewFeature.isFeatureSupported(WebViewFeature.BACK_FORWARD_CACHE)) {
+                                                WebSettingsCompat.setBackForwardCacheEnabled(
+                                                    settings,
+                                                    true
                                                 )
                                             }
-                                        } else {
-                                            ProxyController.getInstance().clearProxyOverride(executor) { }
-                                        }
 
-                                        if (loggedIn) {
-                                            loadUrl("https://open.spotify.com/")
-                                        } else {
-                                            loadUrl("https://accounts.spotify.com/login")
+                                            addJavascriptInterface(bridge, "AndBridge")
+                                            webChromeClient = SpotifyWebChromeClient(
+                                                onProgressChanged = { progress ->
+                                                    loadingProgress.intValue = progress
+                                                },
+                                                onShowCustomView = { view, callback ->
+                                                    handleCustomViewShown(view, callback)
+                                                },
+                                                onHideCustomView = {
+                                                    handleCustomViewHidden()
+                                                },
+                                                onFileChooser = { callback, _ ->
+                                                    filePathCallback?.onReceiveValue(null)
+                                                    filePathCallback = callback
+                                                    filePickerLauncher.launch("image/*")
+                                                    true
+                                                }
+                                            )
+
+                                            webViewClient = SpotifyWebViewClient(
+                                                onLoginRequired = {
+                                                    loadUrl("https://accounts.spotify.com/login")
+                                                },
+                                                onNavStateChanged = { backable ->
+                                                    canGoBackState.value = backable
+                                                },
+                                                onRenderProcessGone = {
+                                                    // Bumping the key makes Compose dispose the old AndroidView and run
+                                                    // the factory again. destroyWebView() clears every reference first
+                                                    // so the new factory starts from a clean slate.
+                                                    runOnUiThread {
+                                                        destroyWebView()
+                                                        webViewGen.intValue += 1
+                                                    }
+                                                }
+                                            ).also { activeWebViewClient = it }
+
+                                            val executor = Executors.newSingleThreadExecutor()
+                                            if (useProxy && LocalProxyManager.isRunning) {
+                                                // ProxyController requires a scheme (http://, socks://, or direct).
+                                                // A bare "host:port" is parsed as scheme="host" and silently falls
+                                                // back to DIRECT, so MITM never actually happens. Always include
+                                                // the http:// scheme and surface errors via the callback instead
+                                                // of swallowing them.
+                                                val proxyConfig = ProxyConfig.Builder()
+                                                    .addProxyRule("http://localhost:${LocalProxyManager.port}")
+                                                    .build()
+                                                ProxyController.getInstance().setProxyOverride(
+                                                    proxyConfig,
+                                                    executor
+                                                ) {
+                                                    android.util.Log.d(
+                                                        "MainActivity",
+                                                        "Proxy override applied: http://localhost:${LocalProxyManager.port}"
+                                                    )
+                                                }
+                                            } else {
+                                                ProxyController.getInstance()
+                                                    .clearProxyOverride(executor) { }
+                                            }
+
+                                            if (loggedIn) {
+                                                loadUrl("https://open.spotify.com/")
+                                            } else {
+                                                loadUrl("https://accounts.spotify.com/login")
+                                            }
                                         }
-                                    }
-                                },
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(MaterialTheme.colorScheme.background)
-                            )
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(MaterialTheme.colorScheme.background)
+                                )
+                            }
 
                             LaunchedEffect(webView) {
                                 webView?.let { startMediaService() }
@@ -1066,7 +1082,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun updatePipParams() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && isInPictureInPictureMode) {
+        if (isInPictureInPictureMode) {
             setPictureInPictureParams(buildPipParams())
         }
     }
@@ -1150,7 +1166,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun fetchPipCover(url: String) {
-        Thread {
+        pipCoverExecutor.execute {
             var conn: HttpURLConnection? = null
             try {
                 conn = URL(url).openConnection() as HttpURLConnection
@@ -1175,9 +1191,14 @@ class MainActivity : ComponentActivity() {
             } finally {
                 try { conn?.disconnect() } catch (_: Exception) {}
             }
-        }.start()
+        }
     }
 
+    /**
+     * Tear down the current WebView entirely so a fresh one can be created by
+     * composition. Called on renderer death (webViewGen bump triggers a new
+     * AndroidView factory run) and from onDestroy.
+     */
     private fun destroyWebView() {
         canGoBackState.value = false
         pipVideoTimeout.removeCallbacksAndMessages(null)
@@ -1185,6 +1206,8 @@ class MainActivity : ComponentActivity() {
         pipVideoCallback = null
         pipVideoPending = false
         hidePipOverlay()
+        activeWebViewClient?.release()
+        activeWebViewClient = null
         webView?.let {
             it.stopLoading()
             it.removeJavascriptInterface("AndBridge")
@@ -1235,11 +1258,7 @@ class MainActivity : ComponentActivity() {
         serviceStarted = true
         MediaNotificationService.webView = webView
         val intent = Intent(this, MediaNotificationService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(intent)
-        } else {
-            startService(intent)
-        }
+        startForegroundService(intent)
     }
 
     private fun requestNotificationPermission() {
@@ -1334,6 +1353,8 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         cancelSleepTimer()
         pipVideoTimeout.removeCallbacksAndMessages(null)
+        pipCoverExecutor.shutdown()
+        destroyWebView()
         pipVideoView = null
         pipVideoCallback = null
         pipVideoPending = false

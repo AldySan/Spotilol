@@ -33,6 +33,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import kotlin.math.min
 import androidx.core.graphics.scale
+import java.util.concurrent.Executors
 
 class MediaNotificationService : Service() {
 
@@ -79,6 +80,8 @@ class MediaNotificationService : Service() {
                 webViewRef = value?.let { WeakReference(it) }
             }
     }
+
+    private val coverExecutor = Executors.newSingleThreadExecutor()
 
     private lateinit var mediaSession: MediaSessionCompat
     private var isPlaying = false
@@ -201,6 +204,7 @@ class MediaNotificationService : Service() {
 
     override fun onDestroy() {
         releaseWakeLock()
+        coverExecutor.shutdown()
         instanceRef = null
         try { unregisterReceiver(actionReceiver) } catch (_: Exception) {}
         try { unregisterReceiver(bluetoothReceiver) } catch (_: Exception) {}
@@ -404,7 +408,11 @@ class MediaNotificationService : Service() {
     }
 
     private fun loadCoverArt(url: String) {
-        Thread {
+        // FIX: was a raw Thread per cover - album-flipping machine-gunned the
+        // scheduler. Single-thread executor serializes fetches (covers arrive in
+        // order, no stale-bitmap race between back-to-back track changes) and
+        // keeps exactly one worker alive for the service's lifetime.
+        coverExecutor.execute {
             try {
                 val conn = URL(url).openConnection() as HttpURLConnection
                 conn.connectTimeout = 5000
@@ -426,7 +434,7 @@ class MediaNotificationService : Service() {
                     showNotification()
                 }
             } catch (_: Exception) {}
-        }.start()
+        }
     }
 
     private fun showNotification() {

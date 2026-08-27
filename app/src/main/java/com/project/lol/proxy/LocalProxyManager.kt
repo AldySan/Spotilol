@@ -20,6 +20,8 @@ import org.bouncycastle.asn1.x509.GeneralNames
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter
 import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder
+import java.io.BufferedInputStream
+import java.io.BufferedOutputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.InputStream
@@ -37,7 +39,6 @@ import java.util.Date
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
-import java.util.concurrent.Executors
 import javax.net.ssl.HttpsURLConnection
 import javax.net.ssl.KeyManagerFactory
 import javax.net.ssl.SSLContext
@@ -57,8 +58,8 @@ object LocalProxyManager {
     @Volatile private var acceptorThread: Thread? = null
     @Volatile private var caKeyPair: KeyPair? = null
     @Volatile private var caCert: X509Certificate? = null
-	@Volatile private var leafKeyPair: KeyPair? = null
-    private val threadPool = Executors.newFixedThreadPool(32)
+    @Volatile private var leafKeyPair: KeyPair? = null
+    @Volatile private var threadPool: java.util.concurrent.ExecutorService? = null
 
     private val sslContextCache = Collections.synchronizedMap(HashMap<String, SSLContext>())
 
@@ -212,6 +213,22 @@ object LocalProxyManager {
         Log.d(TAG, "CA certificate loaded")
     }
 
+    /**
+     * FIX: stop() used to strand all 32 parked pool threads (they only die when
+     * the process does), and start() kept handing work to a shutdown pool —
+     * RejectedExecutionException, silent connection refusals. Lazily (re)create
+     * the pool so every start() gets a live one.
+     */
+    private fun pool(): java.util.concurrent.ExecutorService {
+        val p = threadPool
+        if (p != null && !p.isShutdown) return p
+        synchronized(this) {
+            val p2 = threadPool
+            if (p2 != null && !p2.isShutdown) return p2
+            return java.util.concurrent.Executors.newFixedThreadPool(32).also { threadPool = it }
+        }
+    }
+
     @Synchronized
     fun start() {
         if (acceptorThread?.isAlive == true) return
@@ -227,7 +244,7 @@ object LocalProxyManager {
                     } catch (_: Exception) {
                         break
                     }
-                    threadPool.execute { handleConnection(client) }
+                    pool().execute { handleConnection(client) }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to start proxy", e)
@@ -248,6 +265,10 @@ object LocalProxyManager {
         } finally {
             serverSocket = null
         }
+        // FIX: shut the pool down instead of stranding 32 daemon threads forever.
+        // Pending connections finish their current work; idle workers exit.
+        // pool() rebuilds on the next start().
+        try { threadPool?.shutdown() } catch (_: Exception) {}
         closeAllPooledUpstreamSockets()
     }
 
@@ -406,10 +427,15 @@ object LocalProxyManager {
             }
             upstreamSSLSocket = upstream
 
-            val clientIn = clientSocket.inputStream
-            val clientOut = clientSocket.outputStream
-            var upstreamIn = upstream.inputStream
-            var upstreamOut = upstream.outputStream
+            // FIX (perf): raw SSL streams cost one syscall per byte in readLine()'s
+            // single-byte read loop. Buffering both sides turns every HTTP head
+            // from ~150 syscalls into a handful. Existing flush discipline in
+            // writeHead/pipeExactBytes/pipeChunkedBody already covers every
+            // write path, so nothing stalls.
+            val clientIn = BufferedInputStream(clientSocket.inputStream, 16384)
+            val clientOut = BufferedOutputStream(clientSocket.outputStream, 16384)
+            var upstreamIn = BufferedInputStream(upstream.inputStream, 16384)
+            var upstreamOut = BufferedOutputStream(upstream.outputStream, 16384)
 
             if (useHttp2) {
                 reuseUpstream = false
@@ -431,8 +457,8 @@ object LocalProxyManager {
                         upstream = openUpstreamSocket(host, targetPort, false)
                         upstreamSSLSocket = upstream
                         fromPool = false
-                        upstreamIn = upstream.inputStream
-                        upstreamOut = upstream.outputStream
+                        upstreamIn = BufferedInputStream(upstream.inputStream, 16384)
+                        upstreamOut = BufferedOutputStream(upstream.outputStream, 16384)
                         writeHead(reqHead, upstreamOut)
                     }
                     // outside the retry to reduce chance of truncated body
@@ -461,7 +487,10 @@ object LocalProxyManager {
                         break
                     }
 
-                    if (statusCode == 100 || statusCode == 101) {
+                    if (statusCode == 101) {
+                        // FIX: 100 Continue is NOT a protocol switch — the real response
+                        // follows it and must go through the normal framing path. Only
+                        // 101 (Switching Protocols) upgrades to a raw tunnel.
                         clientSocket.soTimeout = 0
                         upstream.soTimeout = 0
                         reuseUpstream = false
@@ -473,7 +502,7 @@ object LocalProxyManager {
                     val respConnection = getHeaderValue(respHead, "Connection")
 
                     val keepAlive = !reqConnection.equals("close", ignoreCase = true) &&
-                        !respConnection.equals("close", ignoreCase = true)
+                            !respConnection.equals("close", ignoreCase = true)
 
                     reuseUpstream = keepAlive
                     if (!keepAlive) break

@@ -5,11 +5,11 @@ import android.content.SharedPreferences
 import android.os.Handler
 import android.os.Looper
 import android.webkit.CookieManager
+import androidx.core.content.edit
 import androidx.security.crypto.EncryptedSharedPreferences
-import androidx.security.crypto.MasterKeys
+import androidx.security.crypto.MasterKey
 import org.json.JSONArray
 import org.json.JSONObject
-import androidx.core.content.edit
 
 object ProfileManager {
 
@@ -32,39 +32,58 @@ object ProfileManager {
         "https://www.spotify.com"
     )
 
+    @Volatile
+    private var cachedPrefs: SharedPreferences? = null
+    private val prefsLock = Any()
+
     private fun prefs(context: Context): SharedPreferences {
-        try {
-            val masterKey = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC)
-            return EncryptedSharedPreferences.create(
-                PREFS,
-                masterKey,
-                context,
-                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-            )
-        } catch (_: Exception) {
-            try {
-                val ks = java.security.KeyStore.getInstance("AndroidKeyStore")
-                ks.load(null)
-                ks.deleteEntry(MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC))
-            } catch (_: Exception) {}
-            return try {
-                val masterKey = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC)
-                EncryptedSharedPreferences.create(
-                    PREFS,
-                    masterKey,
-                    context,
-                    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-                )
-            } catch (_: Exception) {
-                context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            }
+        cachedPrefs?.let { return it }
+        return synchronized(prefsLock) {
+            cachedPrefs ?: createPrefs(context.applicationContext).also { cachedPrefs = it }
         }
     }
 
+    private fun createPrefs(appContext: Context): SharedPreferences {
+        try {
+            return createEncryptedPrefs(appContext)
+        } catch (_: Exception) {
+        }
+
+        try {
+            val ks = java.security.KeyStore.getInstance("AndroidKeyStore")
+            ks.load(null)
+            ks.deleteEntry(MasterKey.DEFAULT_MASTER_KEY_ALIAS)
+        } catch (_: Exception) {
+        }
+
+        return try {
+            createEncryptedPrefs(appContext)
+        } catch (_: Exception) {
+            appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        }
+    }
+
+    private fun createEncryptedPrefs(context: Context): SharedPreferences {
+        val masterKey = MasterKey.Builder(context)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build()
+
+        return EncryptedSharedPreferences.create(
+            context,
+            PREFS,
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+    }
+
     fun getProfiles(context: Context): List<Profile> {
-        val raw = prefs(context).getString(KEY_PROFILES, null) ?: return emptyList()
+        val raw = try {
+            prefs(context).getString(KEY_PROFILES, null)
+        } catch (_: Exception) {
+            null
+        } ?: return emptyList()
+
         return try {
             val arr = JSONArray(raw)
             (0 until arr.length()).mapNotNull { i ->

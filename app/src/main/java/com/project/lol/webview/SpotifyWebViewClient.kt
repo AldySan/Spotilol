@@ -38,19 +38,19 @@ class SpotifyWebViewClient(
         registerPrefsListener(view)
 
         if (url.startsWith("https://www.facebook.com/privacy/consent/gdp/")) {
-            onPageFinishedClean(view, FbGdprBypass.CONTENT)
+            onPageFinishedClean(view, "FbGdprBypass", FbGdprBypass.CONTENT)
             return
         }
 
         if (url.endsWith("/login")) {
-            onPageFinishedClean(view, ClassicLoginButton.CONTENT)
+            onPageFinishedClean(view, "ClassicLoginButton", ClassicLoginButton.CONTENT)
         }
 
         val loggedIn = view.context.getSharedPreferences("spotilol_prefs", 0)
             .getBoolean("LoggedIn", false)
 
         if (!loggedIn) {
-            onPageFinishedClean(view, LoginDetection.CONTENT)
+            onPageFinishedClean(view, "LoginDetection", LoginDetection.CONTENT)
             return
         }
 
@@ -58,7 +58,7 @@ class SpotifyWebViewClient(
             injectPlayerControl(view)
         }, 500)
 
-        view.evaluateJavascript(LogoutCheck.CONTENT) { result ->
+        view.evaluateJavascript(staticJs("LogoutCheck", LogoutCheck.CONTENT)) { result ->
             if (result == "\"out\"") {
                 view.context.getSharedPreferences("spotilol_prefs", 0)
                     .edit { putBoolean("LoggedIn", false) }
@@ -72,12 +72,14 @@ class SpotifyWebViewClient(
         val useProxy = view?.context?.getSharedPreferences("spotilol_prefs", 0)
             ?.getString("ConnectionMode", "normal") == "proxy"
         view?.evaluateJavascript("window.__spotilolUseProxy=$useProxy;", null)
+        // FIX: these payloads were injected raw - strip them like every other
+        // injection, served from cache.
         if (isGoogleAuthUrl(url)) {
-            view?.evaluateJavascript(GoogleSpoof.CONTENT, null)
+            view?.evaluateJavascript(staticJs("GoogleSpoof", GoogleSpoof.CONTENT), null)
         } else {
-            view?.evaluateJavascript(BrowserSpoof.CONTENT, null)
+            view?.evaluateJavascript(staticJs("BrowserSpoof", BrowserSpoof.CONTENT), null)
         }
-        view?.evaluateJavascript(FetchOverride.CONTENT, null)
+        view?.evaluateJavascript(staticJs("FetchOverride", FetchOverride.CONTENT), null)
     }
 
     override fun onRenderProcessGone(view: WebView?, detail: RenderProcessGoneDetail?): Boolean {
@@ -188,6 +190,7 @@ class SpotifyWebViewClient(
         val customCss = prefs.getString("CustomCss", "") ?: ""
         val playerMode = prefs.getString("PlayerMode", "spotilol") ?: "spotilol"
         val useProxy = prefs.getString("ConnectionMode", "normal") == "proxy"
+        val debugOverlay = prefs.getBoolean("DebugOverlay", false)
 
         val js = buildString {
             append("window.autoPlayMode='$autoPlayMode';\n")
@@ -231,7 +234,16 @@ class SpotifyWebViewClient(
                 append(SpotilolPlayer.CONTENT)
             }
         }
-        val cleanJs = JsUtils.stripConsoleLogs(js) + "\n" +
+        // FIX (perf): cache key must uniquely determine `js` - only these five
+        // inputs feed the stripped section. `amoledEnabled` and `customCss` are
+        // deliberately EXCLUDED: they are appended after stripping and never
+        // enter the scanner, so including them would only cause needless
+        // cache misses on every theme/CSS change.
+        val coreKey = "player-core|$autoPlayMode|$closeNowPlay|$useProxy|$debugOverlay|$playerMode"
+
+        // overlay captures via AndBridge.dbg (dbg/DevLog call
+        // sites), not by hooking console.log - stripping stays active in debug mode.
+        val cleanJs = JsUtils.stripConsoleLogsCached(coreKey, js) + "\n" +
                 buildAmoledJs(amoledEnabled) + "\n" +
                 buildCustomCssJs(customCss)
         if (playerMode == "original") {
@@ -268,7 +280,9 @@ class SpotifyWebViewClient(
             """.trimIndent()
             view.evaluateJavascript(js, null)
         } else {
-            view.evaluateJavascript("if(typeof initSpotilolPlayer!=='function'){" + SpotilolPlayer.CONTENT + "}", null)
+            // FIX: this path injected SpotilolPlayer.CONTENT raw while the initial
+            // injection stripped it - its logs leaked via the mode-switch path.
+            view.evaluateJavascript("if(typeof initSpotilolPlayer!=='function'){" + staticJs("SpotilolPlayer", SpotilolPlayer.CONTENT) + "}", null)
             val js = """
                 (function(){
                     var s=document.getElementById('spl-np-show');
@@ -284,9 +298,17 @@ class SpotifyWebViewClient(
         }
     }
 
-    private fun onPageFinishedClean(view: WebView, js: String) {
-        view.evaluateJavascript(JsUtils.stripConsoleLogs(js), null)
+    private fun onPageFinishedClean(view: WebView, name: String, js: String) {
+        view.evaluateJavascript(staticJs(name, js), null)
     }
+
+    /**
+     * FIX (perf): static injection payloads are compile-time constants but were
+     * re-scanned on every page event. Memoize them under stable name keys via
+     * the bounded LRU cache - after the first call this is a map lookup.
+     */
+    private fun staticJs(name: String, js: String): String =
+        JsUtils.stripConsoleLogsCached("static:$name", js)
 
     companion object {
         private const val TAG = "SpotifyWebViewClient"

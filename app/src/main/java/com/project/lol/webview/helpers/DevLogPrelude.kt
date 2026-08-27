@@ -6,7 +6,6 @@ object DevLogPrelude {
         (function(){
             function send(lvl,m){
                 try{ AndBridge.dbg(lvl,String(m)); }catch(e){}
-                try{ console.log('[dbg] '+m); }catch(e){}
             }
             window.dbg =function(m){send('l',m)};
             window.dbgw=function(m){send('w',m)};
@@ -19,7 +18,6 @@ object DevLogPrelude {
                 clear:function(){/* handled by kotlin */},
                 dump:function(){return '(see Settings > Devlog)'}
             };
-            dbg('DevLog prelude active');
         })();
     """.trimIndent()
 }

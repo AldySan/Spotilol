@@ -70,6 +70,13 @@ class SpotifyBridge(private val activityRef: WeakReference<Activity>) {
     @JavascriptInterface
     fun dbg(level: String?, msg: String?) {
         val m = msg ?: return
+        val activity = activityRef.get() ?: return
+        // Gate on "Collect Debug". The JS prelude gets nullified on toggle-off,
+        // but its DevLog closure survives until page reload and calls us
+        // directly - this native check is the actual enforcement.
+        // SharedPreferences reads are in-memory map hits after first load,
+        // so the cost here is negligible even under chatty debug builds.
+        if (!activity.getSharedPreferences("spotilol_prefs", Activity.MODE_PRIVATE).getBoolean("DebugOverlay", false)) return
         val tag = when (level) {
             "w" -> "js.warn"
             "e" -> "js.err"

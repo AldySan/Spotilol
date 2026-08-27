@@ -4,3 +4,5 @@
 /release/output-metadata.json
 /release/spotilol.apk
 /release/app-release.apk
+/debug/app-debug.apk
+/debug/output-metadata.json

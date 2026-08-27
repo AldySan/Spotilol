@@ -85,6 +85,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
@@ -603,7 +604,8 @@ fun SettingsContent(
                 title = "Open Devlog",
                 subtitle = if (dbgOverlay) "Live - JS+native events" else "Enable debug first",
                 icon = Icons.Default.Code,
-                onClick = { showDevlogDialog = true }
+                onClick = { showDevlogDialog = true },
+                enabled = dbgOverlay
             )
         }
 
@@ -1153,12 +1155,17 @@ fun SettingTile(
     icon: ImageVector? = null,
     painter: Painter? = null,
     onClick: () -> Unit,
-    isDestructive: Boolean = false
+    isDestructive: Boolean = false,
+    enabled: Boolean = true
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .alpha(if (enabled) 1f else 0.4f)
+            .then(
+                if (enabled) Modifier.clickable(onClick = onClick)
+                else Modifier
+            )
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

@@ -413,15 +413,15 @@ class MediaNotificationService : Service() {
         // order, no stale-bitmap race between back-to-back track changes) and
         // keeps exactly one worker alive for the service's lifetime.
         coverExecutor.execute {
+            var conn: HttpURLConnection? = null
             try {
-                val conn = URL(url).openConnection() as HttpURLConnection
+                conn = URL(url).openConnection() as HttpURLConnection
                 conn.connectTimeout = 5000
                 conn.readTimeout = 5000
                 conn.connect()
                 val stream = conn.inputStream
                 val raw = BitmapFactory.decodeStream(stream)
                 stream.close()
-                conn.disconnect()
                 if (raw != null) {
                     val target = 512
                     val scale = min(target.toFloat() / raw.width, target.toFloat() / raw.height)
@@ -433,7 +433,9 @@ class MediaNotificationService : Service() {
                     updateMetadata()
                     showNotification()
                 }
-            } catch (_: Exception) {}
+            } catch (_: Exception) {
+                try { conn?.disconnect() } catch (_: Exception) {}
+            }
         }
     }
 

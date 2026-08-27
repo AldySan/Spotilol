@@ -1188,7 +1188,6 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             } catch (_: Exception) {
-            } finally {
                 try { conn?.disconnect() } catch (_: Exception) {}
             }
         }

@@ -229,29 +229,42 @@ class SpotifyBridge(private val activityRef: WeakReference<Activity>) {
 
             val code = conn.responseCode
             val headerFields = conn.headerFields
+
+            // FIX (perf): single pass - harvest Set-Cookie and build the response
+            // header JSON in one walk. headerFields' null key is the status line
+            // pseudo-entry; skip it (previous code did too).
+            var sawSetCookie = false
+            val cookieManager = CookieManager.getInstance()
+            val responseHeaders = JSONObject()
             headerFields.forEach { (key, values) ->
-                if (key != null && key.equals("Set-Cookie", ignoreCase = true)) {
-                    values.forEach { CookieManager.getInstance().setCookie(url, it) }
+                if (key == null) return@forEach
+                if (key.equals("Set-Cookie", ignoreCase = true)) {
+                    sawSetCookie = true
+                    values.forEach { cookieManager.setCookie(url, it) }
                 }
+                if (values.isNotEmpty()) responseHeaders.put(key, values.first())
             }
-            CookieManager.getInstance().flush()
+            // FIX (perf): flush() is synchronous disk I/O. Only pay it when we
+            // actually wrote new cookies - read-only GETs (every page of a
+            // playlist sort) skip it entirely.
+            if (sawSetCookie) cookieManager.flush()
 
             val stream = if (code >= 400) conn.errorStream else conn.inputStream
             val responseBody = stream?.use { it.readBytes().toString(Charsets.UTF_8) } ?: ""
 
-            val responseHeaders = JSONObject()
-            headerFields.forEach { (key, values) ->
-                if (key != null && values.isNotEmpty()) responseHeaders.put(key, values.first())
-            }
+            // NOTE (perf): no disconnect() on success. The fully-read response
+            // returns the socket to the JVM keep-alive pool, so the next nFetch
+            // to the same host reuses it and skips the TCP+TLS handshake.
+            // Pool caps idle sockets per host and honors server keep-alive
+            // expiry - nothing leaks if nFetch is never called again.
             JSONObject().apply {
                 put("status", code)
                 put("body", responseBody)
                 put("headers", responseHeaders)
             }.toString()
         } catch (e: Exception) {
-            errorResult(e)
-        } finally {
             try { conn?.disconnect() } catch (_: Exception) {}
+            errorResult(e)
         }
     }
 }

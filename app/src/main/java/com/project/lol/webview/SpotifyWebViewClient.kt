@@ -89,6 +89,7 @@ class SpotifyWebViewClient(
         view?.evaluateJavascript(staticJs("WorkerNeutralize", WorkerNeutralize.CONTENT), null)
         view?.evaluateJavascript("window.__splPowerSavePref=$powerSave;", null)
         view?.evaluateJavascript(staticJs("PowerSave", PowerSave.CONTENT), null)
+        view?.evaluateJavascript(staticJs("SettingsFix", SettingsFix.CONTENT), null)
     }
 
     override fun onRenderProcessGone(view: WebView?, detail: RenderProcessGoneDetail?): Boolean {
@@ -112,6 +113,12 @@ class SpotifyWebViewClient(
         request: WebResourceRequest
     ): WebResourceResponse? {
         val url = request.url.toString()
+        if (url.contains("ms-store-badge") || url.contains("get.microsoft.com")) {
+            val headers = mapOf("Access-Control-Allow-Origin" to "*")
+            val contentType = if (url.contains("get.microsoft.com")) "image/svg+xml" else "text/javascript"
+            return WebResourceResponse(contentType, "utf-8", 200, "OK", headers,
+                ByteArrayInputStream(ByteArray(0)))
+        }
 
         if (isAnalyticsDomain(url)) {
             val headers = mapOf("Access-Control-Allow-Origin" to "*")

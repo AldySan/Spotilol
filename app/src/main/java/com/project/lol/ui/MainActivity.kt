@@ -109,10 +109,12 @@ import androidx.webkit.WebSettingsCompat
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.project.lol.R
 import com.project.lol.bridge.SpotifyBridge
+import com.project.lol.offline.OfflineStore
 import com.project.lol.profile.ProfileManager
 import com.project.lol.proxy.LocalProxyManager
 import com.project.lol.service.MediaNotificationService
 import com.project.lol.ui.components.SettingsDrawer
+import com.project.lol.ui.screens.OfflineScreen
 import com.project.lol.ui.theme.SpotifyTheme
 import com.project.lol.util.UpdateChecker
 import com.project.lol.webview.SpotifyWebChromeClient
@@ -150,6 +152,7 @@ class MainActivity : ComponentActivity() {
     private val hideTopBarState = mutableStateOf(false)
     private val landscapeModeState = mutableStateOf(false)
     private val keepScreenOnState = mutableStateOf(false)
+    private val offlineModeState = mutableStateOf(false)
     private val paletteSeedState = mutableStateOf<String?>(null)
 
     private val showSleepTimerDialog = mutableStateOf(false)
@@ -216,6 +219,7 @@ class MainActivity : ComponentActivity() {
         hideTopBarState.value = prefs.getBoolean("HideTopBar", false)
         landscapeModeState.value = prefs.getBoolean("LandscapeMode", false)
         keepScreenOnState.value = prefs.getBoolean("KeepScreenOn", false)
+        offlineModeState.value = prefs.getBoolean("OfflineMode", false)
         paletteSeedState.value = prefs.getString("PaletteSeed", null)
         applyOrientation()
         applyKeepScreenOn()
@@ -227,6 +231,7 @@ class MainActivity : ComponentActivity() {
             val hideTopBar = hideTopBarState.value
             val landscapeMode = landscapeModeState.value
             val keepScreenOn = keepScreenOnState.value
+            val offlineMode = offlineModeState.value
             val paletteSeed = paletteSeedState.value
             val showDialog = showSleepTimerDialog.value
             val timerActive = sleepTimerActive.value
@@ -291,6 +296,8 @@ class MainActivity : ComponentActivity() {
                             prefs.edit().putString("PaletteSeed", hex).apply()
                         }
                     },
+                    offlineMode = offlineMode,
+                    onOfflineModeChange = { offlineModeChange(it) },
                     onConnectionModeChange = { switchConnectionMode(it) },
                     onSaveProfile = { name, cookies -> saveProfile(name, cookies) },
                     onLoadProfile = { cookies -> loadProfile(cookies) },
@@ -331,6 +338,7 @@ class MainActivity : ComponentActivity() {
                                     }
                                 },
                                 actions = {
+                                if (!offlineMode) {
                                 Switch(
                                     checked = serviceEnabled,
                                     onCheckedChange = { newValue -> setServiceEnabled(newValue) },
@@ -342,6 +350,7 @@ class MainActivity : ComponentActivity() {
                                     )
                                 )
                                 Spacer(Modifier.width(8.dp))
+                                }
                             },
                                 colors = TopAppBarDefaults.topAppBarColors(
                                     containerColor = MaterialTheme.colorScheme.surface,
@@ -352,13 +361,24 @@ class MainActivity : ComponentActivity() {
                             )
                             }
                     }
-                ) { innerPadding ->
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(innerPadding)
-                    ) {
-                        if (serviceEnabled) {
+) { innerPadding ->
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(innerPadding)
+                        ) {
+                            if (offlineMode) {
+                                var offlineSongs by remember {
+                                    mutableStateOf(OfflineStore.getSongs(this@MainActivity))
+                                }
+                                OfflineScreen(
+                                    songs = offlineSongs,
+                                    onRemoveSong = { song ->
+                                        OfflineStore.removeSong(this@MainActivity, song.id)
+                                        offlineSongs = OfflineStore.getSongs(this@MainActivity)
+                                    }
+                                )
+                            } else if (serviceEnabled) {
                             val bridge = remember {
                                 SpotifyBridge(WeakReference(this@MainActivity))
                             }
@@ -572,6 +592,20 @@ class MainActivity : ComponentActivity() {
         stopService(Intent(this, MediaNotificationService::class.java))
         LocalProxyManager.stop()
         val intent = Intent(this, SplashActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+        startActivity(intent)
+        finish()
+    }
+
+    private fun offlineModeChange(enabled: Boolean) {
+        offlineModeState.value = enabled
+        prefs.edit().putBoolean("OfflineMode", enabled).apply()
+        stopService(Intent(this, MediaNotificationService::class.java))
+        serviceStarted = false
+        LocalProxyManager.stop()
+        destroyWebView()
+        val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
         startActivity(intent)
@@ -1241,6 +1275,7 @@ class MainActivity : ComponentActivity() {
         hideTopBarState.value = prefs.getBoolean("HideTopBar", false)
         landscapeModeState.value = prefs.getBoolean("LandscapeMode", false)
         keepScreenOnState.value = prefs.getBoolean("KeepScreenOn", false)
+        offlineModeState.value = prefs.getBoolean("OfflineMode", false)
         paletteSeedState.value = prefs.getString("PaletteSeed", null)
         applyOrientation()
         applyKeepScreenOn()

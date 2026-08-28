@@ -45,6 +45,7 @@ import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.OfflinePin
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonAdd
@@ -154,6 +155,8 @@ fun SettingsContent(
     onKeepScreenOnChange: (Boolean) -> Unit,
     paletteSeed: String?,
     onPaletteSeedChange: (String?) -> Unit,
+    offlineMode: Boolean,
+    onOfflineModeChange: (Boolean) -> Unit,
     onConnectionModeChange: (String) -> Unit,
     onSaveProfile: (String, String) -> Unit,
     onLoadProfile: (String) -> Unit,
@@ -371,6 +374,23 @@ fun SettingsContent(
                     closeNowPlay = it
                     prefs.edit().putBoolean("CloseNowPlay", it).apply()
                 }
+            )
+        }
+
+        SettingSectionCard(
+            title = "OFFLINE",
+            icon = Icons.Default.OfflinePin
+        ) {
+            SettingSwitchTile(
+                title = "Offline Mode",
+                subtitle = if (offlineMode) {
+                    "Native player for downloaded songs (restarts the app)"
+                } else {
+                    "Use the native offline player (restarts the app)"
+                },
+                icon = Icons.Default.OfflinePin,
+                checked = offlineMode,
+                onCheckedChange = { onOfflineModeChange(it) }
             )
         }
 
@@ -1474,6 +1494,8 @@ fun SettingsContentPreview() {
             onKeepScreenOnChange = {},
             paletteSeed = null,
             onPaletteSeedChange = {},
+            offlineMode = false,
+            onOfflineModeChange = {},
             onConnectionModeChange = {},
             onSaveProfile = { _, _ -> },
             onLoadProfile = {},

@@ -1305,14 +1305,8 @@ class MainActivity : ComponentActivity() {
         super.onStop()
         webView?.evaluateJavascript("""
         try {
-            document.querySelectorAll('video').forEach(function(v) {
-                if(v.muted || v.hasAttribute('loop') || v.style.objectFit === 'cover') {
-                    v.pause(); v.removeAttribute('src'); v.load();
-                }
-            });
-        } catch(e) {}
-        try {
             window.__splBg = true;
+            if(window.__splParkVideos) __splParkVideos();
             if(typeof pfint !== 'undefined' && pfint) { clearInterval(pfint); pfint = null; window.__splWasPfint = true; }
             if(typeof afint !== 'undefined' && afint) { clearInterval(afint); afint = null; window.__splWasAfint = true; }
             if(typeof cssint !== 'undefined' && cssint) { clearInterval(cssint); cssint = null; window.__splWasCssint = true; }
@@ -1345,6 +1339,7 @@ class MainActivity : ComponentActivity() {
 
         webView?.let { view ->
             view.evaluateJavascript("""
+                if(window.__splRestoreVideos) __splRestoreVideos();
                 try {
                     window.__splBg = false;
                     if(window.__splWasPfint) { window.__splWasPfint = false; firstFuck(); }

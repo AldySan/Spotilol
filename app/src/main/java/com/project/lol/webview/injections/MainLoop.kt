@@ -45,17 +45,18 @@ object MainLoop {
             };
 
             window.wirePlayBtn = function(pb){
-                AndBridge.playLoaded();
-                pb.classList.add('fuckd');
                 window.pBtn = pb;
+                pb.classList.add('fuckd');
 
-                pBtn.addEventListener('click', function(){
+                pBtn.addEventListener('click', function(e){
                     if(pBtn.getAttribute('aria-label')!=='Play') {
                         reqPause=true;
                         ulFlag=false;
                         AndBridge.wakeOff();
-                    } else if(!ulFlag) {
-                        reqPause=false;
+                        return;
+                    }
+                    reqPause=false;
+                    if(e.isTrusted && !ulFlag){
                         AndBridge.wakeUp();
                         ulFlag=true;
                         setTimeout(function(){
@@ -90,6 +91,7 @@ object MainLoop {
                     addAutoFeatures();
                     addCSSJSHack();
                 }
+                AndBridge.playLoaded();
             };
             firstFuck();
     """

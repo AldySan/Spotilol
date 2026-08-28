@@ -129,7 +129,22 @@ class SpotifyWebViewClient(
 
         if (!useProxy) {
             val isGoogle = isGoogleAuthUrl(url)
-            if (!isGoogle && !isAdAudioUrl(url)) return null
+            val adMatch = matchAdCdn(url)
+            if (!isGoogle && adMatch == null) return null
+
+            // FIX: known ad hosts get silence immediately - no pre-connect, no
+            // content-type guessing. The old flow opened + abandoned a connection
+            // to EVERY broad audio-CDN URL (akamaized.net/audio/, scdn.co/audio/)
+            // before letting the WebView re-request it, which (a) poisoned Akamai
+            // edges into stalling real streams -> auto-skip, and (b) swapped
+            // silence over any legit stream served as audio/mpeg -> mute after
+            // the ~10s buffer. Proxy mode only ever blocked matchAdCdn() hosts;
+            // normal mode now matches that behavior.
+            if (adMatch != null) {
+                view.post { view.evaluateJavascript("AndBridge.deferMessage('adblock')", null) }
+                val silent = view.context.assets?.open("silent.mp3") ?: return null
+                return WebResourceResponse("audio/mpeg", null, silent)
+            }
 
             try {
                 val conn = URL(url).openConnection() as HttpURLConnection
@@ -141,38 +156,25 @@ class SpotifyWebViewClient(
                     for ((k, v) in request.requestHeaders) {
                         val lk = k.lowercase(Locale.ROOT)
                         if (lk != "x-requested-with" && lk != "sec-gpc" && !lk.startsWith("sec-ch-ua") &&
-                            !(isGoogle && lk == "user-agent")
+                            lk != "user-agent"
                         ) {
                             conn.setRequestProperty(k, v)
                         }
                     }
-                    if (isGoogle) {
-                        conn.setRequestProperty("User-Agent", DESKTOP_UA)
-                        val cookie = CookieManager.getInstance().getCookie(url)
-                        if (!cookie.isNullOrEmpty()) conn.setRequestProperty("Cookie", cookie)
-                    }
+                    conn.setRequestProperty("User-Agent", DESKTOP_UA)
+                    val cookie = CookieManager.getInstance().getCookie(url)
+                    if (!cookie.isNullOrEmpty()) conn.setRequestProperty("Cookie", cookie)
                     conn.setRequestProperty("sec-gpc", "1")
                     conn.setRequestProperty("sec-ch-ua-platform", "\"Windows\"")
                     conn.setRequestProperty("sec-ch-ua-mobile", "?0")
                     conn.setRequestProperty("sec-ch-ua", "\"Not;A=Brand\";v=\"8\", \"Chromium\";v=\"150\", \"Google Chrome\";v=\"150\"")
                     conn.connect()
-                    if (isGoogle) {
-                        conn.headerFields.forEach { (key, values) ->
-                            if (key != null && key.equals("Set-Cookie", ignoreCase = true)) {
-                                values.forEach { CookieManager.getInstance().setCookie(url, it) }
-                            }
+                    conn.headerFields.forEach { (key, values) ->
+                        if (key != null && key.equals("Set-Cookie", ignoreCase = true)) {
+                            values.forEach { CookieManager.getInstance().setCookie(url, it) }
                         }
-                        CookieManager.getInstance().flush()
                     }
-                    val contentType = conn.contentType
-                    if (contentType == "audio/mpeg" &&
-                        !url.contains("podz-content") && !url.contains("gew4-spclient") &&
-                        isAdAudioUrl(url)
-                    ) {
-                        view.post { view.evaluateJavascript("AndBridge.deferMessage('adblock')", null) }
-                        val silent = view.context.assets?.open("silent.mp3") ?: return null
-                        return WebResourceResponse("audio/mpeg", null, silent)
-                    }
+                    CookieManager.getInstance().flush()
                 } finally {
                     conn.disconnect()
                 }
@@ -293,6 +295,11 @@ class SpotifyWebViewClient(
                 val wv = currentWebView ?: return@OnSharedPreferenceChangeListener
                 val closeNp = prefs.getBoolean("CloseNowPlay", true)
                 wv.evaluateJavascript("window.closeNpPref=$closeNp;", null)
+            }
+            if (key == "APlayMode") {
+                val wv = currentWebView ?: return@OnSharedPreferenceChangeListener
+                val mode = prefs.getString("APlayMode", "disabled") ?: "disabled"
+                wv.evaluateJavascript("window.autoPlayMode='$mode';", null)
             }
         }
         prefs.registerOnSharedPreferenceChangeListener(prefsListener)

@@ -192,11 +192,9 @@ class SplashActivity : ComponentActivity() {
                                         val path = withContext(Dispatchers.IO) {
                                             LocalProxyManager.exportCACert(this@SplashActivity)
                                         }
-                                        Toast.makeText(
-                                            this@SplashActivity,
-                                            "Exported to: $path",
-                                            Toast.LENGTH_LONG
-                                        ).show()
+                                        val msg = if (path == "export failed") "Export failed - try again"
+                                        else "Exported to: $path"
+                                        Toast.makeText(this@SplashActivity, msg, Toast.LENGTH_LONG).show()
                                     }
                                 }
                             )

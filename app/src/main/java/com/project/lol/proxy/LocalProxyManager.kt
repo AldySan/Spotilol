@@ -817,79 +817,112 @@ object LocalProxyManager {
         }
     }
 
-    private fun getPEMContent(): String {
-        val base64 = Base64.encodeToString(caCert!!.encoded, Base64.DEFAULT or Base64.NO_WRAP)
-        return "-----BEGIN CERTIFICATE-----\n$base64\n-----END CERTIFICATE-----\n"
-    }
-
+    /**
+     * FIX: MediaStore.Downloads rows from a previous installation survive
+     * uninstallation (public Downloads = user files). After reinstall we
+     * no longer own those rows - the old delete-by-name sweep threw
+     * SecurityException and export failed forever. Now: per-row best-effort
+     * cleanup, unique-name fallback, real filename reporting, app-dir
+     * last resort, and no NPE when the CA isn't loaded.
+     */
     fun exportCACert(context: Context): String {
-        val pem = getPEMContent()
+        val ourCa = caCert ?: run {
+            Log.e(TAG, "CA cert not loaded - cannot export")
+            return "export failed"
+        }
+        val pem = try {
+            val base64 = Base64.encodeToString(ourCa.encoded, Base64.DEFAULT or Base64.NO_WRAP)
+            "-----BEGIN CERTIFICATE-----\n$base64\n-----END CERTIFICATE-----\n"
+        } catch (_: Exception) {
+            return "export failed"
+        }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val resolver = context.contentResolver
+
+            // Best-effort sweep. Orphaned rows throw SecurityException -
+            // swallow PER-ROW and keep going; they must not abort the export.
             try {
-                val existing = resolver.query(
+                resolver.query(
                     MediaStore.Downloads.EXTERNAL_CONTENT_URI,
                     arrayOf(MediaStore.MediaColumns._ID),
                     "${MediaStore.MediaColumns.DISPLAY_NAME} = ?",
                     arrayOf("Spotilol_CA.pem"),
                     null
-                )
-                existing?.use { cursor ->
-                    while (cursor.moveToNext()) {
-                        val id = cursor.getLong(0)
-                        resolver.delete(
-                            ContentUris.withAppendedId(
-                                MediaStore.Downloads.EXTERNAL_CONTENT_URI, id
-                            ),
-                            null,
-                            null
-                        )
+                )?.use { cursor ->
+                    val stale = mutableListOf<Long>()
+                    while (cursor.moveToNext()) stale.add(cursor.getLong(0))
+                    stale.forEach { id ->
+                        try {
+                            resolver.delete(
+                                ContentUris.withAppendedId(MediaStore.Downloads.EXTERNAL_CONTENT_URI, id),
+                                null, null
+                            )
+                        } catch (_: Exception) {}
                     }
                 }
+            } catch (_: Exception) {}
 
-                val values = ContentValues().apply {
-                    put(MediaStore.Downloads.DISPLAY_NAME, "Spotilol_CA.pem")
-                    put(MediaStore.Downloads.MIME_TYPE, "application/x-pem-file")
-                    put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
-                    put(MediaStore.Downloads.IS_PENDING, 1)
-                }
-                val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
-                if (uri != null) {
-                    resolver.openOutputStream(uri)?.use { os ->
-                        os.write(pem.toByteArray())
-                    }
-                    val clearPending = ContentValues().apply {
-                        put(MediaStore.Downloads.IS_PENDING, 0)
-                    }
-                    resolver.update(uri, clearPending, null, null)
-                    Log.d(TAG, "CA exported to Downloads via MediaStore")
-                    val downloadsDir = File(
-                        Environment.getExternalStorageDirectory(),
-                        Environment.DIRECTORY_DOWNLOADS
-                    )
-                    return File(downloadsDir, "Spotilol_CA.pem").absolutePath
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to export CA certificate", e)
-                return "export failed"
+            var displayName = "Spotilol_CA.pem"
+            var uri = try {
+                resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, pendingValues(displayName))
+            } catch (_: Exception) { null }
+
+            if (uri == null) {
+                // Canonical name is stuck behind an undeletable orphan -
+                // export under a unique name instead of failing.
+                displayName = "Spotilol_CA_${System.currentTimeMillis()}.pem"
+                uri = try {
+                    resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, pendingValues(displayName))
+                } catch (_: Exception) { null }
             }
-        } else {
-            try {
-                val dir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
-                    ?: context.filesDir
-                val file = File(dir, "Spotilol_CA.pem")
-                file.writeText(pem)
-                Log.d(TAG, "CA exported to ${file.absolutePath}")
-                return file.absolutePath
+
+            if (uri == null) return exportToFileDir(context, pem)
+
+            return try {
+                val out = resolver.openOutputStream(uri)
+                    ?: throw java.io.IOException("null output stream")
+                out.use { it.write(pem.toByteArray()) }
+                resolver.update(uri, ContentValues().apply { put(MediaStore.Downloads.IS_PENDING, 0) }, null, null)
+
+                // MediaProvider may auto-rename on duplicate names - report
+                // the REAL filename so the toast points at the right file.
+                val realName = try {
+                    resolver.query(uri, arrayOf(MediaStore.MediaColumns.DISPLAY_NAME), null, null, null)
+                        ?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
+                } catch (_: Exception) { null }
+                val name = realName ?: displayName
+                Log.d(TAG, "CA exported to Downloads as $name")
+                File(File(Environment.getExternalStorageDirectory(), Environment.DIRECTORY_DOWNLOADS), name).absolutePath
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to export CA certificate", e)
-                return "export failed"
+                Log.e(TAG, "MediaStore export failed, falling back to app dir", e)
+                try { resolver.delete(uri, null, null) } catch (_: Exception) {}
+                exportToFileDir(context, pem)
             }
         }
 
-        Log.e(TAG, "Failed to export CA certificate")
-        return "export failed"
+        return exportToFileDir(context, pem)
+    }
+
+    private fun pendingValues(name: String): ContentValues = ContentValues().apply {
+        put(MediaStore.Downloads.DISPLAY_NAME, name)
+        put(MediaStore.Downloads.MIME_TYPE, "application/x-pem-file")
+        put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+        put(MediaStore.Downloads.IS_PENDING, 1)
+    }
+
+    /** Last resort: app-specific dir. No permissions needed on any API level. */
+    private fun exportToFileDir(context: Context, pem: String): String {
+        return try {
+            val dir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: context.filesDir
+            val file = File(dir, "Spotilol_CA.pem")
+            file.writeText(pem)
+            Log.d(TAG, "CA exported to app dir: ${file.absolutePath}")
+            file.absolutePath
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to export CA certificate", e)
+            "export failed"
+        }
     }
 
     /**

@@ -117,7 +117,9 @@ import com.project.lol.util.DebugLogStore
 import com.project.lol.util.GitHubApi
 import com.project.lol.util.GitHubRelease
 import com.project.lol.util.MarkdownText
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -192,6 +194,7 @@ fun SettingsContent(
 
     val context = LocalContext.current
     val platformLocale = LocalLocale.current.platformLocale
+    val scope = rememberCoroutineScope()
     var profiles by remember { mutableStateOf(ProfileManager.getProfiles(context)) }
 
     var showConnectionModeDialog by remember { mutableStateOf(false) }
@@ -534,8 +537,13 @@ fun SettingsContent(
                     subtitle = "Re-export proxy certificate to Downloads",
                     icon = Icons.Default.Shield,
                     onClick = {
-                        val path = LocalProxyManager.exportCACert(context)
-                        Toast.makeText(context, "Exported to $path", Toast.LENGTH_LONG).show()
+                        scope.launch {
+                            val path = withContext(Dispatchers.IO) { LocalProxyManager.exportCACert(
+                                context
+                            ) }
+                            val msg = if (path == "export failed") "Export failed - try again" else "Exported to $path"
+                            Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                        }
                     }
                 )
             }

@@ -28,6 +28,8 @@ import androidx.media.session.MediaButtonReceiver
 import com.project.lol.R
 import android.bluetooth.BluetoothDevice
 import android.media.AudioManager
+import android.os.Handler
+import android.os.Looper
 import java.lang.ref.WeakReference
 import java.net.HttpURLConnection
 import java.net.URL
@@ -41,6 +43,7 @@ class MediaNotificationService : Service() {
         private const val TAG = "MediaNotifService"
         private const val CHANNEL_ID = "spotilol_media_playback"
         private const val NOTIFICATION_ID = 1
+        private val mainHandler = Handler(Looper.getMainLooper())
 
         const val ACTION_PLAY_PAUSE = "com.project.lol.ACTION_PLAY_PAUSE"
         const val ACTION_NEXT = "com.project.lol.ACTION_NEXT"
@@ -346,9 +349,11 @@ class MediaNotificationService : Service() {
                 coverBitmap = null
             }
 
-            updatePlaybackState()
-            updateMetadata()
-            showNotification()
+            mainHandler.post {
+                updatePlaybackState()
+                updateMetadata()
+                showNotification()
+            }
         } catch (_: Exception) {}
     }
 
@@ -431,8 +436,10 @@ class MediaNotificationService : Service() {
                     val scaled = raw.scale(w, h)
                     if (scaled != raw) raw.recycle()
                     coverBitmap = scaled
-                    updateMetadata()
-                    showNotification()
+                    mainHandler.post {
+                        updateMetadata()
+                        showNotification()
+                    }
                 }
             } catch (_: Exception) {
                 try { conn?.disconnect() } catch (_: Exception) {}

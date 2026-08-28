@@ -141,6 +141,7 @@ class MainActivity : ComponentActivity() {
 
     private var webView: WebView? = null
     private var activeWebViewClient: SpotifyWebViewClient? = null
+    private var activeChromeClient: SpotifyWebChromeClient? = null
     private val webViewGen = mutableIntStateOf(0)
     private var serviceStarted = false
     @Volatile private var pipCoverBitmap: Bitmap? = null
@@ -486,7 +487,7 @@ class MainActivity : ComponentActivity() {
                                                     filePickerLauncher.launch("image/*")
                                                     true
                                                 }
-                                            )
+                                            ).also { activeChromeClient = it }
 
                                             webViewClient = SpotifyWebViewClient(
                                                 onLoginRequired = {
@@ -1219,6 +1220,8 @@ class MainActivity : ComponentActivity() {
         pipVideoCallback = null
         pipVideoPending = false
         hidePipOverlay()
+        activeChromeClient?.cleanup()
+        activeChromeClient = null
         activeWebViewClient?.release()
         activeWebViewClient = null
         webView?.let {
@@ -1301,16 +1304,20 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         super.onStop()
         webView?.evaluateJavascript("""
-            try {
-                document.querySelectorAll('video').forEach(function(v) {
-                    if(v.muted || v.hasAttribute('loop') || v.style.objectFit === 'cover') {
-                        v.pause();
-                        v.removeAttribute('src');
-                        v.load();
-                    }
-                });
-            } catch(e) {}
-        """.trimIndent(), null)
+        try {
+            document.querySelectorAll('video').forEach(function(v) {
+                if(v.muted || v.hasAttribute('loop') || v.style.objectFit === 'cover') {
+                    v.pause(); v.removeAttribute('src'); v.load();
+                }
+            });
+        } catch(e) {}
+        try {
+            window.__splBg = true;
+            if(typeof pfint !== 'undefined' && pfint) { clearInterval(pfint); pfint = null; window.__splWasPfint = true; }
+            if(typeof afint !== 'undefined' && afint) { clearInterval(afint); afint = null; window.__splWasAfint = true; }
+            if(typeof cssint !== 'undefined' && cssint) { clearInterval(cssint); cssint = null; window.__splWasCssint = true; }
+        } catch(e) {}
+    """.trimIndent(), null)
     }
 
     override fun onResume() {
@@ -1337,6 +1344,15 @@ class MainActivity : ComponentActivity() {
         val closeNowPlay = prefs.getBoolean("CloseNowPlay", true)
 
         webView?.let { view ->
+            view.evaluateJavascript("""
+                try {
+                    window.__splBg = false;
+                    if(window.__splWasPfint) { window.__splWasPfint = false; firstFuck(); }
+                    if(window.__splWasAfint) { window.__splWasAfint = false; addAutoFeatures(); }
+                    if(window.__splWasCssint) { window.__splWasCssint = false; addCSSJSHack(); }
+                } catch(e) {}
+            """.trimIndent(), null)
+
             val js = buildString {
                 append("window.closeNpPref=$closeNowPlay;\n")
                 append(buildAmoledJs(amoledEnabled))

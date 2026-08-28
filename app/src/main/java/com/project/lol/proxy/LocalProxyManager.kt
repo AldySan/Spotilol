@@ -488,7 +488,7 @@ object LocalProxyManager {
                     }
 
                     if (statusCode == 101) {
-                        // FIX: 100 Continue is NOT a protocol switch — the real response
+                        // FIX: 100 Continue is NOT a protocol switch - the real response
                         // follows it and must go through the normal framing path. Only
                         // 101 (Switching Protocols) upgrades to a raw tunnel.
                         clientSocket.soTimeout = 0
@@ -743,9 +743,12 @@ object LocalProxyManager {
     private fun modifyRequestHeaders(msg: HttpHead) {
         msg.headers.removeAll { it.first.equals("X-Requested-With", ignoreCase = true) }
 
-        msg.headers.removeAll { it.first.equals("sec-ch-ua", ignoreCase = true) }
-        msg.headers.removeAll { it.first.equals("sec-ch-ua-mobile", ignoreCase = true) }
-        msg.headers.removeAll { it.first.equals("sec-ch-ua-platform", ignoreCase = true) }
+        // Strip ALL sec-ch-ua-* headers - basic AND extended.
+        // The basic 3 we replaced; the extended ones (full-version-list,
+        // platform-version, arch, bitness, model) we just nuke. They
+        // leak device model, ARM architecture, and Android version -
+        // dead giveaway it's a mobile WebView, not a Windows desktop.
+        msg.headers.removeAll { it.first.lowercase().startsWith("sec-ch-ua") }
 
         msg.headers.add("sec-ch-ua" to "\"Not;A=Brand\";v=\"8\", \"Chromium\";v=\"150\", \"Google Chrome\";v=\"150\"")
         msg.headers.add("sec-ch-ua-mobile" to "?0")

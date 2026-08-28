@@ -85,4 +85,11 @@ class SpotifyWebChromeClient(
         super.onProgressChanged(view, newProgress)
         onProgressChanged?.invoke(newProgress)
     }
+
+    fun cleanup() {
+        childWebView?.let {
+            try { it.destroy() } catch (_: Exception) {}
+        }
+        childWebView = null
+    }
 }

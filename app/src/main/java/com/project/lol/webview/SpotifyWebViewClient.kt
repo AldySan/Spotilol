@@ -289,6 +289,11 @@ class SpotifyWebViewClient(
                 val on = prefs.getBoolean("PowerSave", false)
                 wv.evaluateJavascript("if(window.__splApplyPowerSave) window.__splApplyPowerSave($on);", null)
             }
+            if (key == "CloseNowPlay") {
+                val wv = currentWebView ?: return@OnSharedPreferenceChangeListener
+                val closeNp = prefs.getBoolean("CloseNowPlay", true)
+                wv.evaluateJavascript("window.closeNpPref=$closeNp;", null)
+            }
         }
         prefs.registerOnSharedPreferenceChangeListener(prefsListener)
     }

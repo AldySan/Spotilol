@@ -1,55 +1,27 @@
 package com.project.lol.webview.helpers
 
 import androidx.collection.LruCache
+import com.project.lol.webview.helpers.JsUtils.MAX_CACHE_BYTES
+import com.project.lol.webview.helpers.JsUtils.stripConsoleLogs
 
 /**
  * Strips `console.log(...)` calls from JavaScript before it is handed to
  * the WebView.
  *
- * ## Implementation notes
+ * Correctness behavior is identical to the previous version (see git
+ * history for the individual FIXes): literals are lexed and never touched,
+ * nesting is arbitrary, calls become `void 0`, `window.console.log` etc.
+ * are left alone.
  *
- * This class previously used a single regex:
- *
- *   Regex("console\\.log\\((?:[^()]|\\([^()]*\\))*\\);?")
- *
- * That approach had correctness bugs that could corrupt the injected JS
- * (see git history for details). The main issues fixed here:
- *
- *  - FIX: Nested parentheses beyond one level were never matched.
- *  - FIX: Unbalanced parens inside string literals caused partial matches
- *         that left dangling tokens (syntax errors).
- *  - FIX: `window.console.log(...)` was truncated to `window.`.
- *  - FIX: Literal "console.log(...)" text inside strings was stripped,
- *         silently changing runtime values.
- *  - FIX: Deleting the statement broke `if (x) console.log(x); next();` -
- *         `next()` became the if-body.
- *  - FIX (perf): every intercepted response was re-scanned. Results are
- *         now memoized in a bounded LRU cache, so each asset is scanned
- *         at most once per session.
- *
- * The scanner resolves these by lexing string/comment/regex literals and
- * tracking balanced parentheses. Matched calls are replaced with the
- * expression `void 0` - the exact return value of console.log (undefined) -
- * so the surrounding code remains valid in every syntactic position.
- *
- * Complexity is O(n) with no backtracking. Throughput is kept close to the
- * old regex by bulk-copying uninteresting regions instead of copying
- * character by character.
+ * Performance notes (this rewrite):
+ *  - the scan is driven by native `indexOf` searches, not a per-char loop;
+ *  - the output buffer is lazy: inputs with no strippable call are returned
+ *    as the same instance with zero allocation;
+ *  - the regex/division heuristic no longer allocates substrings;
+ *  - results are memoized in memory
  */
 object JsUtils {
 
-    /**
-     * Characters that may begin (or affect the interpretation of) a region
-     * we cannot bulk-copy: string literals, comments, division-vs-regex
-     * ambiguity, and the identifier `console`.
-     */
-    private val INTERESTING = charArrayOf('"', '\'', '`', '/', 'c')
-
-    /**
-     * Keywords after which a `/` must be treated as the start of a regex
-     * literal rather than a division operator. Standard heuristic used by
-     * minifiers; covers the practically relevant cases.
-     */
     private val REGEX_KEYWORDS = setOf(
         "return", "typeof", "instanceof", "in", "of", "new",
         "delete", "void", "case", "do", "else", "yield", "await"
@@ -111,74 +83,91 @@ object JsUtils {
      * instance is returned without allocation.
      */
     fun stripConsoleLogs(code: String): String {
-        // FIX (perf): fast path - most assets contain no logging at all.
-        if (!code.contains("console")) return code
+        // PERF: one native search doubles as the "contains" fast path.
+        var nextConsole = code.indexOf("console")
+        if (nextConsole == -1) return code
 
-        val sb = StringBuilder(code.length)
-        var i = 0
         val n = code.length
+        var nextLit = nextLiteral(code, 0)
+        var sb: StringBuilder? = null // PERF: lazy - created on the first real strip
+        var i = 0
 
         while (i < n) {
-            when (val c = code[i]) {
-                // FIX: strings are copied verbatim so that parens/braces
-                // inside them (e.g. ":-)") can never break matching, and a
-                // literal "console.log" inside a string is never stripped.
-                '"', '\'', '`' -> {
-                    val end = skipString(code, i)
-                    sb.append(code, i, end); i = end
-                }
-                '/' -> when {
-                    // Line comment - copied verbatim.
-                    i + 1 < n && code[i + 1] == '/' -> {
-                        val nl = code.indexOf('\n', i)
-                        val end = if (nl == -1) n else nl
-                        sb.append(code, i, end); i = end
-                    }
-                    // Block comment - copied verbatim.
-                    i + 1 < n && code[i + 1] == '*' -> {
-                        val cm = code.indexOf("*/", i + 2)
-                        val end = if (cm == -1) n else cm + 2
-                        sb.append(code, i, end); i = end
-                    }
-                    // FIX: a '/' may start a regex literal; consuming it
-                    // verbatim prevents its contents (e.g. `[(]`) from
-                    // confusing the paren matcher below.
-                    isRegexStart(code, i) -> {
-                        val end = skipRegex(code, i)
-                        sb.append(code, i, end); i = end
-                    }
-                    else -> { sb.append(c); i++ } // division operator
-                }
-                'c' -> {
-                    val openEnd = matchCallStart(code, i)
-                    if (openEnd != -1) {
-                        val close = findMatchingParen(code, openEnd)
-                        if (close != -1) {
-                            // FIX: substitute `void 0` instead of deleting
-                            // the statement. Deleting broke single-statement
-                            // bodies (`if (x) console.log(x); next();`) and
-                            // expression positions. `void 0` evaluates to
-                            // undefined - identical to console.log's return
-                            // value - so behavior is preserved.
-                            sb.append("void 0")
-                            i = close + 1 // consume ')'; a trailing ';' is harmless
-                        } else { sb.append(c); i++ }
+            // PERF: refresh positions lazily; regions already consumed are
+            // never rescanned.
+            if (nextLit != -1 && nextLit < i) nextLit = nextLiteral(code, i)
+            if (nextConsole != -1 && nextConsole < i) {
+                nextConsole = code.indexOf("console", i)
+            }
+
+            when {
+                // A `console` occurrence comes first: everything in
+                // [i, nextConsole) is plain code - bulk-copy it.
+                nextConsole != -1 && (nextLit == -1 || nextConsole < nextLit) -> {
+                    sb?.append(code, i, nextConsole)
+                    val openEnd = matchCallStart(code, nextConsole)
+                    val close = if (openEnd != -1) findMatchingParen(code, openEnd) else -1
+                    if (close != -1) {
+                        if (sb == null) {
+                            sb = StringBuilder(code.length)
+                                .also { it.append(code, 0, nextConsole) }
+                        }
+                        sb.append("void 0")
+                        i = close + 1
                     } else {
-                        // Regular identifier starting with 'c' (class, catch…).
-                        sb.append(c); i++
+                        // Not a call (console.warn, myconsole, window.console…) -
+                        // copy "console" verbatim and continue after it.
+                        sb?.append(code, nextConsole, nextConsole + 7)
+                        i = nextConsole + 7
+                    }
+                }
+                // A string/comment/regex/division boundary comes first.
+                nextLit != -1 -> {
+                    sb?.append(code, i, nextLit)
+                    when (code[nextLit]) {
+                        '"', '\'', '`' -> {
+                            val e = skipString(code, nextLit)
+                            sb?.append(code, nextLit, e); i = e
+                        }
+                        '/' -> when {
+                            nextLit + 1 < n && code[nextLit + 1] == '/' -> {
+                                val nl = code.indexOf('\n', nextLit)
+                                val e = if (nl == -1) n else nl
+                                sb?.append(code, nextLit, e); i = e
+                            }
+                            nextLit + 1 < n && code[nextLit + 1] == '*' -> {
+                                val cm = code.indexOf("*/", nextLit + 2)
+                                val e = if (cm == -1) n else cm + 2
+                                sb?.append(code, nextLit, e); i = e
+                            }
+                            isRegexStart(code, nextLit) -> {
+                                val e = skipRegex(code, nextLit)
+                                sb?.append(code, nextLit, e); i = e
+                            }
+                            else -> { sb?.append('/'); i = nextLit + 1 } // division
+                        }
                     }
                 }
                 else -> {
-                    // FIX (perf): bulk-copy until the next character that
-                    // requires inspection. Avoids per-char loop overhead and
-                    // keeps throughput comparable to the previous regex.
-                    val next = code.indexOfAny(INTERESTING, i + 1)
-                    val end = if (next == -1) n else next
-                    sb.append(code, i, end); i = end
+                    sb?.append(code, i, n)
+                    i = n
                 }
             }
         }
-        return sb.toString()
+        // PERF: nothing was stripped -> return the original instance.
+        return sb?.toString() ?: code
+    }
+
+    /** Next index >= [from] holding a quote or '/', or -1. Intrinsified. */
+    private fun nextLiteral(code: String, from: Int): Int {
+        var best = code.indexOf('"', from)
+        var idx = code.indexOf('\'', from)
+        if (idx != -1 && (best == -1 || idx < best)) best = idx
+        idx = code.indexOf('`', from)
+        if (idx != -1 && (best == -1 || idx < best)) best = idx
+        idx = code.indexOf('/', from)
+        if (idx != -1 && (best == -1 || idx < best)) best = idx
+        return best
     }
 
     /**
@@ -244,18 +233,26 @@ object JsUtils {
      * Known limitation: a regex literal written directly after `)` (e.g.
      * `if (x) /re/.test(y)`) is classified as division. The consequence is
      * that a call may be skipped - output is never corrupted.
+     *
+     * PERF: allocation-free (previously one substring per '/' after an identifier).
      */
     private fun isRegexStart(code: String, i: Int): Boolean {
         var j = i - 1
         while (j >= 0 && code[j].isWhitespace()) j--
         if (j < 0) return true
         val p = code[j]
-        if (p.isLetterOrDigit() || p == '_' || p == '$') {
-            var k = j
-            while (k >= 0 && (code[k].isLetterOrDigit() || code[k] == '_' || code[k] == '$')) k--
-            return code.substring(k + 1, j + 1) in REGEX_KEYWORDS
+        if (p == ')' || p == ']' || p == '}' ||
+            p == '"' || p == '\'' || p == '`'
+        ) return false
+        if (!(p.isLetterOrDigit() || p == '_' || p == '$')) return true
+        // Previous token is an identifier/number: regex only after a keyword.
+        var k = j
+        while (k >= 0 && (code[k].isLetterOrDigit() || code[k] == '_' || code[k] == '$')) k--
+        val len = j - k
+        for (kw in REGEX_KEYWORDS) {
+            if (kw.length == len && code.regionMatches(k + 1, kw, 0, len)) return true
         }
-        return p != ')' && p != ']' && p != '}' && p != '"' && p != '\'' && p != '`'
+        return false
     }
 
     /** Consumes a regex literal starting at [start]; assumes it is one. */

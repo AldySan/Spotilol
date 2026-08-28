@@ -10,7 +10,8 @@ fun isAnalyticsDomain(url: String): Boolean {
             url.contains("t.6sc.co") ||
             url.contains("tracker.samplicio.us") ||
             url.contains("adsrvr.org") ||
-            url.contains("aet.spotify.com")
+            url.contains("aet.spotify.com") ||
+            url.contains("retargeting-pixels")
             // workbox-window REMOVED: Spotify now loads it as a lazy webpack chunk
             // (chunk 6201) during web-player init. Blocking it caused ChunkLoadError
             // -> React error boundary -> "Something wrong with page". The service
@@ -18,6 +19,7 @@ fun isAnalyticsDomain(url: String): Boolean {
             // before Spotify's code runs, so this block was redundant anyway.
 }
 
+@Suppress("unused")
 fun isAdAudioUrl(url: String): Boolean {
     return url.contains("akamaized.net/audio/") ||
             url.contains("scdn.co/audio/") ||

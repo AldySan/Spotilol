@@ -57,7 +57,7 @@ object JsUtils {
 
     /**
      * Upper bound for cached payloads, in bytes (UTF-16: 2 bytes per char).
-     * ~4 MB is enough for dozens of typical JS bundles while capping memory
+     * ~2 MB is enough for dozens of typical JS bundles while capping memory
      * use in long-running WebView sessions.
      */
     private const val MAX_CACHE_BYTES = 2 * 1024 * 1024

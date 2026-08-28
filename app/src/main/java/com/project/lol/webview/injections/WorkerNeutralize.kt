@@ -14,11 +14,13 @@ package com.project.lol.webview.injections
  * promise - Workbox catches this and continues without SW, falling back
  * to network-first behavior (which is what we want).
  *
- * Also throttles aggressive 250ms setInterval polling to 1000ms. The
- * 250ms timers from web-player.js:215359 are non-core UI polling that
- * gets cleared/recreated in bursts. Throttling reduces CPU wakeups by
- * 75% while keeping the feature functional. CORE intervals (progress
- * tracking at 500ms, Connect polling at 1000ms) are untouched.
+ * Also throttles aggressive 250ms setInterval polling to 500ms.
+ * The 250ms timers from web-player.js:215359 are non-core UI polling
+ * that gets cleared/recreated in bursts. A gentle 2x throttle reduces
+ * CPU wakeups by 50% with zero perceptible UX impact. Core intervals
+ * (progress at 500ms, Connect at 1000ms) have different delays and
+ * are untouched. PowerSave mode applies its own throttle upstream,
+ * so this check never fires when PowerSave is active.
  */
 object WorkerNeutralize {
     const val CONTENT = """
@@ -46,15 +48,16 @@ object WorkerNeutralize {
                 } catch(e){}
             }
 
-            /* === Interval throttle: 250ms -> 1000ms ===
-               Only affects the aggressive web-player polling timers.
-               _startProgressTracking (500ms) and ensurePolling (1000ms)
-               are in a different file (vendor~web-player) and have different
-               delays, so they pass through untouched. */
+            /* === Interval throttle: 250ms -> 500ms ===
+               Gentle 2x throttle for burst polling timers.
+               Core intervals (500ms progress, 1000ms Connect) 
+               have different delays and pass through untouched.
+               PowerSave modifies delay before this check fires,
+               so no compounding occurs. */
             try {
                 var origSI = window.setInterval.bind(window);
                 window.setInterval = function(fn, delay){
-                    if(delay === 250) delay = 1000;
+                    if(delay === 250) delay = 500;
                     return origSI(fn, delay);
                 };
             } catch(e){}

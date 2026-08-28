@@ -283,7 +283,6 @@ class SpotifyWebViewClient(
                 })();
             """.trimIndent())
             append(CssHack.CONTENT)
-            append(PlaylistSort.CONTENT)
             append(ModalFix.CONTENT)
             append(ErrorDialogRestyle.CONTENT)
             append(ToastFix.CONTENT)

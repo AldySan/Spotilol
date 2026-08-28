@@ -278,6 +278,7 @@ class SpotifyWebViewClient(
             append(CssHack.CONTENT)
             append(PlaylistSort.CONTENT)
             append(ModalFix.CONTENT)
+            append(ErrorDialogRestyle.CONTENT)
             append(ToastFix.CONTENT)
             append(LyricsSyncFix.CONTENT)
             if (playerMode == "spotilol") {

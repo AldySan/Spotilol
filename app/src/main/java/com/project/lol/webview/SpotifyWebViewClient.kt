@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.util.Log
 import android.webkit.CookieManager
 import android.webkit.RenderProcessGoneDetail
+import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
@@ -20,7 +21,8 @@ import androidx.core.content.edit
 class SpotifyWebViewClient(
     private val onLoginRequired: () -> Unit,
     private val onNavStateChanged: ((Boolean) -> Unit)? = null,
-    private val onRenderProcessGone: (() -> Unit)? = null
+    private val onRenderProcessGone: (() -> Unit)? = null,
+    private val onWebViewError: ((errorCode: Int, description: String) -> Unit)? = null
 ) : WebViewClient() {
 
     override fun doUpdateVisitedHistory(view: WebView?, url: String?, isReload: Boolean) {
@@ -192,6 +194,31 @@ class SpotifyWebViewClient(
         }
 
         return null
+    }
+
+    override fun onReceivedError(
+        view: WebView?,
+        request: WebResourceRequest?,
+        error: WebResourceError?
+    ) {
+        super.onReceivedError(view, request, error)
+        if (request?.isForMainFrame != true) return
+        val code = try { error?.errorCode ?: -1 } catch (_: Exception) { -1 }
+        val desc = try { error?.description?.toString() ?: "" } catch (_: Exception) { "" }
+        onWebViewError?.invoke(code, desc)
+    }
+
+    override fun onReceivedHttpError(
+        view: WebView?,
+        request: WebResourceRequest?,
+        errorResponse: WebResourceResponse?
+    ) {
+        super.onReceivedHttpError(view, request, errorResponse)
+        if (request?.isForMainFrame != true) return
+        val status = try { errorResponse?.statusCode ?: 0 } catch (_: Exception) { 0 }
+        if (status >= 400) {
+            onWebViewError?.invoke(status, "HTTP $status")
+        }
     }
 
     private fun isGoogleAuthUrl(url: String?): Boolean {

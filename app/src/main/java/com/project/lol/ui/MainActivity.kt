@@ -133,6 +133,8 @@ import kotlin.math.min
 import androidx.core.content.edit
 import androidx.core.graphics.scale
 import androidx.core.graphics.toColorInt
+import com.project.lol.ui.components.ErrorScreen
+import com.project.lol.ui.components.mapWebViewError
 import com.project.lol.webview.helpers.DevLogPrelude
 import java.util.Locale
 
@@ -175,6 +177,7 @@ class MainActivity : ComponentActivity() {
     private val loadingProgress = mutableIntStateOf(100)
 
     private val canGoBackState = mutableStateOf(false)
+    private val webViewError = mutableStateOf<Pair<Int, String>?>(null)
     private val pipCoverExecutor = Executors.newSingleThreadExecutor()
 
     private val notifPermLauncher = registerForActivityResult(
@@ -501,9 +504,13 @@ class MainActivity : ComponentActivity() {
                                                     // the factory again. destroyWebView() clears every reference first
                                                     // so the new factory starts from a clean slate.
                                                     runOnUiThread {
+                                                        webViewError.value = null   // stale error would block the rebuilt webview
                                                         destroyWebView()
                                                         webViewGen.intValue += 1
                                                     }
+                                                },
+                                                onWebViewError = { code, desc ->
+                                                    webViewError.value = code to desc
                                                 }
                                             ).also { activeWebViewClient = it }
 
@@ -563,6 +570,18 @@ class MainActivity : ComponentActivity() {
                                         .alpha(progressAlpha),
                                     color = Color(0xFF22DD66),
                                     trackColor = Color.Transparent,
+                                )
+                            }
+
+                            webViewError.value?.let { (code, desc) ->
+                                ErrorScreen(
+                                    errorType = mapWebViewError(code),
+                                    errorCode = code,
+                                    errorDescription = desc,
+                                    onRetry = {
+                                        webViewError.value = null
+                                        webView?.reload()
+                                    }
                                 )
                             }
 

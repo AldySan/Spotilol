@@ -336,6 +336,16 @@ class SpotifyWebViewClient(
                 val mode = prefs.getString("APlayMode", "disabled") ?: "disabled"
                 wv.evaluateJavascript("window.autoPlayMode='$mode';", null)
             }
+            if (key == "AmoledTheme") {
+                val wv = currentWebView ?: return@OnSharedPreferenceChangeListener
+                val on = prefs.getBoolean("AmoledTheme", false)
+                wv.evaluateJavascript(buildAmoledJs(on), null)
+            }
+            if (key == "CustomCss") {
+                val wv = currentWebView ?: return@OnSharedPreferenceChangeListener
+                val css = prefs.getString("CustomCss", "") ?: ""
+                wv.evaluateJavascript(buildCustomCssJs(css), null)
+            }
         }
         prefs.registerOnSharedPreferenceChangeListener(prefsListener)
     }

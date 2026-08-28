@@ -39,6 +39,10 @@ import java.util.Date
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+import java.util.concurrent.Future
 import javax.net.ssl.HttpsURLConnection
 import javax.net.ssl.KeyManagerFactory
 import javax.net.ssl.SSLContext
@@ -55,11 +59,13 @@ object LocalProxyManager {
     private const val KEYSTORE_TYPE = "PKCS12"
 
     @Volatile private var serverSocket: ServerSocket? = null
-    @Volatile private var acceptorThread: Thread? = null
+    @Volatile private var acceptorFuture: Future<*>? = null
     @Volatile private var caKeyPair: KeyPair? = null
     @Volatile private var caCert: X509Certificate? = null
     @Volatile private var leafKeyPair: KeyPair? = null
-    @Volatile private var threadPool: java.util.concurrent.ExecutorService? = null
+    @Volatile private var threadPool: ExecutorService? = null
+    @Volatile private var pipeExecutor: ExecutorService? = null
+    @Volatile private var acceptorExecutor: ExecutorService? = null
 
     private val sslContextCache = Collections.synchronizedMap(HashMap<String, SSLContext>())
 
@@ -137,8 +143,7 @@ object LocalProxyManager {
                     Log.d(TAG, "Migrating keystore to new password")
                     val ks = KeyStore.getInstance(KEYSTORE_TYPE)
                     ksFile.inputStream().use { ks.load(it, "".toCharArray()) }
-                    val entry = ks.getEntry(CA_ALIAS, KeyStore.PasswordProtection("".toCharArray()))
-                        as KeyStore.PrivateKeyEntry
+                    val entry = ks.getEntry(CA_ALIAS, KeyStore.PasswordProtection("".toCharArray())) as KeyStore.PrivateKeyEntry
                     caKeyPair = KeyPair(entry.certificate.publicKey, entry.privateKey)
                     caCert = entry.certificate as X509Certificate
                     val newKs = KeyStore.getInstance(KEYSTORE_TYPE)
@@ -205,8 +210,7 @@ object LocalProxyManager {
         val ks = KeyStore.getInstance(KEYSTORE_TYPE)
         ksFile.inputStream().use { ks.load(it, password.toCharArray()) }
 
-        val entry = ks.getEntry(CA_ALIAS, KeyStore.PasswordProtection(password.toCharArray()))
-            as KeyStore.PrivateKeyEntry
+        val entry = ks.getEntry(CA_ALIAS, KeyStore.PasswordProtection(password.toCharArray())) as KeyStore.PrivateKeyEntry
         caKeyPair = KeyPair(entry.certificate.publicKey, entry.privateKey)
         caCert = entry.certificate as X509Certificate
 
@@ -214,25 +218,56 @@ object LocalProxyManager {
     }
 
     /**
-     * FIX: stop() used to strand all 32 parked pool threads (they only die when
-     * the process does), and start() kept handing work to a shutdown pool -
-     * RejectedExecutionException, silent connection refusals. Lazily (re)create
-     * the pool so every start() gets a live one.
+     * Lazily (re)create the connection-handling pool so every start() gets a live one.
      */
-    private fun pool(): java.util.concurrent.ExecutorService {
+    private fun pool(): ExecutorService {
         val p = threadPool
         if (p != null && !p.isShutdown) return p
         synchronized(this) {
             val p2 = threadPool
             if (p2 != null && !p2.isShutdown) return p2
-            return java.util.concurrent.Executors.newFixedThreadPool(32).also { threadPool = it }
+            return Executors.newFixedThreadPool(32) { r -> Thread(r, "LocalProxy-Worker").apply { isDaemon = true }
+            }.also { threadPool = it }
+        }
+    }
+
+    /**
+     * Cached thread pool for bidirectional pipe tasks and the CA trust probe.
+     * Unbounded like raw Threads, but reuses idle threads instead of churning.
+     * Idle threads are cleaned up after 60s.
+     */
+    private fun pipePool(): ExecutorService {
+        val p = pipeExecutor
+        if (p != null && !p.isShutdown) return p
+        synchronized(this) {
+            val p2 = pipeExecutor
+            if (p2 != null && !p2.isShutdown) return p2
+            return Executors.newCachedThreadPool { r ->
+                Thread(r, "LocalProxy-Pipe").apply { isDaemon = true }
+            }.also { pipeExecutor = it }
+        }
+    }
+
+    /**
+     * Single-thread executor for the acceptor loop.
+     * Replaces the raw acceptorThread - same semantics, managed lifecycle.
+     */
+    private fun acceptorPool(): ExecutorService {
+        val p = acceptorExecutor
+        if (p != null && !p.isShutdown) return p
+        synchronized(this) {
+            val p2 = acceptorExecutor
+            if (p2 != null && !p2.isShutdown) return p2
+            return Executors.newSingleThreadExecutor { r ->
+                Thread(r, "LocalProxy-Acceptor").apply { isDaemon = true }
+            }.also { acceptorExecutor = it }
         }
     }
 
     @Synchronized
     fun start() {
-        if (acceptorThread?.isAlive == true) return
-        acceptorThread = Thread({
+        if (acceptorFuture?.isDone == false) return
+        acceptorFuture = acceptorPool().submit {
             try {
                 val ss = ServerSocket(0, 128, java.net.InetAddress.getByName("127.0.0.1"))
                 serverSocket = ss
@@ -249,9 +284,6 @@ object LocalProxyManager {
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to start proxy", e)
             }
-        }, "LocalProxy-Acceptor").apply {
-            isDaemon = true
-            start()
         }
     }
 
@@ -265,10 +297,12 @@ object LocalProxyManager {
         } finally {
             serverSocket = null
         }
-        // FIX: shut the pool down instead of stranding 32 daemon threads forever.
-        // Pending connections finish their current work; idle workers exit.
-        // pool() rebuilds on the next start().
+        // Shut down all executors. Pending connections finish their current work;
+        // idle workers exit. pool()/pipePool()/acceptorPool() rebuild on next start().
         try { threadPool?.shutdown() } catch (_: Exception) {}
+        try { pipeExecutor?.shutdown() } catch (_: Exception) {}
+        try { acceptorExecutor?.shutdownNow() } catch (_: Exception) {}
+        acceptorFuture = null
         closeAllPooledUpstreamSockets()
     }
 
@@ -311,8 +345,8 @@ object LocalProxyManager {
         }
         upstreamPool.clear()
     }
-	
-	    /**
+
+    /**
      * Pre-check a pooled socket before writing anything to it.
      * Similar to how Chromium handles its socket pool.
      * If the peer already closed the connection, it returns EOF immediately;
@@ -546,12 +580,11 @@ object LocalProxyManager {
 
         if (isResponse) {
             val code = extractStatusCodeFromLine(statusLine)
-            noBody = code / 100 == 1 || code == 204 || code == 304 ||
-                methodHint.equals("HEAD", ignoreCase = true)
+            noBody = code / 100 == 1 || code == 204 || code == 304 || methodHint.equals("HEAD", ignoreCase = true)
         } else {
             noBody = false
         }
-        
+
         if (!noBody) {
             for ((k, v) in headers) {
                 if (k.equals("Content-Length", ignoreCase = true)) {
@@ -624,10 +657,10 @@ object LocalProxyManager {
         while (true) {
             val sizeLine = readLine(input) ?: return true
             if (sizeLine.isBlank()) continue
-            
+
             output.write((sizeLine + "\r\n").toByteArray(Charsets.ISO_8859_1))
             val chunkSize = sizeLine.split(";")[0].trim().toLongOrNull(16) ?: return true
-            
+
             if (chunkSize == 0L) {
                 // Zero-or-more trailer header lines can follow the final chunk, terminated
                 // by a blank line. Consume all of them so
@@ -640,7 +673,7 @@ object LocalProxyManager {
                 output.flush()
                 return false
             }
-            
+
             pipeExactBytes(input, output, chunkSize)
             val crlf = readLine(input) ?: return true
             output.write((crlf + "\r\n").toByteArray(Charsets.ISO_8859_1))
@@ -755,36 +788,44 @@ object LocalProxyManager {
         msg.headers.add("sec-ch-ua-platform" to "\"Windows\"")
     }
 
+    /**
+     * Migrated from raw Threads to pipePool() with CountDownLatch.
+     * Same semantics: two concurrent pipes, wait for both to finish.
+     * The cached pool reuses idle threads instead of churning new ones
+     * for every WebSocket upgrade / h2 tunnel.
+     *
+     * If pipePool() rejects a task (during shutdown), we count down
+     * the latch ourselves so await() doesn't deadlock.
+     */
     private fun bidirectionalPipe(
         clientIn: InputStream, clientOut: OutputStream,
         upstreamIn: InputStream, upstreamOut: OutputStream
     ) {
-        val t1 = Thread {
+        val latch = CountDownLatch(2)
+
+        fun submitPipe(input: InputStream, output: OutputStream) {
             try {
-                val buf = ByteArray(8192)
-                var n: Int
-                while (clientIn.read(buf).also { n = it } != -1) {
-                    upstreamOut.write(buf, 0, n)
-                    upstreamOut.flush()
+                pipePool().execute {
+                    try {
+                        val buf = ByteArray(8192)
+                        var n: Int
+                        while (input.read(buf).also { n = it } != -1) {
+                            output.write(buf, 0, n)
+                            output.flush()
+                        }
+                    } catch (_: Exception) {}
+                    try { output.close() } catch (_: Exception) {}
+                    latch.countDown()
                 }
-            } catch (_: Exception) {}
-            try { upstreamOut.close() } catch (_: Exception) {}
+            } catch (_: Exception) {
+                try { output.close() } catch (_: Exception) {}
+                latch.countDown()
+            }
         }
-        val t2 = Thread {
-            try {
-                val buf = ByteArray(8192)
-                var n: Int
-                while (upstreamIn.read(buf).also { n = it } != -1) {
-                    clientOut.write(buf, 0, n)
-                    clientOut.flush()
-                }
-            } catch (_: Exception) {}
-            try { clientOut.close() } catch (_: Exception) {}
-        }
-        t1.start()
-        t2.start()
-        t1.join()
-        t2.join()
+
+        submitPipe(clientIn, upstreamOut)
+        submitPipe(upstreamIn, clientOut)
+        latch.await()
     }
 
     fun isCAInstalled(): Boolean {
@@ -948,20 +989,22 @@ object LocalProxyManager {
             listener = ServerSocket(0, 1, java.net.InetAddress.getByName("127.0.0.1"))
             val port = listener.localPort
 
-            val serverThread = Thread({
-                try {
-                    accepted = listener.accept()
-                    val tls = ctx.socketFactory.createSocket(
-                        accepted, "localhost", port, true
-                    ) as SSLSocket
-                    serverTls = tls
-                    tls.useClientMode = false
-                    tls.startHandshake()
-                    tls.outputStream.write(0x01)
-                } catch (_: Exception) {}
-            }, "LocalProxy-CATrustProbe")
-            serverThread.isDaemon = true
-            serverThread.start()
+            // Migrated from raw Thread to pipePool(). Fire-and-forget,
+            // same as before - the finally block closes everything.
+            try {
+                pipePool().execute {
+                    try {
+                        accepted = listener.accept()
+                        val tls = ctx.socketFactory.createSocket(
+                            accepted, "localhost", port, true
+                        ) as SSLSocket
+                        serverTls = tls
+                        tls.useClientMode = false
+                        tls.startHandshake()
+                        tls.outputStream.write(0x01)
+                    } catch (_: Exception) {}
+                }
+            } catch (_: Exception) {}
 
             client = SSLSocketFactory.getDefault()
                 .createSocket("127.0.0.1", port) as SSLSocket

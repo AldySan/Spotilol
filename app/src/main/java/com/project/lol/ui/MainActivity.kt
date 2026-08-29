@@ -1355,7 +1355,6 @@ class MainActivity : ComponentActivity() {
         webView?.evaluateJavascript("""
         try {
             window.__splBg = true;
-            if(window.__splParkVideos) __splParkVideos();
             if(typeof pfint !== 'undefined' && pfint) { clearInterval(pfint); pfint = null; window.__splWasPfint = true; }
             if(typeof afint !== 'undefined' && afint) { clearInterval(afint); afint = null; window.__splWasAfint = true; }
             if(typeof cssint !== 'undefined' && cssint) { clearInterval(cssint); cssint = null; window.__splWasCssint = true; }
@@ -1388,7 +1387,6 @@ class MainActivity : ComponentActivity() {
 
         webView?.let { view ->
             view.evaluateJavascript("""
-                if(window.__splRestoreVideos) __splRestoreVideos();
                 try {
                     window.__splBg = false;
                     if(window.__splWasPfint) { window.__splWasPfint = false; firstFuck(); }

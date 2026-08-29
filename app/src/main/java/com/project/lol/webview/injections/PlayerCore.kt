@@ -23,6 +23,7 @@ object PlayerCore {
             };
             window.__splFloaters=[];
             setInterval(function(){
+                if(window.__splBg) return;
                 for(var i=0;i<window.__splFloaters.length;i++){
                     try{window.__splFloaters[i]();}catch(e){}
                 }

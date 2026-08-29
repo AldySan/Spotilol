@@ -326,6 +326,7 @@ object SpotilolPlayer {
             if(document.readyState==='complete') initSpotilolPlayer();
             else window.addEventListener('load',initSpotilolPlayer);
             setInterval(function(){
+                if(window.__splBg) return;
                 var npb=document.querySelector('aside[data-testid="now-playing-bar"]');
                 if(npb&&npb.style.display!=='none') initSpotilolPlayer();
             },3000);

@@ -398,6 +398,7 @@ object ToastFix {
             }
 
             function splTick(){
+                if (window.__splBg) return;
                 if (tracked.length === 0) return;
                 splRestack();
                 checkDeaths();

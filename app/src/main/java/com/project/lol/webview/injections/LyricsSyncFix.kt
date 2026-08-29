@@ -140,7 +140,7 @@ object LyricsSyncFix {
                 }
             }
 
-            function tick(){ rebalance(); reposition(); }
+            function tick(){ if(window.__splBg) return; rebalance(); reposition(); }
             if (window.__splFloaters) window.__splFloaters.push(tick);
             else setInterval(tick, 300);
 

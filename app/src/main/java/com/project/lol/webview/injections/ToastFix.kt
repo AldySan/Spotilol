@@ -88,7 +88,6 @@ object ToastFix {
                 if (t && !document.getElementById('spl-toast-fix')) t.appendChild(st);
             }
             splAppend();
-            document.addEventListener('DOMContentLoaded', splAppend);
 
             function splLiberate(el){
                 var p = el.parentElement, hops = 0;

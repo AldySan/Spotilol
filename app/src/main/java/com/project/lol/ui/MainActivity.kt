@@ -514,34 +514,64 @@ class MainActivity : ComponentActivity() {
                                                 }
                                             ).also { activeWebViewClient = it }
 
-                                            val executor = Executors.newSingleThreadExecutor()
-                                            if (useProxy && LocalProxyManager.isRunning) {
-                                                // ProxyController requires a scheme (http://, socks://, or direct).
-                                                // A bare "host:port" is parsed as scheme="host" and silently falls
-                                                // back to DIRECT, so MITM never actually happens. Always include
-                                                // the http:// scheme and surface errors via the callback instead
-                                                // of swallowing them.
-                                                val proxyConfig = ProxyConfig.Builder()
-                                                    .addProxyRule("http://localhost:${LocalProxyManager.port}")
-                                                    .build()
-                                                ProxyController.getInstance().setProxyOverride(
-                                                    proxyConfig,
-                                                    executor
-                                                ) {
-                                                    android.util.Log.d(
-                                                        "MainActivity",
-                                                        "Proxy override applied: http://localhost:${LocalProxyManager.port}"
-                                                    )
+                                            // ---- Proxy override + first navigation (race-free) ----
+                                            // WebView is multiprocess: the override reaches the renderer over IPC and
+                                            // only goes live once the callback fires. Navigating before that lets the
+                                            // first main-frame request slip out un-proxied (or, right after a mode
+                                            // switch, hit a stale override pointing at a dead proxy). So: navigate
+                                            // FROM the callback, never right after the call.
+                                            val targetUrl = if (loggedIn) "https://open.spotify.com/"
+                                                else "https://accounts.spotify.com/login"
+
+                                            if (WebViewFeature.isFeatureSupported(WebViewFeature.PROXY_OVERRIDE)) {
+                                                val proxyExecutor = Executors.newSingleThreadExecutor { r ->
+                                                    Thread(r, "ProxyOverride").apply { isDaemon = true }
+                                                }
+                                                if (useProxy && LocalProxyManager.isRunning) {
+                                                    // ProxyController requires a scheme (http://, socks://, or direct).
+                                                    // A bare "host:port" is parsed as scheme="host" and silently falls
+                                                    // back to DIRECT, so MITM never actually happens.
+                                                    val proxyConfig = ProxyConfig.Builder()
+                                                        .addProxyRule("http://localhost:${LocalProxyManager.port}")
+                                                        .build()
+                                                    try {
+                                                        ProxyController.getInstance().setProxyOverride(proxyConfig, proxyExecutor) {
+                                                            android.util.Log.d(
+                                                                "MainActivity",
+                                                                "Proxy override applied: http://localhost:${LocalProxyManager.port}"
+                                                            )
+                                                            post { loadUrl(targetUrl) }
+                                                            proxyExecutor.shutdown()
+                                                        }
+                                                    } catch (e: Exception) {
+                                                        // Sync throw (e.g. WebView already torn down mid-race) - the
+                                                        // callback will never fire; fall back to a direct load.
+                                                        android.util.Log.e("MainActivity", "setProxyOverride failed", e)
+                                                        loadUrl(targetUrl)
+                                                        proxyExecutor.shutdown()
+                                                    }
+                                                } else {
+                                                    // Normal mode: clear any stale override left over from a previous
+                                                    // proxy session. The override is process-wide and SURVIVES the mode
+                                                    // switch (switchConnectionMode restarts activities, not the process),
+                                                    // so without this clear the first load could try a dead localhost
+                                                    // port and faceplant into the error screen.
+                                                    ProxyController.getInstance().clearProxyOverride(proxyExecutor) {
+                                                        proxyExecutor.shutdown()
+                                                        post { loadUrl(targetUrl) }
+                                                    }
                                                 }
                                             } else {
-                                                ProxyController.getInstance()
-                                                    .clearProxyOverride(executor) { }
-                                            }
-
-                                            if (loggedIn) {
-                                                loadUrl("https://open.spotify.com/")
-                                            } else {
-                                                loadUrl("https://accounts.spotify.com/login")
+                                                // Ancient WebView without PROXY_OVERRIDE: ProxyController would throw.
+                                                // Load direct; in proxy mode MITM simply won't engage (UA spoofing via
+                                                // settings.userAgentString still holds, so it degrades, doesn't break).
+                                                if (useProxy) {
+                                                    android.util.Log.e(
+                                                        "MainActivity",
+                                                        "PROXY_OVERRIDE unsupported on this WebView - loading direct, MITM inactive"
+                                                    )
+                                                }
+                                                loadUrl(targetUrl)
                                             }
                                         }
                                     },
@@ -1370,7 +1400,6 @@ class MainActivity : ComponentActivity() {
             val js = buildString {
                 append("window.closeNpPref=$closeNowPlay;\n")
                 append(buildAmoledJs(amoledEnabled))
-                append("\n")
                 append(buildCustomCssJs(customCss))
             }
             view.evaluateJavascript(js, null)

@@ -356,7 +356,8 @@ object LocalProxyManager {
         val original = try { socket.soTimeout } catch (_: Exception) { return true }
         return try {
             socket.soTimeout = 1
-            socket.inputStream.read() == -1  // EOF = peer already closed it
+            socket.inputStream.read()
+            true
         } catch (_: java.net.SocketTimeoutException) {
             false // nothing waiting - healthy, idle connection, the common case
         } catch (_: Exception) {
@@ -369,6 +370,7 @@ object LocalProxyManager {
     /** Opens and fully verifies a brand-new upstream TLS connection. */
     private fun openUpstreamSocket(host: String, port: Int, useHttp2: Boolean): SSLSocket {
         val socket = (SSLSocketFactory.getDefault().createSocket(host, port) as SSLSocket).also {
+            it.tcpNoDelay = true
             if (Build.VERSION.SDK_INT >= 29) {
                 val params = it.sslParameters
                 params.applicationProtocols = if (useHttp2) arrayOf("h2") else arrayOf("http/1.1")
@@ -390,6 +392,7 @@ object LocalProxyManager {
 
     private fun handleConnection(client: Socket) {
         client.soTimeout = 30000
+        client.tcpNoDelay = true
         try {
             val requestLine = readLine(client.inputStream) ?: return
 
@@ -642,7 +645,7 @@ object LocalProxyManager {
     }
 
     private fun pipeExactBytes(input: InputStream, output: OutputStream, count: Long) {
-        val buf = ByteArray(8192)
+        val buf = ByteArray(32768)
         var remaining = count
         while (remaining > 0) {
             val n = input.read(buf, 0, minOf(buf.size.toLong(), remaining).toInt())
@@ -707,6 +710,7 @@ object LocalProxyManager {
 
         synchronized(this) {
             sslContextCache[hostname]?.let { return it }
+            if (sslContextCache.size >= 128) sslContextCache.clear()
 
             val (domainCert, domainKeyPair) = generateDomainCert(hostname)
 

@@ -97,9 +97,8 @@ class SplashActivity : ComponentActivity() {
 
             LaunchedEffect(Unit) {
                 withContext(Dispatchers.IO) {
-                    val prefs = getSharedPreferences("spotilol_prefs", MODE_PRIVATE)
-                    val offlineMode = prefs.getBoolean("OfflineMode", false)
-                    val useProxy = !offlineMode && prefs.getString("ConnectionMode", "normal") == "proxy"
+                    val useProxy = getSharedPreferences("spotilol_prefs", MODE_PRIVATE)
+                        .getString("ConnectionMode", "normal") == "proxy"
                     if (useProxy) {
                         LocalProxyManager.init(this@SplashActivity)
                         LocalProxyManager.start()

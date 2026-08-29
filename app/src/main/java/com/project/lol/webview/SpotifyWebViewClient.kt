@@ -87,6 +87,7 @@ class SpotifyWebViewClient(
         }
         view?.evaluateJavascript(staticJs("FetchOverride", FetchOverride.CONTENT), null)
         view?.evaluateJavascript(staticJs("WorkerNeutralize", WorkerNeutralize.CONTENT), null)
+        view?.evaluateJavascript(staticJs("GaBlocker", GaBlocker.CONTENT), null)
         view?.evaluateJavascript("window.__splPowerSavePref=$powerSave;", null)
         view?.evaluateJavascript(staticJs("PowerSave", PowerSave.CONTENT), null)
         view?.evaluateJavascript(staticJs("SettingsFix", SettingsFix.CONTENT), null)

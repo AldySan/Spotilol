@@ -13,7 +13,12 @@ object LyricsSyncFix {
 
             var GAP = 10;
 
+            var SWEEP_MS = 800;
+            var OBS_DEBOUNCE_MS = 120;
+
             var tracked = [];
+            var lastSweep = 0;
+            var obsPending = false;
 
             function track(el){ tracked.push(el); }
             function untrack(el){
@@ -140,13 +145,21 @@ object LyricsSyncFix {
                 }
             }
 
-            function tick(){ if(window.__splBg) return; rebalance(); reposition(); }
+            function tick(){
+                if (window.__splBg) return;
+                if (tracked.length) reposition();
+                var now = Date.now();
+                if (now - lastSweep < SWEEP_MS) return;
+                lastSweep = now;
+                rebalance();
+            }
             if (window.__splFloaters) window.__splFloaters.push(tick);
             else setInterval(tick, 300);
 
             rebalance();
 
             var obs = new MutationObserver(function(muts){
+                if (window.__splBg) return;
                 var dirty = false;
                 for (var i = 0; i < muts.length && !dirty; i++){
                     var a = muts[i].addedNodes, r = muts[i].removedNodes;
@@ -157,7 +170,13 @@ object LyricsSyncFix {
                         if (r[k].nodeType === 1){ dirty = true; break; }
                     }
                 }
-                if (dirty) rebalance();
+                if (dirty && !obsPending){
+                    obsPending = true;
+                    setTimeout(function(){
+                        obsPending = false;
+                        rebalance();
+                    }, OBS_DEBOUNCE_MS);
+                }
             });
             obs.observe(document.body, { childList: true, subtree: true });
 

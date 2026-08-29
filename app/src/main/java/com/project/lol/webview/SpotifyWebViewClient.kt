@@ -258,6 +258,7 @@ class SpotifyWebViewClient(
                 append("\n")
             }
             append(PlayerCore.CONTENT)
+            append(TrackObserver.CONTENT)
             append(ClassicBridge.CONTENT)
             append(MediaUpdater.CONTENT)
             append(LibraryFetcher.CONTENT)

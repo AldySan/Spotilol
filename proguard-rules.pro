@@ -22,6 +22,3 @@
 -dontwarn java.beans.Introspector
 -dontwarn java.beans.PropertyDescriptor
 -dontwarn javax.script.**
--keep class org.mozilla.javascript.** { *; }
--dontwarn org.mozilla.javascript.**
-

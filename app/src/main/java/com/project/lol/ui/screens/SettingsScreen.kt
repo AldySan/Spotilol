@@ -798,6 +798,10 @@ fun SettingsContent(
             onDismiss = { showClearDataDialog = false }
         )
     }
+
+    if (showDevlogDialog) {
+        DevlogLiveDialog(onDismiss = { showDevlogDialog = false })
+    }
 }
 
 @OptIn(ExperimentalLayoutApi::class)

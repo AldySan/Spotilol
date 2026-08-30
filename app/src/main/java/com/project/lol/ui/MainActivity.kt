@@ -135,6 +135,7 @@ import androidx.core.graphics.scale
 import androidx.core.graphics.toColorInt
 import com.project.lol.ui.components.ErrorScreen
 import com.project.lol.ui.components.mapWebViewError
+import com.project.lol.webview.helpers.AccentTheme
 import com.project.lol.webview.helpers.DevLogPrelude
 import java.util.Locale
 
@@ -266,6 +267,9 @@ class MainActivity : ComponentActivity() {
             }
             val seedColor = paletteSeed?.let { hex ->
                 runCatching { Color(hex.toColorInt()) }.getOrNull()
+            }
+            val accentColor = remember(materialYou, paletteSeed) {
+                AccentTheme.resolveColor(this@MainActivity)
             }
 
             BackHandler(enabled = settingsDrawerOpen || canGoBack) {
@@ -606,7 +610,7 @@ class MainActivity : ComponentActivity() {
                                         .height(2.dp)
                                         .align(Alignment.TopCenter)
                                         .alpha(progressAlpha),
-                                    color = Color(0xFF22DD66),
+                                    color = accentColor,   // was Color(0xFF22DD66)
                                     trackColor = Color.Transparent,
                                 )
                             }
@@ -770,10 +774,11 @@ class MainActivity : ComponentActivity() {
             putString("minutes", minutes.toString())
         })
 
-        webView?.evaluateJavascript(
-            "if(window.timerBtn) timerBtn.style.color='#2d6';",
-            null
-        )
+        webView?.evaluateJavascript("""
+            if(window.timerBtn) timerBtn.style.color='var(--spl-accent,#2d6)';
+            var t=document.getElementById('spl-timer');
+            if(t) t.classList.add('spl-active');
+        """.trimIndent(), null)
 
         sleepTimer = object : CountDownTimer(totalMs, 1000) {
             override fun onTick(millisUntilFinished: Long) {
@@ -783,10 +788,11 @@ class MainActivity : ComponentActivity() {
             override fun onFinish() {
                 sleepTimerActive.value = false
                 sleepTimerRemainingMs.longValue = 0L
-                webView?.evaluateJavascript(
-                    "if(window.timerBtn) timerBtn.style.color='';",
-                    null
-                )
+                webView?.evaluateJavascript("""
+                    if(window.timerBtn) timerBtn.style.color='';
+                    var t=document.getElementById('spl-timer');
+                    if(t) t.classList.remove('spl-active');
+                """.trimIndent(), null)
                 webView?.evaluateJavascript("actPlayPause(false)", null)
             }
         }.start()
@@ -797,10 +803,11 @@ class MainActivity : ComponentActivity() {
         sleepTimer = null
         sleepTimerActive.value = false
         sleepTimerRemainingMs.longValue = 0L
-        webView?.evaluateJavascript(
-            "if(window.timerBtn) timerBtn.style.color='';",
-            null
-        )
+        webView?.evaluateJavascript("""
+            if(window.timerBtn) timerBtn.style.color='';
+            var t=document.getElementById('spl-timer');
+            if(t) t.classList.remove('spl-active');
+        """.trimIndent(), null)
     }
 
     @Composable
@@ -1412,6 +1419,7 @@ class MainActivity : ComponentActivity() {
             val js = buildString {
                 append("window.closeNpPref=$closeNowPlay;\n")
                 append(buildAmoledJs(amoledEnabled))
+                append(AccentTheme.buildAccentJs(this@MainActivity))
                 append(buildCustomCssJs(customCss))
             }
             view.evaluateJavascript(js, null)

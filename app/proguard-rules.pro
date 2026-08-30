@@ -18,6 +18,19 @@
 -keepattributes *Annotation*,JavascriptInterface,SourceFile,LineNumberTable
 -renamesourcefileattribute SourceFile
 
+-keep class com.google.firebase.** { *; }
+-keep class com.google.android.gms.** { *; }
+-keep class com.google.protobuf.** { *; }
+-keep class com.google.protos.** { *; }
+-keep class ** extends com.google.protobuf.GeneratedMessageLite { *; }
+-keep class ** extends com.google.protobuf.GeneratedMessage { *; }
+-keepclassmembers class ** extends com.google.protobuf.GeneratedMessageLite {
+    <fields>;
+}
+-keepclassmembers class ** extends com.google.protobuf.GeneratedMessage {
+    <fields>;
+}
+
 # NewPipe / Rhino - java.beans.* not available on Android on device
 -dontwarn java.beans.BeanDescriptor
 -dontwarn java.beans.BeanInfo

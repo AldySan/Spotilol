@@ -86,6 +86,8 @@ class SpotifyWebViewClient(
             view?.evaluateJavascript(staticJs("BrowserSpoof", BrowserSpoof.CONTENT), null)
         }
         view?.evaluateJavascript(staticJs("FetchOverride", FetchOverride.CONTENT), null)
+        AdIdStore.clear()
+        view?.evaluateJavascript(staticJs("AdStateHook", AdStateHook.CONTENT), null)
         view?.evaluateJavascript(staticJs("WorkerNeutralize", WorkerNeutralize.CONTENT), null)
         view?.evaluateJavascript(staticJs("GaBlocker", GaBlocker.CONTENT), null)
         view?.evaluateJavascript("window.__splPowerSavePref=$powerSave;", null)
@@ -125,6 +127,12 @@ class SpotifyWebViewClient(
             val headers = mapOf("Access-Control-Allow-Origin" to "*")
             return WebResourceResponse("text/plain", "utf-8", 200, "OK", headers,
                 ByteArrayInputStream(ByteArray(0)))
+        }
+
+        if (AdIdStore.matches(url)) {
+            view.post { view.evaluateJavascript("AndBridge.deferMessage('adblock')", null) }
+            val silent = view.context.assets?.open("silent.mp3") ?: return null
+            return WebResourceResponse("audio/mpeg", null, silent)
         }
 
         if (view.context.getSharedPreferences("spotilol_prefs", 0)

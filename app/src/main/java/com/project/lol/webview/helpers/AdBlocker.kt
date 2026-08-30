@@ -11,7 +11,8 @@ fun isAnalyticsDomain(url: String): Boolean {
             url.contains("tracker.samplicio.us") ||
             url.contains("adsrvr.org") ||
             url.contains("aet.spotify.com") ||
-            url.contains("retargeting-pixels")
+            url.contains("retargeting-pixels") ||
+            url.contains("spotify.com/gabo-receiver-service/public/v3/events")
             // workbox-window REMOVED: Spotify now loads it as a lazy webpack chunk
             // (chunk 6201) during web-player init. Blocking it caused ChunkLoadError
             // -> React error boundary -> "Something wrong with page". The service

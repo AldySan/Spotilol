@@ -13,6 +13,7 @@ import java.net.URL
 import java.util.Locale
 import androidx.core.content.edit
 import com.project.lol.util.DebugLogStore
+import com.project.lol.webview.helpers.AdIdStore
 
 class SpotifyBridge(private val activityRef: WeakReference<Activity>) {
 
@@ -48,6 +49,30 @@ class SpotifyBridge(private val activityRef: WeakReference<Activity>) {
             }
         activity.runOnUiThread {
             onLoginDetected?.invoke()
+        }
+    }
+
+
+    /**
+     * Receives the bounded ad content ID list published by the page-level
+     * AdStateHook (ported from Blockify's page-hook). Runs on the WebView's
+     * JS-bridge thread - keep it fast: parse, validate, store, done.
+     */
+    @Suppress("unused")
+    @JavascriptInterface
+    fun recAdContentIds(json: String?) {
+        if (json.isNullOrEmpty()) return
+        try {
+            val arr = org.json.JSONArray(json)
+            val candidates = ArrayList<String>(arr.length())
+            for (i in 0 until arr.length()) {
+                candidates.add(arr.optString(i))
+            }
+            if (AdIdStore.addAll(candidates)) {
+                DebugLogStore.log("bridge", "ad-id store now " + AdIdStore.size())
+            }
+        } catch (_: Exception) {
+            // Malformed page-provided payloads are ignored; AdIdStore re-validates.
         }
     }
 

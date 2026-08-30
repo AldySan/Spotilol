@@ -1,5 +1,6 @@
 package com.project.lol.webview
 
+import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Handler
@@ -57,6 +58,7 @@ class SpotifyWebChromeClient(
         return host == "google.com" || host.endsWith(".google.com") || host.indexOf(".google.") != -1
     }
 
+    @SuppressLint("SetJavaScriptEnabled")
     override fun onCreateWindow(
         view: WebView?,
         isDialog: Boolean,

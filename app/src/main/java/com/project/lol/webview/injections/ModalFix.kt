@@ -100,7 +100,6 @@ object ModalFix {
                 if (t && !document.getElementById('spl-modal-fix')) t.appendChild(st);
             }
             append();
-            document.addEventListener('DOMContentLoaded', append);
         })();
     """
 }

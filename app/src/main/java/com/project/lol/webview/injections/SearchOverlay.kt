@@ -590,6 +590,7 @@ object SearchOverlay {
 
                 css();
                 var int = setInterval(function(){
+                    if(window.__splBg) return;
                     bindSearchIcon();
                 }, 2000);
             })();

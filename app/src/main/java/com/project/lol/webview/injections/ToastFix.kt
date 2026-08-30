@@ -88,7 +88,6 @@ object ToastFix {
                 if (t && !document.getElementById('spl-toast-fix')) t.appendChild(st);
             }
             splAppend();
-            document.addEventListener('DOMContentLoaded', splAppend);
 
             function splLiberate(el){
                 var p = el.parentElement, hops = 0;
@@ -297,7 +296,7 @@ object ToastFix {
 
             function splDress(el){
                 if (!el || el.__splDressed || el.__splGhost) return;
-                var idx = dressedCount();
+                var idx = tracked.length;
                 el.__splDressed = true;
                 el.__splBorn = Date.now();
                 track(el);
@@ -352,17 +351,18 @@ object ToastFix {
                     var added = muts[i].addedNodes;
                     for (var j = 0; j < added.length; j++) splScan(added[j]);
                     var rem = muts[i].removedNodes;
-                    for (var k = 0; k < rem.length; k++) extractGhost(rem[k]);
+                    for (var k = 0; k < rem.length; k++) {
+                        if (rem[k].nodeType === 1) extractGhost(rem[k]);
+                    }
                 }
             });
             splToastObs.observe(document.body, { childList: true, subtree: true });
 
             function splRestack(){
-                var live = document.querySelectorAll('div[role="alert"][aria-live]');
                 var idx = 0;
-                for (var i = 0; i < live.length; i++){
-                    var el = live[i];
-                    if (el.__splDressed && el.isConnected && !el.__splGhost) place(el, idx++);
+                for (var i = 0; i < tracked.length; i++){
+                    var el = tracked[i];
+                    if (el.isConnected && !el.__splGhost) place(el, idx++);
                 }
             }
 
@@ -397,7 +397,12 @@ object ToastFix {
                 }
             }
 
-            function splTick(){ splRestack(); checkDeaths(); }
+            function splTick(){
+                if (window.__splBg) return;
+                if (tracked.length === 0) return;
+                splRestack();
+                checkDeaths();
+            }
             if (window.__splFloaters) window.__splFloaters.push(splTick);
             else setInterval(splTick, 300);
 

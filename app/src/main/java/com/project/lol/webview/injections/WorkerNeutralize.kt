@@ -100,11 +100,7 @@ object WorkerNeutralize {
                 }
 
                 window.__splParkVideos = function(){
-                    if(parkLive() && !sweepIv){
-                        sweepIv = setInterval(function(){
-                            if(document.visibilityState === 'hidden') parkLive();
-                        }, 3000);
-                    }
+                    parkLive();
                 };
 
                 window.__splRestoreVideos = function(){

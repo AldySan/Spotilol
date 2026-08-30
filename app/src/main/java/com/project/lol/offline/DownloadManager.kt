@@ -19,6 +19,18 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 
+private data class DownloadedTrack(
+    val success: Boolean,
+    val title: String,
+    val artist: String,
+    val album: String,
+)
+
+private data class ResolvedStream(
+    val url: String,
+    val chosen: SongItem,
+)
+
 object DownloadManager {
     private const val TAG = "Spl-DL"
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -61,23 +73,32 @@ object DownloadManager {
         val title = parsed.optString("title")
         val artist = parsed.optString("artist")
         val album = parsed.optString("album")
+        val cover = parsed.optString("cover")
         Log.d(TAG, "downloadCurrentTrack: start id=$trackId title=$title artist=$artist")
         onProgress?.invoke(0, "Resolving audio...")
 
         scope.launch {
             val result = runCatching { downloadToFile(appContext, trackId, title, artist, album) }
                 .onFailure { Log.e(TAG, "downloadCurrentTrack: exception: ${it.message}", it) }
-                .getOrDefault(false)
+                .getOrDefault(DownloadedTrack(false, title, artist, album))
             activeTrackId = null
-            Log.i(TAG, "downloadCurrentTrack: finished id=$trackId success=$result error=${lastDownloadError}")
-            if (result) {
+            Log.i(TAG, "downloadCurrentTrack: finished id=$trackId success=${result.success} error=${lastDownloadError}")
+            if (result.success) {
+                OfflineStore.saveMetadata(
+                    appContext,
+                    trackId,
+                    result.title,
+                    result.artist,
+                    result.album,
+                    cover.ifBlank { null }
+                )
                 onProgress?.invoke(100, "Saved to Music/Spotilol")
             } else {
                 onProgress?.invoke(-1, "Download failed: ${lastDownloadError ?: "unknown error"}")
             }
             kotlinx.coroutines.withContext(Dispatchers.Main) {
                 onStatus?.invoke(
-                    if (result) "Saved to Music/Spotilol"
+                    if (result.success) "Saved to Music/Spotilol"
                     else "Download failed: ${lastDownloadError ?: "unknown error"}"
                 )
             }
@@ -90,36 +111,42 @@ object DownloadManager {
         title: String,
         artist: String,
         album: String,
-    ): Boolean {
-        val streamUrl = resolveStream(context, trackId, title, artist, album) ?: run {
+    ): DownloadedTrack {
+        val resolved = resolveStream(context, trackId, title, artist, album) ?: run {
             Log.w(TAG, "downloadToFile: no stream source for $trackId")
             lastDownloadError = "Download source not available yet"
-            return false
+            return DownloadedTrack(false, title, artist, album)
         }
+
+        val effectiveTitle = title.ifBlank { resolved.chosen.title }
+        val effectiveArtist = artist.ifBlank {
+            resolved.chosen.artists.firstOrNull()?.name.orEmpty()
+        }
+        val effectiveAlbum = album.ifBlank { resolved.chosen.album?.name.orEmpty() }
 
         val dir = java.io.File(context.filesDir, "downloads").apply { mkdirs() }
         val tmpFile = java.io.File(dir, "$trackId.part")
         onProgress?.invoke(1, "Downloading audio...")
-        val downloaded = httpDownloadRanged(streamUrl, tmpFile) { pct ->
+        val downloaded = httpDownloadRanged(resolved.url, tmpFile) { pct ->
             onProgress?.invoke(pct, "Downloading audio...")
         }
         if (!downloaded) {
             Log.e(TAG, "downloadToFile: audio download failed: ${lastDownloadError}")
             runCatching { tmpFile.delete() }
-            return false
+            return DownloadedTrack(false, effectiveTitle, effectiveArtist, effectiveAlbum)
         }
         Log.d(TAG, "downloadToFile: audio downloaded size=${tmpFile.length()}")
         onProgress?.invoke(99, "Saving...")
 
-        val uri = saveToPublicMusic(context, trackId, title, artist, tmpFile, "m4a", "audio/mp4")
+        val uri = saveToPublicMusic(context, trackId, effectiveTitle, effectiveArtist, tmpFile, "m4a", "audio/mp4")
         tmpFile.delete()
         if (uri != null) {
             Log.d(TAG, "downloadToFile: saved to Music/Spotilol uri=$uri")
-            return true
+            return DownloadedTrack(true, effectiveTitle, effectiveArtist, effectiveAlbum)
         }
         Log.w(TAG, "downloadToFile: MediaStore save failed")
         lastDownloadError = "Couldn't save file"
-        return false
+        return DownloadedTrack(false, effectiveTitle, effectiveArtist, effectiveAlbum)
     }
 
     private suspend fun resolveStream(
@@ -128,7 +155,7 @@ object DownloadManager {
         title: String,
         artist: String,
         album: String,
-    ): String? {
+    ): ResolvedStream? {
         val searchText = buildString {
             append(title)
             if (artist.isNotBlank()) append(" $artist")
@@ -185,7 +212,7 @@ object DownloadManager {
         } else {
             Log.w(TAG, "resolveStream: no stream url for ${chosen.id}")
         }
-        return streamUrl
+        return streamUrl?.let { ResolvedStream(it, chosen) }
     }
 
     @Volatile

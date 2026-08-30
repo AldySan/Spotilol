@@ -294,6 +294,7 @@ class MainActivity : ComponentActivity() {
                         }
                     },
                     onConnectionModeChange = { switchConnectionMode(it) },
+                    onOfflineModeChange = { switchOfflineMode(it) },
                     onSaveProfile = { name, cookies -> saveProfile(name, cookies) },
                     onLoadProfile = { cookies -> loadProfile(cookies) },
                     onDeleteProfile = { name -> deleteProfile(name) },
@@ -589,6 +590,17 @@ class MainActivity : ComponentActivity() {
         prefs.edit().putBoolean("ServiceOn", false).apply()
         stopService(Intent(this, MediaNotificationService::class.java))
         LocalProxyManager.stop()
+        val intent = Intent(this, SplashActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+        startActivity(intent)
+        finish()
+    }
+
+    private fun switchOfflineMode(enabled: Boolean) {
+        prefs.edit().putBoolean("OfflineMode", enabled).apply()
+        prefs.edit().putBoolean("ServiceOn", false).apply()
+        stopService(Intent(this, MediaNotificationService::class.java))
         val intent = Intent(this, SplashActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }

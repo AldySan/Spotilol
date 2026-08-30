@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.CleaningServices
 import androidx.compose.material.icons.filled.CloseFullscreen
+import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.ColorLens
 import androidx.compose.material.icons.filled.DarkMode
@@ -155,6 +156,7 @@ fun SettingsContent(
     paletteSeed: String?,
     onPaletteSeedChange: (String?) -> Unit,
     onConnectionModeChange: (String) -> Unit,
+    onOfflineModeChange: (Boolean) -> Unit,
     onSaveProfile: (String, String) -> Unit,
     onLoadProfile: (String) -> Unit,
     onDeleteProfile: (String) -> Unit,
@@ -173,6 +175,7 @@ fun SettingsContent(
     var btAutoResume by remember { mutableStateOf(prefs.getBoolean("BtAutoResume", false)) }
     var playerMode by remember { mutableStateOf(prefs.getString("PlayerMode", "spotilol") ?: "spotilol") }
     var connectionMode by remember { mutableStateOf(prefs.getString("ConnectionMode", "normal") ?: "normal") }
+    var offlineMode by remember { mutableStateOf(prefs.getBoolean("OfflineMode", false)) }
 
     val context = LocalContext.current
     var profiles by remember { mutableStateOf(ProfileManager.getProfiles(context)) }
@@ -370,6 +373,26 @@ fun SettingsContent(
                 onCheckedChange = {
                     closeNowPlay = it
                     prefs.edit().putBoolean("CloseNowPlay", it).apply()
+                }
+            )
+        }
+
+        SettingSectionCard(
+            title = "OFFLINE",
+            icon = Icons.Default.CloudOff
+        ) {
+            SettingSwitchTile(
+                title = "Offline Mode",
+                subtitle = if (offlineMode) {
+                    "On — playing downloaded songs only"
+                } else {
+                    "Play only downloaded songs — restarts the app"
+                },
+                icon = Icons.Default.CloudOff,
+                checked = offlineMode,
+                onCheckedChange = { enabled ->
+                    offlineMode = enabled
+                    onOfflineModeChange(enabled)
                 }
             )
         }
@@ -1475,6 +1498,7 @@ fun SettingsContentPreview() {
             paletteSeed = null,
             onPaletteSeedChange = {},
             onConnectionModeChange = {},
+            onOfflineModeChange = {},
             onSaveProfile = { _, _ -> },
             onLoadProfile = {},
             onDeleteProfile = {},

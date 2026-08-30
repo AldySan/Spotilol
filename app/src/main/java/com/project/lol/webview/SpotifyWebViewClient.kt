@@ -42,19 +42,19 @@ class SpotifyWebViewClient(
         registerPrefsListener(view)
 
         if (url.startsWith("https://www.facebook.com/privacy/consent/gdp/")) {
-            onPageFinishedClean(view, "FbGdprBypass", FbGdprBypass.CONTENT)
+            view.evaluateJavascript(FbGdprBypass.CONTENT, null)
             return
         }
 
         if (url.endsWith("/login")) {
-            onPageFinishedClean(view, "ClassicLoginButton", ClassicLoginButton.CONTENT)
+            view.evaluateJavascript(ClassicLoginButton.CONTENT, null)
         }
 
         val loggedIn = view.context.getSharedPreferences("spotilol_prefs", 0)
             .getBoolean("LoggedIn", false)
 
         if (!loggedIn) {
-            onPageFinishedClean(view, "LoginDetection", LoginDetection.CONTENT)
+            view.evaluateJavascript(LoginDetection.CONTENT, null)
             return
         }
 
@@ -62,7 +62,7 @@ class SpotifyWebViewClient(
             injectPlayerControl(view)
         }, 500)
 
-        view.evaluateJavascript(staticJs("LogoutCheck", LogoutCheck.CONTENT)) { result ->
+        view.evaluateJavascript(LogoutCheck.CONTENT) { result ->
             if (result == "\"out\"") {
                 view.context.getSharedPreferences("spotilol_prefs", 0)
                     .edit { putBoolean("LoggedIn", false) }
@@ -77,7 +77,11 @@ class SpotifyWebViewClient(
             ?.getString("ConnectionMode", "normal") == "proxy"
         val powerSave = view?.context?.getSharedPreferences("spotilol_prefs", 0)
             ?.getBoolean("PowerSave", false) ?: false
+        val blockSW = view?.context?.getSharedPreferences("spotilol_prefs", 0)
+            ?.getBoolean("BlockServiceWorker", true) ?: true
+
         view?.evaluateJavascript("window.__spotilolUseProxy=$useProxy;", null)
+        view?.evaluateJavascript("window.__splPowerSavePref=$powerSave;", null)
         // FIX: these payloads were injected raw - strip them like every other
         // injection, served from cache.
         if (isGoogleAuthUrl(url)) {
@@ -88,11 +92,11 @@ class SpotifyWebViewClient(
         view?.evaluateJavascript(staticJs("FetchOverride", FetchOverride.CONTENT), null)
         AdIdStore.clear()
         view?.evaluateJavascript(staticJs("AdStateHook", AdStateHook.CONTENT), null)
-        view?.evaluateJavascript(staticJs("WorkerNeutralize", WorkerNeutralize.CONTENT), null)
+        if (blockSW) view?.evaluateJavascript(staticJs("WorkerNeutralize", WorkerNeutralize.CONTENT), null)
         view?.evaluateJavascript(staticJs("GaBlocker", GaBlocker.CONTENT), null)
-        view?.evaluateJavascript("window.__splPowerSavePref=$powerSave;", null)
         view?.evaluateJavascript(staticJs("PowerSave", PowerSave.CONTENT), null)
         view?.evaluateJavascript(staticJs("SettingsFix", SettingsFix.CONTENT), null)
+        view?.evaluateJavascript(staticJs("VideoPark", VideoPark.CONTENT), null)
     }
 
     override fun onRenderProcessGone(view: WebView?, detail: RenderProcessGoneDetail?): Boolean {
@@ -362,6 +366,24 @@ class SpotifyWebViewClient(
                 val on = prefs.getBoolean("TakeControl", true)
                 wv.evaluateJavascript("window.__splTakeControl=$on;", null)
             }
+            if (key == "BlockServiceWorker") {
+                val wv = currentWebView ?: return@OnSharedPreferenceChangeListener
+                val enabled = prefs.getBoolean("BlockServiceWorker", true)
+                if (enabled) {
+                    wv.evaluateJavascript(staticJs("WorkerNeutralize", WorkerNeutralize.CONTENT), null)
+                    wv.evaluateJavascript("""
+                        try {
+                            if(navigator.serviceWorker){
+                                navigator.serviceWorker.getRegistrations().then(function(regs){
+                                    regs.forEach(function(r){ r.unregister(); });
+                                });
+                            }
+                        } catch(e){}
+                    """.trimIndent(), null)
+                } else {
+                    wv.reload()
+                }
+            }
         }
         prefs.registerOnSharedPreferenceChangeListener(prefsListener)
     }
@@ -396,10 +418,6 @@ class SpotifyWebViewClient(
             """.trimIndent()
             view.evaluateJavascript(js, null)
         }
-    }
-
-    private fun onPageFinishedClean(view: WebView, name: String, js: String) {
-        view.evaluateJavascript(staticJs(name, js), null)
     }
 
     /**

@@ -174,7 +174,9 @@ fun SettingsContent(
     onDeleteProfile: (String) -> Unit,
     onClearCache: () -> Unit,
     onClearData: () -> Unit,
-    onDebugToggle: (Boolean) -> Unit
+    onDebugToggle: (Boolean) -> Unit,
+    blockServiceWorker: Boolean,
+    onBlockServiceWorkerChange: (Boolean) -> Unit,
 ) {
     var autoplayMode by remember { mutableStateOf(prefs.getString("APlayMode", "disabled") ?: "disabled") }
     var takeControl by remember { mutableStateOf(prefs.getBoolean("TakeControl", true)) }
@@ -191,6 +193,7 @@ fun SettingsContent(
     var playerMode by remember { mutableStateOf(prefs.getString("PlayerMode", "spotilol") ?: "spotilol") }
     var connectionMode by remember { mutableStateOf(prefs.getString("ConnectionMode", "normal") ?: "normal") }
     var powerSave by remember { mutableStateOf(prefs.getBoolean("PowerSave", false)) }
+    var blockSW by remember { mutableStateOf(blockServiceWorker) }
 
     val context = LocalContext.current
     val platformLocale = LocalLocale.current.platformLocale
@@ -403,6 +406,19 @@ fun SettingsContent(
                 onCheckedChange = {
                     powerSave = it
                     prefs.edit { putBoolean("PowerSave", it) }
+                }
+            )
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+
+            SettingSwitchTile(
+                title = "Block Service Worker",
+                subtitle = "Prevent Spotify's SW from intercepting requests",
+                icon = Icons.Default.Shield,
+                checked = blockSW,
+                onCheckedChange = { enabled ->
+                    blockSW = enabled
+                    onBlockServiceWorkerChange(enabled)
                 }
             )
         }
@@ -1607,6 +1623,8 @@ fun SettingsContentPreview() {
             onClearCache = {},
             onClearData = {},
             onDebugToggle = {},
+            blockServiceWorker = true,
+            onBlockServiceWorkerChange = {},
         )
     }
 }

@@ -99,6 +99,14 @@ class SplashActivity : ComponentActivity() {
             val scope = rememberCoroutineScope()
 
             LaunchedEffect(Unit) {
+                if (getSharedPreferences("spotilol_prefs", MODE_PRIVATE)
+                        .getBoolean("OfflineMode", false)
+                ) {
+                    startActivity(Intent(this@SplashActivity, OfflineActivity::class.java))
+                    overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+                    finish()
+                    return@LaunchedEffect
+                }
                 withContext(Dispatchers.IO) {
                     val useProxy = getSharedPreferences("spotilol_prefs", MODE_PRIVATE)
                         .getString("ConnectionMode", "normal") == "proxy"

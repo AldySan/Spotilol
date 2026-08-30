@@ -4,7 +4,6 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
-import android.app.Service
 import android.bluetooth.BluetoothDevice
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -19,9 +18,10 @@ import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
-import android.os.IBinder
 import android.os.Looper
 import android.os.PowerManager
+import android.support.v4.media.MediaBrowserCompat
+import android.support.v4.media.MediaDescriptionCompat
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
@@ -34,6 +34,7 @@ import androidx.core.graphics.createBitmap
 import androidx.core.graphics.drawable.IconCompat
 import androidx.core.graphics.scale
 import androidx.core.graphics.toColorInt
+import androidx.media.MediaBrowserServiceCompat
 import androidx.media.app.NotificationCompat.MediaStyle
 import androidx.media.session.MediaButtonReceiver
 import com.project.lol.R
@@ -44,13 +45,14 @@ import java.net.URL
 import java.util.concurrent.Executors
 import kotlin.math.min
 
-class MediaNotificationService : Service() {
+class MediaNotificationService : MediaBrowserServiceCompat() {
 
     companion object {
         private const val TAG = "MediaNotifService"
         private const val CHANNEL_ID = "spotilol_media_playback"
         private const val NOTIFICATION_ID = 1
         private val mainHandler = Handler(Looper.getMainLooper())
+        private const val MEDIA_ID_ROOT = "__ROOT__"
 
         const val ACTION_PLAY_PAUSE = "com.project.lol.ACTION_PLAY_PAUSE"
         const val ACTION_NEXT = "com.project.lol.ACTION_NEXT"
@@ -250,6 +252,7 @@ class MediaNotificationService : Service() {
             .registerOnSharedPreferenceChangeListener(prefsListener)
     }
 
+    @Suppress("DEPRECATION")
     private fun getStartForegroundServiceType(): Int {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
@@ -278,7 +281,33 @@ class MediaNotificationService : Service() {
         return START_NOT_STICKY
     }
 
-    override fun onBind(intent: Intent?): IBinder? = null
+    override fun onGetRoot(
+        clientPackageName: String,
+        clientUid: Int,
+        rootHints: Bundle?
+    ): BrowserRoot? = BrowserRoot(MEDIA_ID_ROOT, null)
+
+    override fun onLoadChildren(
+        parentId: String,
+        result: Result<MutableList<MediaBrowserCompat.MediaItem>>
+    ) {
+        if (parentId != MEDIA_ID_ROOT) {
+            result.sendResult(null)
+            return
+        }
+        result.sendResult(
+            mutableListOf(
+                MediaBrowserCompat.MediaItem(
+                    MediaDescriptionCompat.Builder()
+                        .setMediaId(MEDIA_ID_ROOT)
+                        .setTitle("Spotilol")
+                        .setDescription("Now playing")
+                        .build(),
+                    MediaBrowserCompat.MediaItem.FLAG_PLAYABLE
+                )
+            )
+        )
+    }
 
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
@@ -326,10 +355,12 @@ class MediaNotificationService : Service() {
         }
     }
 
+    @Suppress("DEPRECATION")
     private fun setupMediaSession() {
         mediaSession = MediaSessionCompat(this, "SpotilolSession").apply {
             setFlags(
-                MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS or MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS
+                MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS or
+                MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS
             )
             setCallback(object : MediaSessionCompat.Callback() {
                 override fun onPlay() {
@@ -365,17 +396,23 @@ class MediaNotificationService : Service() {
             })
             isActive = true
         }
+        sessionToken = mediaSession.sessionToken
     }
 
     private fun registerReceivers() {
-        val customFilter = IntentFilter().apply {
+        val filter = IntentFilter().apply {
             addAction(ACTION_PLAY_PAUSE)
             addAction(ACTION_NEXT)
             addAction(ACTION_PREV)
             addAction(ACTION_SHUFFLE)
             addAction(ACTION_FAVORITE)
+            addAction(Intent.ACTION_MEDIA_BUTTON)
         }
-        ContextCompat.registerReceiver(this, actionReceiver, customFilter, ContextCompat.RECEIVER_NOT_EXPORTED)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(actionReceiver, filter, RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(actionReceiver, filter)
+        }
 
         val mediaButtonFilter = IntentFilter(Intent.ACTION_MEDIA_BUTTON)
         ContextCompat.registerReceiver(this, actionReceiver, mediaButtonFilter, ContextCompat.RECEIVER_EXPORTED)
@@ -383,13 +420,21 @@ class MediaNotificationService : Service() {
 
     private fun registerDisconnectReceivers() {
         val noisyFilter = IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY)
-        ContextCompat.registerReceiver(this, audioBecomingNoisyReceiver, noisyFilter, ContextCompat.RECEIVER_EXPORTED)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(audioBecomingNoisyReceiver, noisyFilter, RECEIVER_EXPORTED)
+        } else {
+            registerReceiver(audioBecomingNoisyReceiver, noisyFilter)
+        }
 
         val btFilter = IntentFilter().apply {
             addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED)
             addAction(BluetoothDevice.ACTION_ACL_CONNECTED)
         }
-        ContextCompat.registerReceiver(this, bluetoothReceiver, btFilter, ContextCompat.RECEIVER_EXPORTED)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(bluetoothReceiver, btFilter, RECEIVER_EXPORTED)
+        } else {
+            registerReceiver(bluetoothReceiver, btFilter)
+        }
 
         val hsFilter = IntentFilter(Intent.ACTION_HEADSET_PLUG)
         ContextCompat.registerReceiver(this, headsetReceiver, hsFilter, ContextCompat.RECEIVER_EXPORTED)
@@ -574,9 +619,10 @@ class MediaNotificationService : Service() {
         }
     }
 
-    private fun buildMediaStyle(): MediaStyle {
+    private fun buildMediaStyle(showShuffle: Boolean): MediaStyle {
+        val compact = if (showShuffle) intArrayOf(0, 1, 2, 3) else intArrayOf(0, 1, 2)
         val style = MediaStyle()
-            .setShowActionsInCompactView(0, 1, 2)
+            .setShowActionsInCompactView(*compact)
             .setShowCancelButton(true)
             .setCancelButtonIntent(getActionPendingIntent(ACTION_PLAY_PAUSE))
         if (::mediaSession.isInitialized) {
@@ -646,7 +692,7 @@ class MediaNotificationService : Service() {
             .setShowWhen(false)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setColor(accent())
-            .setStyle(buildMediaStyle())
+            .setStyle(buildMediaStyle(isShuffleAvailable))
         actions.forEach { builder.addAction(it) }
 
         coverBitmap?.let { builder.setLargeIcon(it) }
@@ -655,6 +701,15 @@ class MediaNotificationService : Service() {
     }
 
     private fun getActionPendingIntent(action: String): PendingIntent {
+        val mediaButtonAction = when (action) {
+            ACTION_PLAY_PAUSE -> PlaybackStateCompat.ACTION_PLAY_PAUSE
+            ACTION_NEXT -> PlaybackStateCompat.ACTION_SKIP_TO_NEXT
+            ACTION_PREV -> PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS
+            else -> null
+        }
+        if (mediaButtonAction != null) {
+            return MediaButtonReceiver.buildMediaButtonPendingIntent(this, mediaButtonAction)
+        }
         val intent = Intent(action).setPackage(packageName)
         return PendingIntent.getBroadcast(
             this, action.hashCode(), intent,

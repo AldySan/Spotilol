@@ -85,18 +85,18 @@ class SpotifyWebViewClient(
         // FIX: these payloads were injected raw - strip them like every other
         // injection, served from cache.
         if (isGoogleAuthUrl(url)) {
-            view?.evaluateJavascript(staticJs("GoogleSpoof", GoogleSpoof.CONTENT), null)
+            view?.evaluateJavascript(GoogleSpoof.CONTENT, null)
         } else {
-            view?.evaluateJavascript(staticJs("BrowserSpoof", BrowserSpoof.CONTENT), null)
+            view?.evaluateJavascript(BrowserSpoof.CONTENT, null)
         }
-        view?.evaluateJavascript(staticJs("FetchOverride", FetchOverride.CONTENT), null)
+        view?.evaluateJavascript(FetchOverride.CONTENT, null)
         AdIdStore.clear()
-        view?.evaluateJavascript(staticJs("AdStateHook", AdStateHook.CONTENT), null)
-        if (blockSW) view?.evaluateJavascript(staticJs("WorkerNeutralize", WorkerNeutralize.CONTENT), null)
-        view?.evaluateJavascript(staticJs("GaBlocker", GaBlocker.CONTENT), null)
-        view?.evaluateJavascript(staticJs("PowerSave", PowerSave.CONTENT), null)
-        view?.evaluateJavascript(staticJs("SettingsFix", SettingsFix.CONTENT), null)
-        view?.evaluateJavascript(staticJs("VideoPark", VideoPark.CONTENT), null)
+        view?.evaluateJavascript(AdStateHook.CONTENT, null)
+        if (blockSW) view?.evaluateJavascript(WorkerNeutralize.CONTENT, null)
+        view?.evaluateJavascript(GaBlocker.CONTENT, null)
+        view?.evaluateJavascript(PowerSave.CONTENT, null)
+        view?.evaluateJavascript(SettingsFix.CONTENT, null)
+        view?.evaluateJavascript(VideoPark.CONTENT, null)
     }
 
     override fun onRenderProcessGone(view: WebView?, detail: RenderProcessGoneDetail?): Boolean {
@@ -283,6 +283,8 @@ class SpotifyWebViewClient(
             append(AutoFeatures.CONTENT)
             append(AndroidTracker.CONTENT)
             append(SearchOverlay.CONTENT)
+            append(DownloadButton.CONTENT)
+            append(DownloadProgress.CONTENT)
             append("""
                 (function(){
                     var recAcc=function(){
@@ -353,14 +355,11 @@ class SpotifyWebViewClient(
                 val mode = prefs.getString("APlayMode", "disabled") ?: "disabled"
                 wv.evaluateJavascript("window.autoPlayMode='$mode';", null)
             }
-            if (key == "AmoledTheme") {
+            if (key == "AmoledTheme" || key == "CustomCss") {
                 val wv = currentWebView ?: return@OnSharedPreferenceChangeListener
-                val on = prefs.getBoolean("AmoledTheme", false)
-                wv.evaluateJavascript(buildAmoledJs(on), null)
-            }
-            if (key == "CustomCss") {
-                val wv = currentWebView ?: return@OnSharedPreferenceChangeListener
+                val amoled = prefs.getBoolean("AmoledTheme", false)
                 val css = prefs.getString("CustomCss", "") ?: ""
+                wv.evaluateJavascript(buildAmoledJs(amoled), null)
                 wv.evaluateJavascript(buildCustomCssJs(css), null)
             }
             if (key == "PaletteSeed" || key == "MaterialYou") {
@@ -376,7 +375,7 @@ class SpotifyWebViewClient(
                 val wv = currentWebView ?: return@OnSharedPreferenceChangeListener
                 val enabled = prefs.getBoolean("BlockServiceWorker", true)
                 if (enabled) {
-                    wv.evaluateJavascript(staticJs("WorkerNeutralize", WorkerNeutralize.CONTENT), null)
+                    wv.evaluateJavascript(WorkerNeutralize.CONTENT, null)
                     wv.evaluateJavascript("""
                         try {
                             if(navigator.serviceWorker){
@@ -408,9 +407,7 @@ class SpotifyWebViewClient(
             """.trimIndent()
             view.evaluateJavascript(js, null)
         } else {
-            // FIX: this path injected SpotilolPlayer.CONTENT raw while the initial
-            // injection stripped it - its logs leaked via the mode-switch path.
-            view.evaluateJavascript("if(typeof initSpotilolPlayer!=='function'){" + staticJs("SpotilolPlayer", SpotilolPlayer.CONTENT) + "}", null)
+            view.evaluateJavascript("if(typeof initSpotilolPlayer!=='function'){" + SpotilolPlayer.CONTENT + "}", null)
             val js = """
                 (function(){
                     var s=document.getElementById('spl-np-show');
@@ -437,14 +434,6 @@ class SpotifyWebViewClient(
         boundPrefs = null
         currentWebView = null
     }
-
-    /**
-     * FIX (perf): static injection payloads are compile-time constants but were
-     * re-scanned on every page event. Memoize them under stable name keys via
-     * the bounded LRU cache - after the first call this is a map lookup.
-     */
-    private fun staticJs(name: String, js: String): String =
-        JsUtils.stripConsoleLogsCached("static:$name", js)
 
     companion object {
         private const val TAG = "SpotifyWebViewClient"

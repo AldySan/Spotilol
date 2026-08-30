@@ -14,32 +14,31 @@ import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.drawable.Icon
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.CountDownTimer
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.util.Rational
+import android.widget.Toast
 import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
 import android.view.WindowManager
+import android.view.ViewGroup
 import android.webkit.CookieManager
+import android.webkit.ValueCallback
 import android.webkit.WebStorage
 import android.webkit.WebView
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
-import android.widget.Toast
-import android.net.Uri
-import android.webkit.ValueCallback
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -57,17 +56,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -77,39 +69,50 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import androidx.core.content.ContextCompat
-import androidx.core.net.toUri
+import androidx.core.content.edit
+import androidx.core.graphics.scale
+import androidx.core.graphics.toColorInt
 import androidx.webkit.ProxyConfig
 import androidx.webkit.ProxyController
-import androidx.webkit.WebSettingsCompat
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
+import androidx.webkit.WebSettingsCompat
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.project.lol.R
 import com.project.lol.bridge.SpotifyBridge
@@ -124,15 +127,14 @@ import com.project.lol.webview.SpotifyWebViewClient
 import com.project.lol.webview.helpers.buildAmoledJs
 import com.project.lol.webview.helpers.buildCustomCssJs
 import com.project.lol.webview.injections.LogoutCheck
-import org.json.JSONObject
 import java.lang.ref.WeakReference
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.Executors
 import kotlin.math.min
-import androidx.core.content.edit
-import androidx.core.graphics.scale
-import androidx.core.graphics.toColorInt
+import org.json.JSONObject
+import androidx.core.net.toUri
+import com.project.lol.offline.DownloadManager
 import com.project.lol.ui.components.ErrorScreen
 import com.project.lol.ui.components.mapWebViewError
 import com.project.lol.webview.helpers.AccentTheme
@@ -176,10 +178,10 @@ class MainActivity : ComponentActivity() {
     private val sleepTimerActive = mutableStateOf(false)
 
     private val loadingProgress = mutableIntStateOf(100)
+    private val webViewError = mutableStateOf<Pair<Int, String>?>(null)
 
     private val canGoBackState = mutableStateOf(false)
     private val blockServiceWorkerState = mutableStateOf(true)
-    private val webViewError = mutableStateOf<Pair<Int, String>?>(null)
     private val pipCoverExecutor = Executors.newSingleThreadExecutor()
 
     private val notifPermLauncher = registerForActivityResult(
@@ -202,10 +204,16 @@ class MainActivity : ComponentActivity() {
 
     private val analytics: FirebaseAnalytics by lazy { FirebaseAnalytics.getInstance(this) }
 
-    @SuppressLint("SetJavaScriptEnabled", "JavascriptInterface", "RequiresFeature", "InflateParams")
+    @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+
+        // Track screen view
+        analytics.logEvent(FirebaseAnalytics.Event.SCREEN_VIEW, Bundle().apply {
+            putString(FirebaseAnalytics.Param.SCREEN_NAME, "MainActivity")
+            putString(FirebaseAnalytics.Param.SCREEN_CLASS, "MainActivity")
+        })
 
         prefs = getSharedPreferences("spotilol_prefs", MODE_PRIVATE)
         val useProxy = prefs.getString("ConnectionMode", "normal") == "proxy"
@@ -322,6 +330,7 @@ class MainActivity : ComponentActivity() {
                         }
                     },
                     onConnectionModeChange = { switchConnectionMode(it) },
+                    onOfflineModeChange = { switchOfflineMode(it) },
                     onSaveProfile = { name, cookies -> saveProfile(name, cookies) },
                     onLoadProfile = { cookies -> loadProfile(cookies) },
                     onDeleteProfile = { name -> deleteProfile(name) },
@@ -330,7 +339,7 @@ class MainActivity : ComponentActivity() {
                     onDebugToggle = { enabled ->
                         webView?.evaluateJavascript(
                             if (enabled) DevLogPrelude.js()
-                            else "window.dbg=null;window.dbgw=null;window.dbge=null;",
+                            else "window.dbg=null;window.dbgw=null;window.dbge=null;window.DevLog=null;",
                             null
                         )
                     },
@@ -437,6 +446,22 @@ class MainActivity : ComponentActivity() {
                                     )
                                 }
                             }
+                            bridge.onDownloadTrack = { payload ->
+                                Log.d("Spl-DL", "bridge.onDownloadTrack: payload=$payload")
+                                DownloadManager.onStatus = { msg ->
+                                    runOnUiThread {
+                                        Toast.makeText(this@MainActivity, msg, Toast.LENGTH_LONG).show()
+                                    }
+                                }
+                                DownloadManager.onProgress = { pct, label ->
+                                    runOnUiThread {
+                                        val safe = label.replace("\\", "\\\\").replace("'", "\\'").replace("\n", " ")
+                                        webView?.evaluateJavascript("window.splDownloadProgress($pct, '$safe')", null)
+                                    }
+                                }
+                                DownloadManager.downloadCurrentTrack(this@MainActivity, payload)
+                            }
+
 
 
                             key(webViewGen.intValue) {
@@ -512,11 +537,8 @@ class MainActivity : ComponentActivity() {
                                                     canGoBackState.value = backable
                                                 },
                                                 onRenderProcessGone = {
-                                                    // Bumping the key makes Compose dispose the old AndroidView and run
-                                                    // the factory again. destroyWebView() clears every reference first
-                                                    // so the new factory starts from a clean slate.
                                                     runOnUiThread {
-                                                        webViewError.value = null   // stale error would block the rebuilt webview
+                                                        webViewError.value = null
                                                         destroyWebView()
                                                         webViewGen.intValue += 1
                                                     }
@@ -532,13 +554,18 @@ class MainActivity : ComponentActivity() {
                                             // first main-frame request slip out un-proxied (or, right after a mode
                                             // switch, hit a stale override pointing at a dead proxy). So: navigate
                                             // FROM the callback, never right after the call.
-                                            val targetUrl = if (loggedIn) "https://open.spotify.com/"
+                                            val targetUrl =
+                                                if (loggedIn) "https://open.spotify.com/"
                                                 else "https://accounts.spotify.com/login"
 
                                             if (WebViewFeature.isFeatureSupported(WebViewFeature.PROXY_OVERRIDE)) {
-                                                val proxyExecutor = Executors.newSingleThreadExecutor { r ->
-                                                    Thread(r, "ProxyOverride").apply { isDaemon = true }
-                                                }
+                                                val proxyExecutor =
+                                                    Executors.newSingleThreadExecutor { r ->
+                                                        Thread(
+                                                            r,
+                                                            "ProxyOverride"
+                                                        ).apply { isDaemon = true }
+                                                    }
                                                 if (useProxy && LocalProxyManager.isRunning) {
                                                     // ProxyController requires a scheme (http://, socks://, or direct).
                                                     // A bare "host:port" is parsed as scheme="host" and silently falls
@@ -547,18 +574,26 @@ class MainActivity : ComponentActivity() {
                                                         .addProxyRule("http://localhost:${LocalProxyManager.port}")
                                                         .build()
                                                     try {
-                                                        ProxyController.getInstance().setProxyOverride(proxyConfig, proxyExecutor) {
-                                                            android.util.Log.d(
-                                                                "MainActivity",
-                                                                "Proxy override applied: http://localhost:${LocalProxyManager.port}"
-                                                            )
-                                                            post { loadUrl(targetUrl) }
-                                                            proxyExecutor.shutdown()
-                                                        }
+                                                        ProxyController.getInstance()
+                                                            .setProxyOverride(
+                                                                proxyConfig,
+                                                                proxyExecutor
+                                                            ) {
+                                                                Log.d(
+                                                                    "MainActivity",
+                                                                    "Proxy override applied: http://localhost:${LocalProxyManager.port}"
+                                                                )
+                                                                post { loadUrl(targetUrl) }
+                                                                proxyExecutor.shutdown()
+                                                            }
                                                     } catch (e: Exception) {
                                                         // Sync throw (e.g. WebView already torn down mid-race) - the
                                                         // callback will never fire; fall back to a direct load.
-                                                        android.util.Log.e("MainActivity", "setProxyOverride failed", e)
+                                                        Log.e(
+                                                            "MainActivity",
+                                                            "setProxyOverride failed",
+                                                            e
+                                                        )
                                                         loadUrl(targetUrl)
                                                         proxyExecutor.shutdown()
                                                     }
@@ -568,17 +603,18 @@ class MainActivity : ComponentActivity() {
                                                     // switch (switchConnectionMode restarts activities, not the process),
                                                     // so without this clear the first load could try a dead localhost
                                                     // port and faceplant into the error screen.
-                                                    ProxyController.getInstance().clearProxyOverride(proxyExecutor) {
-                                                        proxyExecutor.shutdown()
-                                                        post { loadUrl(targetUrl) }
-                                                    }
+                                                    ProxyController.getInstance()
+                                                        .clearProxyOverride(proxyExecutor) {
+                                                            proxyExecutor.shutdown()
+                                                            post { loadUrl(targetUrl) }
+                                                        }
                                                 }
                                             } else {
                                                 // Ancient WebView without PROXY_OVERRIDE: ProxyController would throw.
                                                 // Load direct; in proxy mode MITM simply won't engage (UA spoofing via
                                                 // settings.userAgentString still holds, so it degrades, doesn't break).
                                                 if (useProxy) {
-                                                    android.util.Log.e(
+                                                    Log.e(
                                                         "MainActivity",
                                                         "PROXY_OVERRIDE unsupported on this WebView - loading direct, MITM inactive"
                                                     )
@@ -687,7 +723,7 @@ class MainActivity : ComponentActivity() {
 
     private fun setServiceEnabled(newValue: Boolean) {
         serviceEnabledState.value = newValue
-        prefs.edit { putBoolean("ServiceOn", newValue) }
+        prefs.edit().putBoolean("ServiceOn", newValue).apply()
         if (!newValue) {
             analytics.logEvent("service_toggle", Bundle().apply {
                 putString("enabled", "off")
@@ -703,10 +739,21 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun switchConnectionMode(mode: String) {
-        prefs.edit { putString("ConnectionMode", mode)}
-        prefs.edit { putBoolean("ServiceOn", false) }
+        prefs.edit().putString("ConnectionMode", mode).apply()
+        prefs.edit().putBoolean("ServiceOn", false).apply()
         stopService(Intent(this, MediaNotificationService::class.java))
         LocalProxyManager.stop()
+        val intent = Intent(this, SplashActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+        startActivity(intent)
+        finish()
+    }
+
+    private fun switchOfflineMode(enabled: Boolean) {
+        prefs.edit().putBoolean("OfflineMode", enabled).apply()
+        prefs.edit().putBoolean("ServiceOn", false).apply()
+        stopService(Intent(this, MediaNotificationService::class.java))
         val intent = Intent(this, SplashActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
@@ -755,7 +802,7 @@ class MainActivity : ComponentActivity() {
         WebStorage.getInstance().deleteAllData()
         CookieManager.getInstance().removeAllCookies(null)
         CookieManager.getInstance().flush()
-        prefs.edit { putBoolean("LoggedIn", false) }
+        prefs.edit().putBoolean("LoggedIn", false).apply()
         Toast.makeText(this, "All data cleared, please login again", Toast.LENGTH_SHORT).show()
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
@@ -1161,7 +1208,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun updatePipParams() {
-        if (isInPictureInPictureMode) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && isInPictureInPictureMode) {
             setPictureInPictureParams(buildPipParams())
         }
     }
@@ -1272,11 +1319,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /**
-     * Tear down the current WebView entirely so a fresh one can be created by
-     * composition. Called on renderer death (webViewGen bump triggers a new
-     * AndroidView factory run) and from onDestroy.
-     */
     private fun destroyWebView() {
         canGoBackState.value = false
         pipVideoTimeout.removeCallbacksAndMessages(null)
@@ -1338,7 +1380,11 @@ class MainActivity : ComponentActivity() {
         serviceStarted = true
         MediaNotificationService.webView = webView
         val intent = Intent(this, MediaNotificationService::class.java)
-        startForegroundService(intent)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(intent)
+        } else {
+            startService(intent)
+        }
     }
 
     private fun requestNotificationPermission() {
@@ -1368,13 +1414,13 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         super.onStop()
         webView?.evaluateJavascript("""
-        try {
-            window.__splBg = true;
-            if(typeof pfint !== 'undefined' && pfint) { clearInterval(pfint); pfint = null; window.__splWasPfint = true; }
-            if(typeof afint !== 'undefined' && afint) { clearInterval(afint); afint = null; window.__splWasAfint = true; }
-            if(typeof cssint !== 'undefined' && cssint) { clearInterval(cssint); cssint = null; window.__splWasCssint = true; }
-        } catch(e) {}
-    """.trimIndent(), null)
+            try {
+                window.__splBg = true;
+                if(typeof pfint !== 'undefined' && pfint) { clearInterval(pfint); pfint = null; window.__splWasPfint = true; }
+                if(typeof afint !== 'undefined' && afint) { clearInterval(afint); afint = null; window.__splWasAfint = true; }
+                if(typeof cssint !== 'undefined' && cssint) { clearInterval(cssint); cssint = null; window.__splWasCssint = true; }
+            } catch(e) {}
+        """.trimIndent(), null)
     }
 
     override fun onResume() {
@@ -1426,7 +1472,7 @@ class MainActivity : ComponentActivity() {
 
             view.evaluateJavascript(LogoutCheck.CONTENT) { result ->
                 if (result == "\"out\"") {
-                    prefs.edit {putBoolean("LoggedIn", false)}
+                    prefs.edit().putBoolean("LoggedIn", false).apply()
                     view.loadUrl("https://accounts.spotify.com/login")
                 }
             }

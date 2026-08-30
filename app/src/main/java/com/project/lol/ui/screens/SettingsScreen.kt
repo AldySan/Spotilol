@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.CleaningServices
 import androidx.compose.material.icons.filled.CloseFullscreen
+import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.ColorLens
 import androidx.compose.material.icons.filled.DarkMode
@@ -118,6 +119,7 @@ import com.project.lol.util.GitHubApi
 import com.project.lol.util.GitHubRelease
 import com.project.lol.util.MarkdownText
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
@@ -169,6 +171,7 @@ fun SettingsContent(
     paletteSeed: String?,
     onPaletteSeedChange: (String?) -> Unit,
     onConnectionModeChange: (String) -> Unit,
+    onOfflineModeChange: (Boolean) -> Unit,
     onSaveProfile: (String, String) -> Unit,
     onLoadProfile: (String) -> Unit,
     onDeleteProfile: (String) -> Unit,
@@ -193,6 +196,7 @@ fun SettingsContent(
     var hpAutoResume by remember { mutableStateOf(prefs.getBoolean("HpAutoResume", false)) }
     var playerMode by remember { mutableStateOf(prefs.getString("PlayerMode", "spotilol") ?: "spotilol") }
     var connectionMode by remember { mutableStateOf(prefs.getString("ConnectionMode", "normal") ?: "normal") }
+    var offlineMode by remember { mutableStateOf(prefs.getBoolean("OfflineMode", false)) }
     var powerSave by remember { mutableStateOf(prefs.getBoolean("PowerSave", false)) }
     var blockSW by remember { mutableStateOf(blockServiceWorker) }
 
@@ -425,6 +429,26 @@ fun SettingsContent(
         }
 
         SettingSectionCard(
+            title = "OFFLINE",
+            icon = Icons.Default.CloudOff
+        ) {
+            SettingSwitchTile(
+                title = "Offline Mode",
+                subtitle = if (offlineMode) {
+                    "On - playing downloaded songs only"
+                } else {
+                    "Play only downloaded songs - restarts the app"
+                },
+                icon = Icons.Default.CloudOff,
+                checked = offlineMode,
+                onCheckedChange = { enabled ->
+                    offlineMode = enabled
+                    onOfflineModeChange(enabled)
+                }
+            )
+        }
+
+        SettingSectionCard(
             title = "BLUETOOTH",
             icon = Icons.Default.Smartphone
         ) {
@@ -621,7 +645,7 @@ fun SettingsContent(
         }
 
         SettingSectionCard(
-            title = "EXPERIMENTAL",
+            title = "DEBUG",
             icon = Icons.Default.Science
         ) {
             SettingSwitchTile(
@@ -830,7 +854,9 @@ fun SettingsContent(
         )
     }
 
-    if (showDevlogDialog) { DevlogLiveDialog(onDismiss = { showDevlogDialog = false }) }
+    if (showDevlogDialog) {
+        DevlogLiveDialog(onDismiss = { showDevlogDialog = false })
+    }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -1199,11 +1225,8 @@ fun SettingTile(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .alpha(if (enabled) 1f else 0.4f)
-            .then(
-                if (enabled) Modifier.clickable(onClick = onClick)
-                else Modifier
-            )
+            .then(if (enabled) Modifier else Modifier.alpha(0.38f))
+            .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -1560,12 +1583,13 @@ fun ConfirmationDialog(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DevlogLiveDialog(onDismiss: () -> Unit) {
     var lines by remember { mutableStateOf(DebugLogStore.snapshot()) }
     LaunchedEffect(Unit) {
         while (true) {
-            kotlinx.coroutines.delay(400.milliseconds)
+            delay(400.milliseconds)
             lines = DebugLogStore.snapshot()
         }
     }
@@ -1631,6 +1655,7 @@ fun SettingsContentPreview() {
             paletteSeed = null,
             onPaletteSeedChange = {},
             onConnectionModeChange = {},
+            onOfflineModeChange = {},
             onSaveProfile = { _, _ -> },
             onLoadProfile = {},
             onDeleteProfile = {},

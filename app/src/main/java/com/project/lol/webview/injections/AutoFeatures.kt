@@ -59,6 +59,9 @@ object AutoFeatures {
                     if(window.autoPlayMode==='permanent' && 'pBtn' in window && !reqPause && !ulFlag && !window.__splApActive && pBtn.getAttribute('aria-label')==='Play') {
                         pBtn.click();
                     }
+                    if(window.autoPlayMode==='onetime' && !window.__splApDone && !window.__splApActive && 'pBtn' in window && !reqPause && pBtn.getAttribute('aria-label')==='Play') {
+                        if(typeof splAutoPlay === 'function') splAutoPlay();
+                    }
                 },5000);
             };
     """

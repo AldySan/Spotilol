@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.util.Log
 import android.webkit.CookieManager
 import android.webkit.RenderProcessGoneDetail
+import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
@@ -16,11 +17,19 @@ import java.net.URL
 import java.util.Locale
 
 class SpotifyWebViewClient(
-    private val onLoginRequired: () -> Unit
+    private val onLoginRequired: () -> Unit,
+    private val onNavStateChanged: ((Boolean) -> Unit)? = null,
+    private val onRenderProcessGone: (() -> Unit)? = null,
+    private val onWebViewError: ((errorCode: Int, description: String) -> Unit)? = null
 ) : WebViewClient() {
 
     private var currentWebView: WebView? = null
     private var prefsListener: android.content.SharedPreferences.OnSharedPreferenceChangeListener? = null
+
+    override fun doUpdateVisitedHistory(view: WebView?, url: String?, isReload: Boolean) {
+        super.doUpdateVisitedHistory(view, url, isReload)
+        onNavStateChanged?.invoke(view?.canGoBack() == true)
+    }
 
     override fun onPageFinished(view: WebView?, url: String?) {
         super.onPageFinished(view, url)
@@ -86,7 +95,33 @@ class SpotifyWebViewClient(
             it.stopLoading()
             it.destroy()
         }
+        onRenderProcessGone?.invoke()
         return true
+    }
+
+    override fun onReceivedError(
+        view: WebView?,
+        request: WebResourceRequest?,
+        error: WebResourceError?
+    ) {
+        super.onReceivedError(view, request, error)
+        if (request?.isForMainFrame != true) return
+        val code = try { error?.errorCode ?: -1 } catch (_: Exception) { -1 }
+        val desc = try { error?.description?.toString() ?: "" } catch (_: Exception) { "" }
+        onWebViewError?.invoke(code, desc)
+    }
+
+    override fun onReceivedHttpError(
+        view: WebView?,
+        request: WebResourceRequest?,
+        errorResponse: WebResourceResponse?
+    ) {
+        super.onReceivedHttpError(view, request, errorResponse)
+        if (request?.isForMainFrame != true) return
+        val status = try { errorResponse?.statusCode ?: 0 } catch (_: Exception) { 0 }
+        if (status >= 400) {
+            onWebViewError?.invoke(status, "HTTP $status")
+        }
     }
 
     override fun shouldInterceptRequest(
@@ -197,6 +232,10 @@ class SpotifyWebViewClient(
             append("window.autoPlayMode='$autoPlayMode';\n")
             append("window.closeNpPref=$closeNowPlay;\n")
             append("window.__spotilolUseProxy=$useProxy;\n")
+            if (prefs.getBoolean("DebugOverlay", false)) {
+                append(DevLogPrelude.js())
+                append("\n")
+            }
             append(PlayerCore.CONTENT)
             append(TrackObserver.CONTENT)
             append(ClassicBridge.CONTENT)

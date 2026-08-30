@@ -1,5 +1,6 @@
 package com.project.lol.ui.screens
 
+import android.content.ClipData
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
@@ -33,6 +34,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BrightnessHigh
+import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.CleaningServices
@@ -52,6 +54,7 @@ import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.ScreenRotation
+import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Smartphone
 import androidx.compose.material.icons.filled.TouchApp
@@ -82,6 +85,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -90,6 +94,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.toClipEntry
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -105,6 +111,7 @@ import com.project.lol.R
 import com.project.lol.profile.ProfileManager
 import com.project.lol.proxy.LocalProxyManager
 import com.project.lol.ui.theme.SpotifyTheme
+import com.project.lol.util.DebugLogStore
 import com.project.lol.util.GitHubApi
 import com.project.lol.util.GitHubRelease
 import com.project.lol.util.MarkdownText
@@ -112,6 +119,8 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlin.math.roundToInt
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 private val PalettePresets = listOf(
     "Default" to null,
@@ -161,7 +170,8 @@ fun SettingsContent(
     onLoadProfile: (String) -> Unit,
     onDeleteProfile: (String) -> Unit,
     onClearCache: () -> Unit,
-    onClearData: () -> Unit
+    onClearData: () -> Unit,
+    onDebugToggle: (Boolean) -> Unit = {}
 ) {
     var autoplayMode by remember { mutableStateOf(prefs.getString("APlayMode", "disabled") ?: "disabled") }
     var takeControl by remember { mutableStateOf(prefs.getBoolean("TakeControl", true)) }
@@ -192,6 +202,8 @@ fun SettingsContent(
     var showCustomCssDialog by remember { mutableStateOf(false) }
     var showPaletteDialog by remember { mutableStateOf(false) }
     var showChangelogDialog by remember { mutableStateOf(false) }
+    var dbgOverlay by remember { mutableStateOf(prefs.getBoolean("DebugOverlay", false)) }
+    var showDevlogDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier
@@ -533,6 +545,35 @@ fun SettingsContent(
                 )
             }
         }
+
+        SettingSectionCard(
+            title = "DEBUG",
+            icon = Icons.Default.Science
+        ) {
+            SettingSwitchTile(
+                title = "Collect Debug",
+                subtitle = "Collect debug events thrown by JS",
+                icon = Icons.Default.BugReport,
+                checked = dbgOverlay,
+                onCheckedChange = { enabled ->
+                    dbgOverlay = enabled
+                    prefs.edit().putBoolean("DebugOverlay", enabled).apply()
+                    onDebugToggle(enabled)
+                }
+            )
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+
+            SettingTile(
+                title = "Open Devlog",
+                subtitle = if (dbgOverlay) "Live - JS + native events" else "Enable debug first",
+                icon = Icons.Default.Code,
+                onClick = { showDevlogDialog = true },
+                enabled = dbgOverlay
+            )
+        }
+
+        Spacer(Modifier.height(8.dp))
 
         val pkg = remember { WebViewCompat.getCurrentWebViewPackage(context) }
         val packageInfo = remember {
@@ -1114,12 +1155,13 @@ fun SettingTile(
     icon: ImageVector? = null,
     painter: Painter? = null,
     onClick: () -> Unit,
-    isDestructive: Boolean = false
+    isDestructive: Boolean = false,
+    enabled: Boolean = true
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -1506,4 +1548,54 @@ fun SettingsContentPreview() {
             onClearData = {}
         )
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DevlogLiveDialog(onDismiss: () -> Unit) {
+    var lines by remember { mutableStateOf(DebugLogStore.snapshot()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(400)
+            lines = DebugLogStore.snapshot()
+        }
+    }
+    val clipboard = LocalClipboard.current
+    val scope = rememberCoroutineScope()
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(28.dp),
+        title = { Text("Devlog", fontWeight = FontWeight.Bold) },
+        text = {
+            Column {
+                Text(
+                    text = if (lines.isEmpty()) "(empty - waiting for activity)"
+                    else lines.joinToString("\n"),
+                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                    modifier = Modifier.height(320.dp).verticalScroll(rememberScrollState())
+                )
+            }
+        },
+        confirmButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = {
+                    DebugLogStore.clear()
+                    lines = emptyList()
+                }) { Text("Clear") }
+
+                TextButton(onClick = {
+                    val text = lines.joinToString("\n")
+                    scope.launch {
+                        clipboard.setClipEntry(
+                            ClipData.newPlainText("spotilol_devlog", text).toClipEntry()
+                        )
+                    }
+                }) { Text("Copy") }
+
+                TextButton(onClick = onDismiss) {
+                    Text("Close", fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    )
 }

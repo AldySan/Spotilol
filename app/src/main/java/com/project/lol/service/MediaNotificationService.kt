@@ -343,8 +343,30 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
     fun updateFromMediaStatus(json: String) {
         try {
             val obj = org.json.JSONObject(json)
-            currentTitle = obj.optString("track", "")
-            currentArtist = obj.optString("artist", "")
+            val andAuto = getSharedPreferences("spotilol_prefs", MODE_PRIVATE)
+                .getBoolean("AndAuto", true)
+
+            if (andAuto) {
+                currentTitle = obj.optString("track", "")
+                currentArtist = obj.optString("artist", "")
+                val coverUrl = obj.optString("cover", "")
+
+                if (coverUrl.isNotEmpty() && coverUrl != "null" && coverUrl != lastCoverUrl) {
+                    lastCoverUrl = coverUrl
+                    loadCoverArt(coverUrl)
+                } else if (coverUrl.isEmpty() || coverUrl == "null") {
+                    lastCoverUrl = ""
+                    coverBitmap = null
+                }
+            } else {
+                if (currentTitle.isNotEmpty() || currentArtist.isNotEmpty() || coverBitmap != null) {
+                    currentTitle = ""
+                    currentArtist = ""
+                    lastCoverUrl = ""
+                    coverBitmap = null
+                }
+            }
+
             isPlaying = obj.optBoolean("playing", false)
             isFavorite = obj.optBoolean("fav", false)
             val shuffleVal = obj.optString("shuffle", "off")
@@ -353,17 +375,8 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
             isShuffleAvailable = shuffleVal != "disabled"
             currentDuration = obj.optLong("duration", 0L)
             currentPosition = obj.optLong("position", 0L)
-            val coverUrl = obj.optString("cover", "")
 
             if (isPlaying) acquireWakeLock() else releaseWakeLock()
-
-            if (coverUrl.isNotEmpty() && coverUrl != "null" && coverUrl != lastCoverUrl) {
-                lastCoverUrl = coverUrl
-                loadCoverArt(coverUrl)
-            } else if (coverUrl.isEmpty() || coverUrl == "null") {
-                lastCoverUrl = ""
-                coverBitmap = null
-            }
 
             updatePlaybackState()
             updateMetadata()

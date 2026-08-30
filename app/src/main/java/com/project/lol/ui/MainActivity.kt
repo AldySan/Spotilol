@@ -119,6 +119,7 @@ import com.project.lol.ui.theme.SpotifyTheme
 import com.project.lol.util.UpdateChecker
 import com.project.lol.webview.SpotifyWebChromeClient
 import com.project.lol.webview.SpotifyWebViewClient
+import com.project.lol.webview.helpers.DevLogPrelude
 import com.project.lol.webview.helpers.buildAmoledJs
 import com.project.lol.webview.helpers.buildCustomCssJs
 import com.project.lol.webview.injections.LogoutCheck
@@ -161,6 +162,7 @@ class MainActivity : ComponentActivity() {
     private val sleepTimerActive = mutableStateOf(false)
 
     private val loadingProgress = mutableIntStateOf(100)
+    private val webViewError = mutableStateOf<Pair<Int, String>?>(null)
 
     private val notifPermLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -299,7 +301,14 @@ class MainActivity : ComponentActivity() {
                     onLoadProfile = { cookies -> loadProfile(cookies) },
                     onDeleteProfile = { name -> deleteProfile(name) },
                     onClearCache = { clearWebViewCache() },
-                    onClearData = { clearAllData() }
+                    onClearData = { clearAllData() },
+                    onDebugToggle = { enabled ->
+                        webView?.evaluateJavascript(
+                            if (enabled) DevLogPrelude.js()
+                            else "window.dbg=null;window.dbgw=null;window.dbge=null;window.DevLog=null;",
+                            null
+                        )
+                    }
                 ) {
                     Scaffold(
                         topBar = {
@@ -459,6 +468,15 @@ class MainActivity : ComponentActivity() {
                                         webViewClient = SpotifyWebViewClient(
                                             onLoginRequired = {
                                                 loadUrl("https://accounts.spotify.com/login")
+                                            },
+                                            onRenderProcessGone = {
+                                                runOnUiThread {
+                                                    webViewError.value = null
+                                                    destroyWebView()
+                                                }
+                                            },
+                                            onWebViewError = { code, desc ->
+                                                webViewError.value = code to desc
                                             }
                                         )
 
@@ -507,6 +525,18 @@ class MainActivity : ComponentActivity() {
                                         .alpha(progressAlpha),
                                     color = Color(0xFF22DD66),
                                     trackColor = Color.Transparent,
+                                )
+                            }
+
+                            webViewError.value?.let { (code, desc) ->
+                                com.project.lol.ui.components.ErrorScreen(
+                                    errorType = com.project.lol.ui.components.mapWebViewError(code),
+                                    errorCode = code,
+                                    errorDescription = desc,
+                                    onRetry = {
+                                        webViewError.value = null
+                                        webView?.reload()
+                                    }
                                 )
                             }
 
@@ -1245,13 +1275,10 @@ class MainActivity : ComponentActivity() {
         super.onStop()
         webView?.evaluateJavascript("""
             try {
-                document.querySelectorAll('video').forEach(function(v) {
-                    if(v.muted || v.hasAttribute('loop') || v.style.objectFit === 'cover') {
-                        v.pause();
-                        v.removeAttribute('src');
-                        v.load();
-                    }
-                });
+                window.__splBg = true;
+                if(typeof pfint !== 'undefined' && pfint) { clearInterval(pfint); pfint = null; window.__splWasPfint = true; }
+                if(typeof afint !== 'undefined' && afint) { clearInterval(afint); afint = null; window.__splWasAfint = true; }
+                if(typeof cssint !== 'undefined' && cssint) { clearInterval(cssint); cssint = null; window.__splWasCssint = true; }
             } catch(e) {}
         """.trimIndent(), null)
     }
@@ -1280,6 +1307,15 @@ class MainActivity : ComponentActivity() {
         val closeNowPlay = prefs.getBoolean("CloseNowPlay", true)
 
         webView?.let { view ->
+            view.evaluateJavascript("""
+                try {
+                    window.__splBg = false;
+                    if(window.__splWasPfint) { window.__splWasPfint = false; firstFuck(); }
+                    if(window.__splWasAfint) { window.__splWasAfint = false; addAutoFeatures(); }
+                    if(window.__splWasCssint) { window.__splWasCssint = false; addCSSJSHack(); }
+                } catch(e) {}
+            """.trimIndent(), null)
+
             val js = buildString {
                 append("window.closeNpPref=$closeNowPlay;\n")
                 append(buildAmoledJs(amoledEnabled))

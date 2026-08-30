@@ -83,6 +83,21 @@ class SpotifyBridge(activityRef: WeakReference<Activity>) {
     }
 
     @JavascriptInterface
+    fun dbg(level: String?, msg: String?) {
+        val m = msg ?: return
+        val activity = activityRef.get() ?: return
+        if (!activity.getSharedPreferences("spotilol_prefs", Activity.MODE_PRIVATE)
+                .getBoolean("DebugOverlay", false)) return
+        val tag = when (level) {
+            "w" -> "js.warn"
+            "e" -> "js.err"
+            "s" -> "js.sys"
+            else -> "js"
+        }
+        com.project.lol.util.DebugLogStore.log(tag, m)
+    }
+
+    @JavascriptInterface
     fun playLoaded() {
         val activity = activityRef.get() ?: return
         activity.runOnUiThread {

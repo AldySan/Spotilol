@@ -546,35 +546,6 @@ fun SettingsContent(
             }
         }
 
-        SettingSectionCard(
-            title = "DEBUG",
-            icon = Icons.Default.Science
-        ) {
-            SettingSwitchTile(
-                title = "Collect Debug",
-                subtitle = "Collect debug events thrown by JS",
-                icon = Icons.Default.BugReport,
-                checked = dbgOverlay,
-                onCheckedChange = { enabled ->
-                    dbgOverlay = enabled
-                    prefs.edit().putBoolean("DebugOverlay", enabled).apply()
-                    onDebugToggle(enabled)
-                }
-            )
-
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
-
-            SettingTile(
-                title = "Open Devlog",
-                subtitle = if (dbgOverlay) "Live - JS + native events" else "Enable debug first",
-                icon = Icons.Default.Code,
-                onClick = { showDevlogDialog = true },
-                enabled = dbgOverlay
-            )
-        }
-
-        Spacer(Modifier.height(8.dp))
-
         val pkg = remember { WebViewCompat.getCurrentWebViewPackage(context) }
         val packageInfo = remember {
             runCatching {
@@ -613,6 +584,33 @@ fun SettingsContent(
                 subtitle = pkg?.versionName ?: "System WebView",
                 icon = Icons.Default.Language,
                 onClick = {}
+            )
+        }
+
+        SettingSectionCard(
+            title = "DEBUG",
+            icon = Icons.Default.Science
+        ) {
+            SettingSwitchTile(
+                title = "Collect Debug",
+                subtitle = "Collect debug events thrown by JS",
+                icon = Icons.Default.BugReport,
+                checked = dbgOverlay,
+                onCheckedChange = { enabled ->
+                    dbgOverlay = enabled
+                    prefs.edit().putBoolean("DebugOverlay", enabled).apply()
+                    onDebugToggle(enabled)
+                }
+            )
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+
+            SettingTile(
+                title = "Open Devlog",
+                subtitle = if (dbgOverlay) "Live - JS + native events" else "Enable debug first",
+                icon = Icons.Default.Code,
+                onClick = { showDevlogDialog = true },
+                enabled = dbgOverlay
             )
         }
 

@@ -14,8 +14,9 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Build
 import android.os.Bundle
-import android.os.IBinder
 import android.os.PowerManager
+import android.support.v4.media.MediaBrowserCompat
+import android.support.v4.media.MediaDescriptionCompat
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
@@ -23,6 +24,7 @@ import android.webkit.WebView
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import com.project.lol.R
+import androidx.media.MediaBrowserServiceCompat
 import androidx.media.app.NotificationCompat.MediaStyle
 import androidx.media.session.MediaButtonReceiver
 import android.bluetooth.BluetoothDevice
@@ -31,12 +33,13 @@ import java.net.HttpURLConnection
 import java.net.URL
 import kotlin.math.min
 
-class MediaNotificationService : Service() {
+class MediaNotificationService : MediaBrowserServiceCompat() {
 
     companion object {
         private const val TAG = "MediaNotifService"
         private const val CHANNEL_ID = "spotilol_media_playback"
         private const val NOTIFICATION_ID = 1
+        private const val MEDIA_ID_ROOT = "__ROOT__"
 
         const val ACTION_PLAY_PAUSE = "com.project.lol.ACTION_PLAY_PAUSE"
         const val ACTION_NEXT = "com.project.lol.ACTION_NEXT"
@@ -170,7 +173,33 @@ class MediaNotificationService : Service() {
         return START_STICKY
     }
 
-    override fun onBind(intent: Intent?): IBinder? = null
+    override fun onGetRoot(
+        clientPackageName: String,
+        clientUid: Int,
+        rootHints: Bundle?
+    ): BrowserRoot? = BrowserRoot(MEDIA_ID_ROOT, null)
+
+    override fun onLoadChildren(
+        parentId: String,
+        result: Result<MutableList<MediaBrowserCompat.MediaItem>>
+    ) {
+        if (parentId != MEDIA_ID_ROOT) {
+            result.sendResult(null)
+            return
+        }
+        result.sendResult(
+            mutableListOf(
+                MediaBrowserCompat.MediaItem(
+                    MediaDescriptionCompat.Builder()
+                        .setMediaId(MEDIA_ID_ROOT)
+                        .setTitle("Spotilol")
+                        .setDescription("Now playing")
+                        .build(),
+                    MediaBrowserCompat.MediaItem.FLAG_PLAYABLE
+                )
+            )
+        )
+    }
 
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
@@ -249,6 +278,7 @@ class MediaNotificationService : Service() {
             })
             isActive = true
         }
+        sessionToken = mediaSession.sessionToken
     }
 
     private fun registerReceivers() {
@@ -520,6 +550,15 @@ class MediaNotificationService : Service() {
     }
 
     private fun getActionPendingIntent(action: String): PendingIntent {
+        val mediaButtonAction = when (action) {
+            ACTION_PLAY_PAUSE -> PlaybackStateCompat.ACTION_PLAY_PAUSE
+            ACTION_NEXT -> PlaybackStateCompat.ACTION_SKIP_TO_NEXT
+            ACTION_PREV -> PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS
+            else -> null
+        }
+        if (mediaButtonAction != null) {
+            return MediaButtonReceiver.buildMediaButtonPendingIntent(this, mediaButtonAction)
+        }
         val intent = Intent(action).setPackage(packageName)
         return PendingIntent.getBroadcast(
             this, action.hashCode(), intent,

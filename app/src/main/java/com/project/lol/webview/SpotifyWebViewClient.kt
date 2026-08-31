@@ -325,45 +325,51 @@ class SpotifyWebViewClient(
 
     private fun registerPrefsListener(view: WebView) {
         val prefs = view.context.getSharedPreferences("spotilol_prefs", 0)
-        prefsListener?.let { prefs.unregisterOnSharedPreferenceChangeListener(it) }
+        // Listener doesn't depend on the WebView instance (it reads currentWebView),
+        // so registering once is enough. Re-register only if the prefs instance
+        // actually changed (new context after a renderer-crash rebuild).
+        if (boundPrefs === prefs && prefsListener != null) return
+        prefsListener?.let { boundPrefs?.unregisterOnSharedPreferenceChangeListener(it) }
+        boundPrefs = prefs
+
         prefsListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-            if (key == "PlayerMode") {
-                val wv = currentWebView ?: return@OnSharedPreferenceChangeListener
-                val mode = prefs.getString("PlayerMode", "spotilol") ?: "spotilol"
-                switchPlayerMode(wv, mode)
-            } else if (key == "PowerSave") {
-                val wv = currentWebView ?: return@OnSharedPreferenceChangeListener
-                val on = prefs.getBoolean("PowerSave", false)
-                wv.evaluateJavascript("if(window.__splApplyPowerSave) window.__splApplyPowerSave($on);", null)
-            } else if (key == "AmoledTheme" || key == "CustomCss") {
-                val wv = currentWebView ?: return@OnSharedPreferenceChangeListener
-                val amoled = prefs.getBoolean("AmoledTheme", false)
-                val css = prefs.getString("CustomCss", "") ?: ""
-                wv.evaluateJavascript(buildAmoledJs(amoled), null)
-                wv.evaluateJavascript(buildCustomCssJs(css), null)
-            } else if (key == "CloseNowPlay") {
-                val wv = currentWebView ?: return@OnSharedPreferenceChangeListener
-                val closeNp = prefs.getBoolean("CloseNowPlay", true)
-                wv.evaluateJavascript("window.closeNpPref=$closeNp;", null)
-            } else if (key == "APlayMode") {
-                val wv = currentWebView ?: return@OnSharedPreferenceChangeListener
-                val mode = prefs.getString("APlayMode", "disabled") ?: "disabled"
-                wv.evaluateJavascript("window.autoPlayMode='$mode';", null)
-            } else if (key == "PaletteSeed" || key == "MaterialYou") {
-                val wv = currentWebView ?: return@OnSharedPreferenceChangeListener
-                wv.evaluateJavascript(AccentTheme.buildAccentJs(wv.context), null)
-            } else if (key == "TakeControl"){
-                val wv = currentWebView ?: return@OnSharedPreferenceChangeListener
-                val on = prefs.getBoolean("TakeControl", true)
-                wv.evaluateJavascript("window.__splTakeControl=$on;", null)
-            } else if (key == "BlockServiceWorker") {
-                val wv = currentWebView ?: return@OnSharedPreferenceChangeListener
-                val enabled = prefs.getBoolean("BlockServiceWorker", true)
-                if (enabled) {
-                    wv.evaluateJavascript(WorkerNeutralize.CONTENT, null)
-                    wv.evaluateJavascript(SW_UNREGISTER_JS, null)
-                } else {
-                    wv.reload()
+            val wv = currentWebView ?: return@OnSharedPreferenceChangeListener
+            when (key) {
+                "PlayerMode" ->
+                    switchPlayerMode(wv, prefs.getString("PlayerMode", "spotilol") ?: "spotilol")
+                "PowerSave" -> {
+                    val on = prefs.getBoolean("PowerSave", false)
+                    wv.evaluateJavascript("if(window.__splApplyPowerSave) window.__splApplyPowerSave($on);", null)
+                }
+                "CloseNowPlay" -> {
+                    val closeNp = prefs.getBoolean("CloseNowPlay", true)
+                    wv.evaluateJavascript("window.closeNpPref=$closeNp;", null)
+                }
+                "APlayMode" -> {
+                    val mode = prefs.getString("APlayMode", "disabled") ?: "disabled"
+                    wv.evaluateJavascript("window.autoPlayMode='$mode';", null)
+                }
+                "AmoledTheme", "CustomCss" -> {
+                    val js = buildAmoledJs(prefs.getBoolean("AmoledTheme", false)) + ";\n" +
+                            buildCustomCssJs(prefs.getString("CustomCss", "") ?: "")
+                    wv.evaluateJavascript(js, null)
+                }
+                "PaletteSeed", "MaterialYou" ->
+                    wv.evaluateJavascript(AccentTheme.buildAccentJs(wv.context), null)
+                "TakeControl" -> {
+                    val on = prefs.getBoolean("TakeControl", true)
+                    wv.evaluateJavascript("window.__splTakeControl=$on;", null)
+                }
+                "BlockServiceWorker" -> {
+                    if (prefs.getBoolean("BlockServiceWorker", true)) {
+                        wv.evaluateJavascript(WorkerNeutralize.CONTENT + ";\n" + SW_UNREGISTER_JS, null)
+                    } else {
+                        wv.reload()
+                    }
+                }
+                "HideEmptyPlayer" -> {
+                    val hideEmpty = prefs.getBoolean("HideEmptyPlayer", false)
+                    wv.evaluateJavascript("window.__splHideEmpty=$hideEmpty; if(window.splApplyEmpty) window.splApplyEmpty();", null)
                 }
             }
         }

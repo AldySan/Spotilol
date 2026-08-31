@@ -12,6 +12,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.util.Locale
 import androidx.core.content.edit
+import com.project.lol.offline.DownloadManager
 import com.project.lol.util.DebugLogStore
 import com.project.lol.webview.helpers.AdIdStore
 
@@ -39,6 +40,7 @@ class SpotifyBridge(private val activityRef: WeakReference<Activity>) {
     var onEnterPipRequest: (() -> Unit)? = null
     var onEnterPipVideoRequest: ((Int, Int) -> Unit)? = null
     var onDownloadTrack: ((String) -> Unit)? = null
+    var onDownloadCollection: ((String) -> Unit)? = null
 
     @Suppress("unused")
     @JavascriptInterface
@@ -208,6 +210,24 @@ class SpotifyBridge(private val activityRef: WeakReference<Activity>) {
     @JavascriptInterface
     fun downloadTrack(json: String?) {
         json?.let { onDownloadTrack?.invoke(it) }
+    }
+
+    @Suppress("unused")
+    @JavascriptInterface
+    fun downloadCollection(json: String?) {
+        json?.let { onDownloadCollection?.invoke(it) }
+    }
+
+    @Suppress("unused")
+    @JavascriptInterface
+    fun skipDownload() {
+        DownloadManager.skipCurrent()
+    }
+
+    @Suppress("unused")
+    @JavascriptInterface
+    fun cancelDownload() {
+        DownloadManager.cancelAll()
     }
 
     @Suppress("unused")

@@ -27,6 +27,3 @@
     public static int e(...);
     public static int wtf(...);
 }
-
-# Obfuscation
--repackageclasses

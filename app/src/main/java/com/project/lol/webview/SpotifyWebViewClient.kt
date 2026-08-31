@@ -16,7 +16,6 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.util.Locale
 import androidx.core.net.toUri
-import androidx.core.content.edit
 
 class SpotifyWebViewClient(
     private val onLoginRequired: () -> Unit,
@@ -25,14 +24,14 @@ class SpotifyWebViewClient(
     private val onWebViewError: ((errorCode: Int, description: String) -> Unit)? = null
 ) : WebViewClient() {
 
+    private var currentWebView: WebView? = null
+    private var prefsListener: android.content.SharedPreferences.OnSharedPreferenceChangeListener? = null
+    private var boundPrefs: android.content.SharedPreferences? = null
+
     override fun doUpdateVisitedHistory(view: WebView?, url: String?, isReload: Boolean) {
         super.doUpdateVisitedHistory(view, url, isReload)
         onNavStateChanged?.invoke(view?.canGoBack() == true)
     }
-
-    private var currentWebView: WebView? = null
-    private var prefsListener: android.content.SharedPreferences.OnSharedPreferenceChangeListener? = null
-    private var boundPrefs: android.content.SharedPreferences? = null
 
     override fun onPageFinished(view: WebView?, url: String?) {
         super.onPageFinished(view, url)
@@ -65,7 +64,7 @@ class SpotifyWebViewClient(
         view.evaluateJavascript(LogoutCheck.CONTENT) { result ->
             if (result == "\"out\"") {
                 view.context.getSharedPreferences("spotilol_prefs", 0)
-                    .edit { putBoolean("LoggedIn", false) }
+                    .edit().putBoolean("LoggedIn", false).apply()
                 view.loadUrl("https://accounts.spotify.com/login")
             }
         }
@@ -73,15 +72,16 @@ class SpotifyWebViewClient(
 
     override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
         super.onPageStarted(view, url, favicon)
-        val useProxy = view?.context?.getSharedPreferences("spotilol_prefs", 0)
-            ?.getString("ConnectionMode", "normal") == "proxy"
-        val powerSave = view?.context?.getSharedPreferences("spotilol_prefs", 0)
-            ?.getBoolean("PowerSave", false) ?: false
-        val blockSW = view?.context?.getSharedPreferences("spotilol_prefs", 0)
-            ?.getBoolean("BlockServiceWorker", true) ?: true
+        val prefs = view?.context?.getSharedPreferences("spotilol_prefs", 0)
+
+        val useProxy = prefs?.getString("ConnectionMode", "normal") == "proxy"
+        val powerSave = prefs?.getBoolean("PowerSave", false) ?: false
+        val blockSW = prefs?.getBoolean("BlockServiceWorker", true) ?: true
+        val hideEmptyPlayer = prefs?.getBoolean("HideEmptyPlayer", false) ?: false
 
         view?.evaluateJavascript("window.__spotilolUseProxy=$useProxy;", null)
         view?.evaluateJavascript("window.__splPowerSavePref=$powerSave;", null)
+        view?.evaluateJavascript("window.__splHideEmpty=$hideEmptyPlayer;", null)
         // FIX: these payloads were injected raw - strip them like every other
         // injection, served from cache.
         if (isGoogleAuthUrl(url)) {
@@ -101,10 +101,6 @@ class SpotifyWebViewClient(
 
     override fun onRenderProcessGone(view: WebView?, detail: RenderProcessGoneDetail?): Boolean {
         Log.w(TAG, "Renderer process gone: crashed=${detail?.didCrash()}")
-        // Don't touch view.parent here - detaching from the UI thread is the
-        // activity's job. We just destroy the dead WebView (mandatory per docs:
-        // "the WebView can no longer be used") and notify up so MainActivity can
-        // tear down its references and rebuild via a composition key bump.
         try {
             view?.let {
                 it.stopLoading()
@@ -113,6 +109,31 @@ class SpotifyWebViewClient(
         } catch (_: Exception) {}
         onRenderProcessGone?.invoke()
         return true
+    }
+
+    override fun onReceivedError(
+        view: WebView?,
+        request: WebResourceRequest?,
+        error: WebResourceError?
+    ) {
+        super.onReceivedError(view, request, error)
+        if (request?.isForMainFrame != true) return
+        val code = try { error?.errorCode ?: -1 } catch (_: Exception) { -1 }
+        val desc = try { error?.description?.toString() ?: "" } catch (_: Exception) { "" }
+        onWebViewError?.invoke(code, desc)
+    }
+
+    override fun onReceivedHttpError(
+        view: WebView?,
+        request: WebResourceRequest?,
+        errorResponse: WebResourceResponse?
+    ) {
+        super.onReceivedHttpError(view, request, errorResponse)
+        if (request?.isForMainFrame != true) return
+        val status = try { errorResponse?.statusCode ?: 0 } catch (_: Exception) { 0 }
+        if (status >= 400) {
+            onWebViewError?.invoke(status, "HTTP $status")
+        }
     }
 
     override fun shouldInterceptRequest(
@@ -216,31 +237,6 @@ class SpotifyWebViewClient(
         return null
     }
 
-    override fun onReceivedError(
-        view: WebView?,
-        request: WebResourceRequest?,
-        error: WebResourceError?
-    ) {
-        super.onReceivedError(view, request, error)
-        if (request?.isForMainFrame != true) return
-        val code = try { error?.errorCode ?: -1 } catch (_: Exception) { -1 }
-        val desc = try { error?.description?.toString() ?: "" } catch (_: Exception) { "" }
-        onWebViewError?.invoke(code, desc)
-    }
-
-    override fun onReceivedHttpError(
-        view: WebView?,
-        request: WebResourceRequest?,
-        errorResponse: WebResourceResponse?
-    ) {
-        super.onReceivedHttpError(view, request, errorResponse)
-        if (request?.isForMainFrame != true) return
-        val status = try { errorResponse?.statusCode ?: 0 } catch (_: Exception) { 0 }
-        if (status >= 400) {
-            onWebViewError?.invoke(status, "HTTP $status")
-        }
-    }
-
     private fun isGoogleAuthUrl(url: String?): Boolean {
         if (url == null) return false
         val host = runCatching { url.toUri().host }.getOrNull()
@@ -262,13 +258,15 @@ class SpotifyWebViewClient(
         val useProxy = prefs.getString("ConnectionMode", "normal") == "proxy"
         val debugOverlay = prefs.getBoolean("DebugOverlay", false)
         val takeControl = prefs.getBoolean("TakeControl", true)
+        val hideEmptyPlayer = prefs.getBoolean("HideEmptyPlayer", false)
 
         val js = buildString {
             append("window.autoPlayMode='$autoPlayMode';\n")
             append("window.closeNpPref=$closeNowPlay;\n")
             append("window.__spotilolUseProxy=$useProxy;\n")
             append("window.__splTakeControl=$takeControl;\n")
-            if (prefs.getBoolean("DebugOverlay", false)) {
+            append("window.__splHideEmpty=$hideEmptyPlayer;\n")
+            if (debugOverlay) {
                 append(DevLogPrelude.js())
                 append("\n")
             }
@@ -313,15 +311,7 @@ class SpotifyWebViewClient(
                 append(SpotilolPlayer.CONTENT)
             }
         }
-        // FIX (perf): cache key must uniquely determine `js` - only these five
-        // inputs feed the stripped section. `amoledEnabled` and `customCss` are
-        // deliberately EXCLUDED: they are appended after stripping and never
-        // enter the scanner, so including them would only cause needless
-        // cache misses on every theme/CSS change.
         val coreKey = "player-core|$autoPlayMode|$closeNowPlay|$useProxy|$debugOverlay|$playerMode"
-
-        // overlay captures via AndBridge.dbg (dbg/DevLog call
-        // sites), not by hooking console.log - stripping stays active in debug mode.
         val cleanJs = JsUtils.stripConsoleLogsCached(coreKey, js) + "\n" +
                 buildAmoledJs(amoledEnabled) + "\n" +
                 AccentTheme.buildAccentJs(view.context) + "\n" +
@@ -335,59 +325,43 @@ class SpotifyWebViewClient(
 
     private fun registerPrefsListener(view: WebView) {
         val prefs = view.context.getSharedPreferences("spotilol_prefs", 0)
-        prefsListener?.let { boundPrefs?.unregisterOnSharedPreferenceChangeListener(it) }
-        boundPrefs = prefs
+        prefsListener?.let { prefs.unregisterOnSharedPreferenceChangeListener(it) }
         prefsListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
             if (key == "PlayerMode") {
                 val wv = currentWebView ?: return@OnSharedPreferenceChangeListener
                 val mode = prefs.getString("PlayerMode", "spotilol") ?: "spotilol"
                 switchPlayerMode(wv, mode)
-            }
-            if (key == "PowerSave") {
+            } else if (key == "PowerSave") {
                 val wv = currentWebView ?: return@OnSharedPreferenceChangeListener
                 val on = prefs.getBoolean("PowerSave", false)
                 wv.evaluateJavascript("if(window.__splApplyPowerSave) window.__splApplyPowerSave($on);", null)
-            }
-            if (key == "CloseNowPlay") {
-                val wv = currentWebView ?: return@OnSharedPreferenceChangeListener
-                val closeNp = prefs.getBoolean("CloseNowPlay", true)
-                wv.evaluateJavascript("window.closeNpPref=$closeNp;", null)
-            }
-            if (key == "APlayMode") {
-                val wv = currentWebView ?: return@OnSharedPreferenceChangeListener
-                val mode = prefs.getString("APlayMode", "disabled") ?: "disabled"
-                wv.evaluateJavascript("window.autoPlayMode='$mode';", null)
-            }
-            if (key == "AmoledTheme" || key == "CustomCss") {
+            } else if (key == "AmoledTheme" || key == "CustomCss") {
                 val wv = currentWebView ?: return@OnSharedPreferenceChangeListener
                 val amoled = prefs.getBoolean("AmoledTheme", false)
                 val css = prefs.getString("CustomCss", "") ?: ""
                 wv.evaluateJavascript(buildAmoledJs(amoled), null)
                 wv.evaluateJavascript(buildCustomCssJs(css), null)
-            }
-            if (key == "PaletteSeed" || key == "MaterialYou") {
+            } else if (key == "CloseNowPlay") {
+                val wv = currentWebView ?: return@OnSharedPreferenceChangeListener
+                val closeNp = prefs.getBoolean("CloseNowPlay", true)
+                wv.evaluateJavascript("window.closeNpPref=$closeNp;", null)
+            } else if (key == "APlayMode") {
+                val wv = currentWebView ?: return@OnSharedPreferenceChangeListener
+                val mode = prefs.getString("APlayMode", "disabled") ?: "disabled"
+                wv.evaluateJavascript("window.autoPlayMode='$mode';", null)
+            } else if (key == "PaletteSeed" || key == "MaterialYou") {
                 val wv = currentWebView ?: return@OnSharedPreferenceChangeListener
                 wv.evaluateJavascript(AccentTheme.buildAccentJs(wv.context), null)
-            }
-            if (key == "TakeControl"){
+            } else if (key == "TakeControl"){
                 val wv = currentWebView ?: return@OnSharedPreferenceChangeListener
                 val on = prefs.getBoolean("TakeControl", true)
                 wv.evaluateJavascript("window.__splTakeControl=$on;", null)
-            }
-            if (key == "BlockServiceWorker") {
+            } else if (key == "BlockServiceWorker") {
                 val wv = currentWebView ?: return@OnSharedPreferenceChangeListener
                 val enabled = prefs.getBoolean("BlockServiceWorker", true)
                 if (enabled) {
                     wv.evaluateJavascript(WorkerNeutralize.CONTENT, null)
-                    wv.evaluateJavascript("""
-                        try {
-                            if(navigator.serviceWorker){
-                                navigator.serviceWorker.getRegistrations().then(function(regs){
-                                    regs.forEach(function(r){ r.unregister(); });
-                                });
-                            }
-                        } catch(e){}
-                    """.trimIndent(), null)
+                    wv.evaluateJavascript(SW_UNREGISTER_JS, null)
                 } else {
                     wv.reload()
                 }
@@ -442,5 +416,15 @@ class SpotifyWebViewClient(
         private const val TAG = "SpotifyWebViewClient"
         private const val DESKTOP_UA =
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+
+        private val SW_UNREGISTER_JS = """
+            try {
+                if(navigator.serviceWorker){
+                    navigator.serviceWorker.getRegistrations().then(function(regs){
+                        regs.forEach(function(r){ r.unregister(); });
+                    });
+                }
+            } catch(e){}
+        """.trimIndent()
     }
 }

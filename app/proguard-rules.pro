@@ -18,6 +18,12 @@
 -keepattributes *Annotation*,JavascriptInterface,SourceFile,LineNumberTable
 -renamesourcefileattribute SourceFile
 
+-dontwarn java.beans.BeanDescriptor
+-dontwarn java.beans.BeanInfo
+-dontwarn java.beans.IntrospectionException
+-dontwarn java.beans.Introspector
+-dontwarn java.beans.PropertyDescriptor
+
 # Clear all Log.* to gain performance
 -assumenosideeffects class android.util.Log {
     public static int v(...);

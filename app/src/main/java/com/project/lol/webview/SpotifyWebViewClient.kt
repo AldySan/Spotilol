@@ -306,6 +306,7 @@ class SpotifyWebViewClient(
             append(ToastFix.CONTENT)
             append(LyricsSyncFix.CONTENT)
             append(QueueAutoClose.CONTENT)
+            append(LibraryAutoClose.CONTENT)
             if (playerMode == "spotilol") {
                 append(SpotilolPlayer.CONTENT)
             }

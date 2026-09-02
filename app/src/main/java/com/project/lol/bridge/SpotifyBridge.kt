@@ -120,6 +120,16 @@ class SpotifyBridge(activityRef: WeakReference<Activity>) {
     }
 
     @JavascriptInterface
+    fun onMediaItemsLoaded(parentId: String?, json: String?) {
+        parentId?.let { MediaNotificationService.onMediaItemsLoaded(it, json ?: "[]") }
+    }
+
+    @JavascriptInterface
+    fun onSearchCompleted(query: String?, json: String?) {
+        query?.let { MediaNotificationService.onSearchCompleted(it, json ?: "[]") }
+    }
+
+    @JavascriptInterface
     fun manageTShut(enabled: Boolean) {
     }
 

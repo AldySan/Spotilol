@@ -259,6 +259,7 @@ class SpotifyWebViewClient(
         val debugOverlay = prefs.getBoolean("DebugOverlay", false)
         val takeControl = prefs.getBoolean("TakeControl", true)
         val hideEmptyPlayer = prefs.getBoolean("HideEmptyPlayer", false)
+        val lyricsStyle = prefs.getString("LyricsStyle", LyricsTheme.DEFAULT_STYLE) ?: LyricsTheme.DEFAULT_STYLE
 
         val js = buildString {
             append("window.autoPlayMode='$autoPlayMode';\n")
@@ -315,7 +316,8 @@ class SpotifyWebViewClient(
         val cleanJs = JsUtils.stripConsoleLogsCached(coreKey, js) + "\n" +
                 buildAmoledJs(amoledEnabled) + "\n" +
                 AccentTheme.buildAccentJs(view.context) + "\n" +
-                buildCustomCssJs(customCss)
+                buildCustomCssJs(customCss) + "\n" +
+                LyricsTheme.buildLyricsStyleJs(lyricsStyle)
         if (playerMode == "original") {
             view.evaluateJavascript("$cleanJs\n(function(){var s=document.createElement('style');s.id='spl-np-show';s.textContent='aside[data-testid=\"now-playing-bar\"]{display:flex!important}';document.head.appendChild(s);})();", null)
         } else {
@@ -349,9 +351,10 @@ class SpotifyWebViewClient(
                     val mode = prefs.getString("APlayMode", "disabled") ?: "disabled"
                     wv.evaluateJavascript("window.autoPlayMode='$mode';", null)
                 }
-                "AmoledTheme", "CustomCss" -> {
+                "AmoledTheme", "CustomCss", "LyricsStyle" -> {
                     val js = buildAmoledJs(prefs.getBoolean("AmoledTheme", false)) + ";\n" +
-                            buildCustomCssJs(prefs.getString("CustomCss", "") ?: "")
+                            buildCustomCssJs(prefs.getString("CustomCss", "") ?: "") + ";\n" +
+                            LyricsTheme.buildLyricsStyleJs(prefs.getString("LyricsStyle", LyricsTheme.DEFAULT_STYLE) ?: LyricsTheme.DEFAULT_STYLE)
                     wv.evaluateJavascript(js, null)
                 }
                 "PaletteSeed", "MaterialYou" ->

@@ -139,6 +139,7 @@ import com.project.lol.ui.components.ErrorScreen
 import com.project.lol.ui.components.mapWebViewError
 import com.project.lol.webview.helpers.AccentTheme
 import com.project.lol.webview.helpers.DevLogPrelude
+import com.project.lol.webview.helpers.LyricsTheme
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -1491,6 +1492,7 @@ class MainActivity : ComponentActivity() {
                 append(buildAmoledJs(amoledEnabled))
                 append(AccentTheme.buildAccentJs(this@MainActivity))
                 append(buildCustomCssJs(customCss))
+                append(LyricsTheme.buildLyricsStyleJs(prefs.getString("LyricsStyle", LyricsTheme.DEFAULT_STYLE) ?: LyricsTheme.DEFAULT_STYLE))
             }
             view.evaluateJavascript(js, null)
 

@@ -19,42 +19,51 @@ object AndroidAuto {
                 return !!window.spotAuthToken;
             };
 
-            window.pendingMediaRequests = window.pendingMediaRequests || new Set();
+window.pendingMediaRequests = window.pendingMediaRequests || new Set();
             var isFetchingLib = false;
+            var pendingLibPromise = null;
 
             window.checkMediaLib = async function(force) {
-                if (isFetchingLib && !force) return;
+                if (isFetchingLib && !force) {
+                    if (pendingLibPromise) return pendingLibPromise;
+                    return;
+                }
+                if (pendingLibPromise && !force) return pendingLibPromise;
                 await window.ensureAuthToken();
                 if (!window.spotAuthToken) return;
                 isFetchingLib = true;
-                try {
-                    var allItems = await window.fetchAllLibrary();
-                    var lib = window.parseLibrary(allItems);
-                    ['playlists','albums','artists','podcasts'].forEach(function(k) {
-                        (lib[k]||[]).forEach(function(it) { it.browsable = true; });
-                    });
-                    var pls = lib.playlists;
-                    for (var i = 0; i < pls.length; i++) {
-                        var p = pls[i];
-                        if (p.name === 'Liked Songs' || (p.id||'').indexOf('collection') !== -1) {
-                            p.id = 'spotify:collection:tracks';
-                            p.image = 'https://misc.scdn.co/liked-songs/liked-songs-640.png';
+                pendingLibPromise = (async function() {
+                    try {
+                        var allItems = await window.fetchAllLibrary();
+                        var lib = window.parseLibrary(allItems);
+                        ['playlists','albums','artists','podcasts'].forEach(function(k) {
+                            (lib[k]||[]).forEach(function(it) { it.browsable = true; });
+                        });
+                        var pls = lib.playlists;
+                        for (var i = 0; i < pls.length; i++) {
+                            var p = pls[i];
+                            if (p.name === 'Liked Songs' || (p.id||'').indexOf('collection') !== -1) {
+                                p.id = 'spotify:collection:tracks';
+                                p.image = 'https://misc.scdn.co/liked-songs/liked-songs-640.png';
+                            }
                         }
-                    }
-                    window.mediaLib = lib;
-                    if (window.pendingMediaRequests && window.pendingMediaRequests.size > 0) {
-                        var it = window.pendingMediaRequests.values();
-                        for (var reqId of it) {
-                            var items = (window.mediaLib || {})[reqId] || [];
-                            AndBridge.onMediaItemsLoaded(reqId, JSON.stringify(items));
+                        window.mediaLib = lib;
+                        if (window.pendingMediaRequests && window.pendingMediaRequests.size > 0) {
+                            var it = window.pendingMediaRequests.values();
+                            for (var reqId of it) {
+                                var items = (window.mediaLib || {})[reqId] || [];
+                                AndBridge.onMediaItemsLoaded(reqId, JSON.stringify(items));
+                            }
+                            window.pendingMediaRequests.clear();
                         }
-                        window.pendingMediaRequests.clear();
+                    } catch (e) {
+                        console.error('checkMediaLib error:', e);
+                    } finally {
+                        isFetchingLib = false;
+                        pendingLibPromise = null;
                     }
-                } catch (e) {
-                    console.error('checkMediaLib error:', e);
-                } finally {
-                    isFetchingLib = false;
-                }
+                })();
+                return pendingLibPromise;
             };
 
             window.likedSongsCache = window.likedSongsCache || null;
@@ -135,18 +144,15 @@ object AndroidAuto {
                             window.pendingMediaRequests.add(parentId);
                             await window.checkMediaLib();
                         }
-                        if (window.mediaLib && window.mediaLib[parentId]) {
-                            window.pendingMediaRequests.delete(parentId);
-                            var items = window.mediaLib[parentId].map(function(item) {
-                                var img = item.image;
-                                if (item.name === 'Liked Songs' || (item.id && (item.id.indexOf('collection') !== -1 || item.id === 'spotify:playlist:liked'))) {
-                                    img = 'https://misc.scdn.co/liked-songs/liked-songs-640.png';
-                                }
-                                return { id: item.id, name: item.name, image: img, artists: item.artists || [], browsable: true, isGrid: true };
-                            });
-                            AndBridge.onMediaItemsLoaded(parentId, JSON.stringify(items));
-                            return;
-                        }
+                        var items = ((window.mediaLib && window.mediaLib[parentId]) || []).map(function(item) {
+                            var img = item.image;
+                            if (item.name === 'Liked Songs' || (item.id && (item.id.indexOf('collection') !== -1 || item.id === 'spotify:playlist:liked'))) {
+                                img = 'https://misc.scdn.co/liked-songs/liked-songs-640.png';
+                            }
+                            return { id: item.id, name: item.name, image: img, artists: item.artists || [], browsable: true, isGrid: true };
+                        });
+                        window.pendingMediaRequests.delete(parentId);
+                        AndBridge.onMediaItemsLoaded(parentId, JSON.stringify(items));
                         return;
                     }
 

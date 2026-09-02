@@ -1470,7 +1470,6 @@ class MainActivity : ComponentActivity() {
 
         val customCss = prefs.getString("CustomCss", "") ?: ""
         val amoledEnabled = prefs.getBoolean("AmoledTheme", false)
-        val closeNowPlay = prefs.getBoolean("CloseNowPlay", true)
 
         webView?.let { view ->
             view.evaluateJavascript("""
@@ -1488,7 +1487,6 @@ class MainActivity : ComponentActivity() {
             """.trimIndent(), null)
 
             val js = buildString {
-                append("window.closeNpPref=$closeNowPlay;\n")
                 append(buildAmoledJs(amoledEnabled))
                 append(AccentTheme.buildAccentJs(this@MainActivity))
                 append(buildCustomCssJs(customCss))

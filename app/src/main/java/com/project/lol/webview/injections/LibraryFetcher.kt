@@ -25,7 +25,7 @@ object LibraryFetcher {
                     });
                     var resp = await pFetch;
                     var data = await resp.json();
-                    var items = (data && data.data && data.me && data.me.libraryV3 && data.me.libraryV3.items) || [];
+                    var items = (data && data.data && data.data.me && data.data.me.libraryV3 && data.data.me.libraryV3.items) || [];
                     allItems = allItems.concat(items);
                     if(items.length < limit) hasMore=false; else offset+=limit;
                 }

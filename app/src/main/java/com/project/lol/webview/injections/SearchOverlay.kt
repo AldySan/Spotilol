@@ -1,4 +1,5 @@
 package com.project.lol.webview.injections
+
 /*
  * CREDIT: Spotilol - Custom Search Overlay.
  *
@@ -19,21 +20,23 @@ package com.project.lol.webview.injections
 ⠀⠀⠀⠀⠀⠀⠀⠉⠉⠉⠉⠉⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
  */
 
-
 object SearchOverlay {
     const val CONTENT = """
             (function(){
                 if(window.splSearchInit) return;
                 window.splSearchInit = true;
-
-                var panel = null, pInput = null, debTimer = null, seq = 0;
-                var lastQ = '', anchoredBtn = null;
-
+            
+                var panel = null, pInput = null, pList = null, debTimer = null, seq = 0;
+                var lastQ = '';
+            
+                var libCache = {};
+                var libQueue = [];
+            
                 var HASH = '23f33ca50a0f4153dafc5cd1b4d1370db01b72130c2994bd0ffd07d5a7fee8f0';
                 var RECENT_HASH = '3ec071f88e403779d4da9bc5744feb9d64cd07d10daf1f966b912baadaa3d598';
                 var LIB_CHECK_HASH = '134337999233cc6fdd6b1e6dbf94841409f04a946c5c7b744b09ba0dfe5a85ed';
                 var LIB_TOGGLE_HASH = '1ad0d40b3c09660d818b9e770eb1e84745dfbe941df159a64f8772b6fa2bfc3a';
-
+            
                 var ICONS = {
                     search: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>',
                     artist: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm0 2c-3.31 0-6 1.79-6 4v2h12v-2c0-2.21-2.69-4-6-4z"/></svg>',
@@ -42,35 +45,36 @@ object SearchOverlay {
                     playlist: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M14.5 4.5v11.1a3.5 3.5 0 1 0 1 2.4V8.5h4V4.5h-5zM4 5h9v1.5H4V5zm0 4h9v1.5H4V9zm0 4h5v1.5H4v-1.5z"/></svg>',
                     podcast: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>',
                     clear: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M3.293 3.293a1 1 0 0 1 1.414 0L12 10.586l7.293-7.293a1 1 0 1 1 1.414 1.414L13.414 12l7.293 7.293a1 1 0 0 1-1.414 1.414L12 13.414l-7.293 7.293a1 1 0 0 1-1.414-1.414L10.586 12 3.293 4.707a1 1 0 0 1 0-1.414"/></svg>',
-                    browse: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M15 15.5c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2"/><path fill="currentColor" d="M1.513 9.37A1 1 0 0 1 2.291 9h19.418a1 1 0 0 1 .979 1.208l-2.339 11a1 1 0 0 1-.978.792H4.63a1 1 0 0 1-.978-.792l-2.339-11a1 1 0 0 1 .201-.837zM3.525 11l1.913 9h13.123l1.913-9zM4 2a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v4h-2V3H6v3H4z"/></svg>',
+                    browse: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M15 15.5c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2"/><path fill="currentColor" d="M1.513 9.37A1 1 0 0 1 2.291 9h19.418a1 1 0 0 1 .979 1.208l-2.339 11a1 1 0 0 1-.978.792H4.63a1 1 0 0 1-.978-.792l-2.339-11a1 1 0 0 1 .201-.837zM3.525 11l1.913 9h13.123l1.913-9H3.525zM4 2a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v4h-2V3H6v3H4z"/></svg>',
                     add: '<svg viewBox="0 0 16 16"><path fill="currentColor" d="M8 1.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8"/><path fill="currentColor" d="M11.75 8a.75.75 0 0 1-.75.75H8.75V11a.75.75 0 0 1-1.5 0V8.75H5a.75.75 0 0 1 0-1.5h2.25V5a.75.75 0 0 1 1.5 0v2.25H11a.75.75 0 0 1 .75.75"/></svg>',
                     added: '<svg viewBox="0 0 16 16"><path fill="currentColor" d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8m11.748-1.97a.75.75 0 0 0-1.06-1.06l-4.47 4.47-1.405-1.406a.75.75 0 1 0-1.061 1.06l2.466 2.467 5.53-5.53z"/></svg>',
                     play: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="m7.05 3.606 13.49 7.788a.7.7 0 0 1 0 1.212L7.05 20.394A.7.7 0 0 1 6 19.788V4.212a.7.7 0 0 1 1.05-.606"/></svg>'
                 };
-
+            
                 function iconFor(kind){ return ICONS[kind] || ICONS.search; }
-
+            
+                function stripId(uri, prefix){ return (uri || '').replace(prefix, ''); }
+            
                 function pickImg(sources){
                     if(!sources || !sources.length) return '';
-                    var best = null;
-                    for(var i=0;i<sources.length;i++){
+                    var best = '', bestW = Infinity, any = '', anyW = -1;
+                    for(var i = 0; i < sources.length; i++){
                         var s = sources[i];
                         if(!s || !s.url) continue;
                         var w = s.width || 0;
-                        if(!best) { best = s; continue; }
-                        if(w >= 40 && w < (best.width || 9999)) best = s;
-                        if(!best.width && w) best = s;
+                        if(w > anyW){ any = s.url; anyW = w; }
+                        if(w >= 40 && w < bestW){ best = s.url; bestW = w; }
                     }
-                    return best ? best.url : '';
+                    return best || any;
                 }
-
+            
                 function vw(){
                     try {
                         if(window.visualViewport && window.visualViewport.width) return window.visualViewport.width;
                     } catch(e){}
                     return window.innerWidth || 411;
                 }
-
+            
                 function css(){
                     var st = document.createElement('style');
                     st.textContent = [
@@ -114,17 +118,54 @@ object SearchOverlay {
                     var t = document.head || document.documentElement;
                     if(t) t.appendChild(st);
                 }
-
-                function showPanel(){
-                    if(!panel || !anchoredBtn) return;
-                    document.body.appendChild(panel);
-                    var r = anchoredBtn.getBoundingClientRect();
+            
+                function api(operationName, hash, variables){
+                    window.__splOwnCall = true;
+                    var p = fetch('https://api-partner.spotify.com/pathfinder/v2/query', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': window.spotAuthToken,
+                            'Client-Token': window.spotCliToken || '',
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            variables: variables,
+                            operationName: operationName,
+                            extensions: { persistedQuery: { version: 1, sha256Hash: window.opHash(operationName, hash) } }
+                        })
+                    }).then(function(r){ return r.json(); });
+                    window.__splOwnCall = false;
+                    return p;
+                }
+            
+                function findSearchAnchor(el){
+                    if(!el || !el.closest) return null;
+                    var icon = el.closest('button[data-testid="search-icon"]');
+                    if(icon) return icon;
+                    return el.closest('form[role="search"]');
+                }
+            
+                function getAnchor(){
+                    return document.querySelector('#global-nav-bar button[data-testid="search-icon"]') ||
+                           document.querySelector('#global-nav-bar form[role="search"]');
+                }
+            
+                function showPanelFor(anchor){
+                    if(!panel) return;
+                    if(!anchor || !anchor.isConnected) anchor = getAnchor();
+                    if(panel.parentNode !== document.body) document.body.appendChild(panel);
                     var w = vw();
                     var pw = Math.min(360, w - 24);
                     panel.style.width = Math.round(pw) + 'px';
-                    var left = Math.max(8, Math.min(Math.round(r.left), Math.round(w - pw - 8)));
-                    panel.style.top = Math.round(r.bottom + 8) + 'px';
-                    panel.style.left = left + 'px';
+                    var r = null;
+                    try { if(anchor && anchor.getBoundingClientRect) r = anchor.getBoundingClientRect(); } catch(e){}
+                    if(r && r.width >= 2 && r.height >= 2 && r.bottom > 0){
+                        panel.style.top = Math.round(r.bottom + 8) + 'px';
+                        panel.style.left = Math.max(8, Math.min(Math.round(r.left), Math.round(w - pw - 8))) + 'px';
+                    } else {
+                        panel.style.top = '64px';
+                        panel.style.left = Math.round(Math.max(8, (w - pw) / 2)) + 'px';
+                    }
                     panel.style.display = 'flex';
                     document.documentElement.classList.add('spl-search-active');
                     if(pInput){
@@ -132,13 +173,14 @@ object SearchOverlay {
                         if(!pInput.value.trim()){ renderLoading(); doRecent(); }
                     }
                 }
-
+            
                 function hidePanel(){
+                    clearTimeout(debTimer);
                     if(panel) panel.style.display = 'none';
                     document.documentElement.classList.remove('spl-search-active');
                     lastQ = '';
                 }
-
+            
                 function navTo(path){
                     if(!path) return;
                     try {
@@ -148,13 +190,12 @@ object SearchOverlay {
                         window.location.href = path;
                     }
                 }
-
-                function linkTo(path, text, extraCls){
+            
+                function linkTo(path, text){
                     var a = document.createElement('a');
                     a.href = path || '#';
                     a.textContent = text || '';
-                    if(extraCls) a.className = 'spl-slink ' + extraCls;
-                    else a.className = 'spl-slink';
+                    a.className = 'spl-slink';
                     a.addEventListener('mousedown', function(e){ e.preventDefault(); e.stopPropagation(); });
                     a.addEventListener('click', function(e){
                         e.preventDefault();
@@ -164,88 +205,81 @@ object SearchOverlay {
                     });
                     return a;
                 }
-
+            
                 function artistLinks(artists, sep){
                     var frag = document.createDocumentFragment();
                     var items = artists || [];
-                    for(var i=0;i<items.length;i++){
+                    for(var i = 0; i < items.length; i++){
                         var it = items[i];
-                        var nm = it && it.profile && it.profile.name;
-                        var u = it && it.uri || '';
-                        if(!nm) continue;
+                        if(!it || !it.profile || !it.profile.name) continue;
                         if(i > 0 && sep) frag.appendChild(document.createTextNode(sep));
-                        frag.appendChild(linkTo('/artist/' + u.replace('spotify:artist:',''), nm));
+                        frag.appendChild(linkTo('/artist/' + stripId(it.uri, 'spotify:artist:'), it.profile.name));
                     }
                     return frag;
                 }
-
-                function showLinkFor(d, showData){
-                    var nm = null, u = null;
-                    if(showData && showData.data){
-                        nm = showData.data.name;
-                        u = showData.data.uri || '';
-                    } else if(showData && showData.name){
-                        nm = showData.name;
-                        u = showData.uri || '';
-                    }
-                    if(!nm) return null;
-                    return linkTo('/show/' + u.replace('spotify:show:',''), nm);
+            
+                function showLinkFor(showData){
+                    var sd = showData && (showData.data || showData);
+                    if(!sd || !sd.name) return null;
+                    return linkTo('/show/' + stripId(sd.uri, 'spotify:show:'), sd.name);
                 }
-
+            
                 function favBtnFor(uri){
                     var b = document.createElement('button');
                     b.className = 'spl-sfav';
-                    b.setAttribute('aria-label','Save to Your Library');
-                    var saved = false;
+                    var saved = libCache.hasOwnProperty(uri) ? !!libCache[uri] : null;
+                    var dirty = false;
                     function paint(){
-                        b.innerHTML = saved ? iconFor('added') : iconFor('add');
-                        b.classList.toggle('saved', saved);
+                        b.innerHTML = saved ? ICONS.added : ICONS.add;
+                        b.classList.toggle('saved', !!saved);
                         b.setAttribute('aria-label', saved ? 'Remove from Your Library' : 'Save to Your Library');
                     }
                     paint();
-                    if(uri && window.spotAuthToken){
-                        window.__splOwnCall=true;
-                        fetch('https://api-partner.spotify.com/pathfinder/v2/query', {
-                            method:'POST',
-                            headers:{'Authorization': window.spotAuthToken,'Client-Token': window.spotCliToken || '','Content-Type':'application/json'},
-                            body: JSON.stringify({
-                                variables:{uris:[uri]},
-                                operationName:'areEntitiesInLibrary',
-                                extensions:{persistedQuery:{version:1,sha256Hash:window.opHash('areEntitiesInLibrary',LIB_CHECK_HASH)}}
-                            })
-                        }).then(function(r){ return r.json(); }).then(function(d){
-                            var l = d && d.data && d.data.lookup;
-                            if(l && l[0] && l[0].data) saved = !!l[0].data.saved;
-                            paint();
-                        }).catch(function(){});
-                        window.__splOwnCall=false;
-                    }
+                    if(saved === null && uri) libQueue.push({ uri: uri, apply: function(v){
+                        if(dirty) return;
+                        saved = !!v; libCache[uri] = saved; paint();
+                    }});
                     b.addEventListener('mousedown', function(e){ e.preventDefault(); e.stopPropagation(); });
                     b.addEventListener('click', function(e){
-                        e.preventDefault();
-                        e.stopPropagation();
+                        e.preventDefault(); e.stopPropagation();
                         if(!window.spotAuthToken || !uri) return;
-                        saved = !saved;
-                        paint();
+                        dirty = true;
+                        saved = !saved; libCache[uri] = saved; paint();
                         var op = saved ? 'addToLibrary' : 'removeFromLibrary';
-                        window.__splOwnCall=true;
-                        fetch('https://api-partner.spotify.com/pathfinder/v2/query', {
-                            method:'POST',
-                            headers:{'Authorization': window.spotAuthToken,'Client-Token': window.spotCliToken || '','Content-Type':'application/json'},
-                            body: JSON.stringify({
-                                variables:{libraryItemUris:[uri]},
-                                operationName:op,
-                                extensions:{persistedQuery:{version:1,sha256Hash:window.opHash(op,LIB_TOGGLE_HASH)}}
-                            })
-                        }).catch(function(){});
-                        window.__splOwnCall=false;
+                        api(op, LIB_TOGGLE_HASH, { libraryItemUris: [uri] })
+                            .catch(function(){ saved = !saved; libCache[uri] = saved; paint(); });
                     });
                     return b;
                 }
-
+            
+                function flushLibChecks(){
+                    if(!libQueue.length) return;
+                    if(!window.spotAuthToken){ libQueue.length = 0; return; }
+                    var q = libQueue;
+                    libQueue = [];
+                    api('areEntitiesInLibrary', LIB_CHECK_HASH, { uris: q.map(function(x){ return x.uri; }) })
+                        .then(function(d){
+                            var l = d && d.data && d.data.lookup || [];
+                            for(var i = 0; i < q.length; i++){
+                                if(l[i] && l[i].data) q[i].apply(!!l[i].data.saved);
+                            }
+                        }).catch(function(){});
+                }
+            
+                function setIcon(icon, url, kind){
+                    if(url){
+                        var im = document.createElement('img');
+                        im.src = url;
+                        icon.appendChild(im);
+                    } else {
+                        icon.innerHTML = iconFor(kind);
+                    }
+                }
+            
                 function rowFor(item){
-                    var t = item.__typename || '';
                     var d = item.data || {};
+                    var t = item.__typename || '';
+            
                     var el = document.createElement('div');
                     el.className = 'spl-srow';
                     var icon = document.createElement('div');
@@ -256,47 +290,41 @@ object SearchOverlay {
                     name.className = 'spl-sname';
                     var sub = document.createElement('div');
                     sub.className = 'spl-ssub';
-
+            
+                    var kind = 'search', uri = d.uri || '', img = '', ico = 'search';
+            
                     if(t === 'SearchAutoCompleteEntity'){
                         var text = d.text || '';
-                        el.setAttribute('data-kind','search');
-                        el.setAttribute('data-text',text);
-                        el.setAttribute('data-uri',d.uri || '');
-                        icon.innerHTML = iconFor('search');
+                        el.setAttribute('data-text', text);
                         var ac = document.createElement('a');
                         ac.href = '/search/' + encodeURIComponent(text);
                         ac.className = 'spl-slink';
                         ac.textContent = text;
                         ac.addEventListener('mousedown', function(e){ e.preventDefault(); e.stopPropagation(); });
                         ac.addEventListener('click', function(e){
-                            e.preventDefault();
-                            e.stopPropagation();
+                            e.preventDefault(); e.stopPropagation();
                             if(text && pInput){
                                 pInput.value = text;
+                                lastQ = text;
+                                renderLoading();
                                 doSearch(text);
-                                showPanel();
                             }
                         });
                         name.appendChild(ac);
                         sub.textContent = 'Search';
                     } else if(t === 'ArtistResponseWrapper'){
-                        el.setAttribute('data-kind','artist');
-                        el.setAttribute('data-uri',d.uri || '');
-                        var av = pickImg(d.visuals && d.visuals.avatarImage && d.visuals.avatarImage.sources);
-                        if(av){ var im=document.createElement('img'); im.src=av; icon.appendChild(im); } else { icon.innerHTML = iconFor('artist'); }
-                        name.appendChild(linkTo('/artist/' + (d.uri||'').replace('spotify:artist:',''), (d.profile && d.profile.name) || ''));
+                        kind = 'artist'; ico = 'artist';
+                        img = pickImg(d.visuals && d.visuals.avatarImage && d.visuals.avatarImage.sources);
+                        name.appendChild(linkTo('/artist/' + stripId(d.uri, 'spotify:artist:'), (d.profile && d.profile.name) || ''));
                         sub.textContent = 'Artist';
                     } else if(t === 'TrackResponseWrapper'){
-                        el.setAttribute('data-kind','track');
-                        el.setAttribute('data-uri',d.uri || '');
-                        var cv = pickImg(d.albumOfTrack && d.albumOfTrack.coverArt && d.albumOfTrack.coverArt.sources);
-                        if(cv){ var im2=document.createElement('img'); im2.src=cv; icon.appendChild(im2); } else { icon.innerHTML = iconFor('track'); }
-                        name.appendChild(linkTo('/track/' + (d.uri||'').replace('spotify:track:',''), d.name || ''));
-                        var isExplicit = !!(d.contentRating && d.contentRating.label === 'EXPLICIT');
-                        if(isExplicit){
+                        kind = 'track'; ico = 'track';
+                        img = pickImg(d.albumOfTrack && d.albumOfTrack.coverArt && d.albumOfTrack.coverArt.sources);
+                        name.appendChild(linkTo('/track/' + stripId(d.uri, 'spotify:track:'), d.name || ''));
+                        if(d.contentRating && d.contentRating.label === 'EXPLICIT'){
                             var eb = document.createElement('span');
                             eb.className = 'spl-sbadge';
-                            eb.setAttribute('aria-label','Explicit');
+                            eb.setAttribute('aria-label', 'Explicit');
                             eb.textContent = 'E';
                             sub.appendChild(eb);
                         }
@@ -307,179 +335,136 @@ object SearchOverlay {
                             sub.appendChild(artistLinks(arts, ', '));
                         }
                     } else if(t === 'AlbumResponseWrapper'){
-                        el.setAttribute('data-kind','album');
-                        el.setAttribute('data-uri',d.uri || '');
-                        var cv2 = pickImg(d.coverArt && d.coverArt.sources);
-                        if(cv2){ var im3=document.createElement('img'); im3.src=cv2; icon.appendChild(im3); } else { icon.innerHTML = iconFor('album'); }
-                        name.appendChild(linkTo('/album/' + (d.uri||'').replace('spotify:album:',''), d.name || ''));
+                        kind = 'album'; ico = 'album';
+                        img = pickImg(d.coverArt && d.coverArt.sources);
+                        name.appendChild(linkTo('/album/' + stripId(d.uri, 'spotify:album:'), d.name || ''));
                         var arts2 = d.artists && d.artists.items || [];
-                        if(arts2.length){ sub.appendChild(artistLinks(arts2, ', ')); sub.appendChild(document.createTextNode(' · Album')); }
-                        else { sub.textContent = 'Album'; }
+                        if(arts2.length){
+                            sub.appendChild(artistLinks(arts2, ', '));
+                            sub.appendChild(document.createTextNode(' · Album'));
+                        } else {
+                            sub.textContent = 'Album';
+                        }
                     } else if(t === 'PlaylistResponseWrapper'){
-                        el.setAttribute('data-kind','playlist');
-                        el.setAttribute('data-uri',d.uri || '');
-                        var cv3 = pickImg(d.images && d.images.items && d.images.items[0] && d.images.items[0].sources) || pickImg(d.visualIdentity && d.visualIdentity.squareCoverImage && d.visualIdentity.squareCoverImage.sources) || pickImg(d.images && d.images.sources) || pickImg(d.visuals && d.visuals.image && d.visuals.image.sources);
-                        if(cv3){ var im4=document.createElement('img'); im4.src=cv3; icon.appendChild(im4); } else { icon.innerHTML = iconFor('playlist'); }
-                        name.appendChild(linkTo('/playlist/' + (d.uri||'').replace('spotify:playlist:',''), d.name || ''));
+                        kind = 'playlist'; ico = 'playlist';
+                        img = pickImg(d.images && d.images.items && d.images.items[0] && d.images.items[0].sources) ||
+                               pickImg(d.visualIdentity && d.visualIdentity.squareCoverImage && d.visualIdentity.squareCoverImage.sources) ||
+                               pickImg(d.images && d.images.sources) ||
+                               pickImg(d.visuals && d.visuals.image && d.visuals.image.sources);
+                        name.appendChild(linkTo('/playlist/' + stripId(d.uri, 'spotify:playlist:'), d.name || ''));
                         var owner = d.ownerV2 && d.ownerV2.data;
                         if(owner && owner.name){
                             sub.appendChild(document.createTextNode('Playlist · '));
-                            sub.appendChild(linkTo('/user/' + (owner.username || owner.uri.replace('spotify:user:','')), owner.name));
+                            sub.appendChild(linkTo('/user/' + (owner.username || stripId(owner.uri, 'spotify:user:')), owner.name));
                         } else {
                             sub.textContent = 'Playlist';
                         }
                     } else if(t === 'PodcastEpisodeResponseWrapper' || t === 'EpisodeResponseWrapper'){
-                        el.setAttribute('data-kind','episode');
-                        el.setAttribute('data-uri',d.uri || '');
-                        var cv4 = pickImg(d.coverArt && d.coverArt.sources) || pickImg(d.images && d.images.sources);
-                        if(cv4){ var im5=document.createElement('img'); im5.src=cv4; icon.appendChild(im5); } else { icon.innerHTML = iconFor('podcast'); }
-                        name.appendChild(linkTo('/episode/' + (d.uri||'').replace(/^spotify:episode:/,''), d.name || ''));
-                        var showL = showLinkFor(d, d.podcastV2 || d.show);
-                        if(showL){ sub.appendChild(document.createTextNode('Episode · ')); sub.appendChild(showL); }
-                        else { sub.textContent = 'Episode'; }
+                        kind = 'episode'; ico = 'podcast';
+                        img = pickImg(d.coverArt && d.coverArt.sources) || pickImg(d.images && d.images.sources);
+                        name.appendChild(linkTo('/episode/' + stripId(d.uri, 'spotify:episode:'), d.name || ''));
+                        var showL = showLinkFor(d.podcastV2 || d.show);
+                        if(showL){
+                            sub.appendChild(document.createTextNode('Episode · '));
+                            sub.appendChild(showL);
+                        } else {
+                            sub.textContent = 'Episode';
+                        }
                     } else if(t === 'ShowResponseWrapper'){
-                        el.setAttribute('data-kind','show');
-                        el.setAttribute('data-uri',d.uri || '');
-                        var cv5 = pickImg(d.coverArt && d.coverArt.sources) || pickImg(d.images && d.images.sources);
-                        if(cv5){ var im6=document.createElement('img'); im6.src=cv5; icon.appendChild(im6); } else { icon.innerHTML = iconFor('podcast'); }
-                        name.appendChild(linkTo('/show/' + (d.uri||'').replace('spotify:show:',''), d.name || ''));
+                        kind = 'show'; ico = 'podcast';
+                        img = pickImg(d.coverArt && d.coverArt.sources) || pickImg(d.images && d.images.sources);
+                        name.appendChild(linkTo('/show/' + stripId(d.uri, 'spotify:show:'), d.name || ''));
                         sub.textContent = 'Podcast';
                     } else {
-                        el.setAttribute('data-kind','search');
-                        el.setAttribute('data-text',(d.text||d.name||''));
-                        el.setAttribute('data-uri',d.uri || '');
-                        icon.innerHTML = iconFor('search');
+                        el.setAttribute('data-text', d.text || d.name || '');
                         name.textContent = d.text || d.name || '';
-                        sub.textContent = '';
                     }
-
+            
+                    el.setAttribute('data-kind', kind);
+                    el.setAttribute('data-uri', uri);
+                    setIcon(icon, img, ico);
+            
                     tx.appendChild(name);
                     tx.appendChild(sub);
                     el.appendChild(icon);
                     el.appendChild(tx);
-                    var k = el.getAttribute('data-kind');
-                    var uri = el.getAttribute('data-uri') || '';
-                    if(k && k !== 'artist' && k !== 'search' && uri){
+            
+                    if(kind !== 'artist' && kind !== 'search' && uri){
                         var ply = document.createElement('div');
                         ply.className = 'spl-splay';
-                        ply.innerHTML = iconFor('play');
+                        ply.innerHTML = ICONS.play;
                         icon.appendChild(ply);
                         icon.addEventListener('click', function(e){
-                            e.preventDefault();
-                            e.stopPropagation();
-                            if(window.playFromUri){
-                                window.playFromUri(uri);
-                                hidePanel();
-                            }
+                            e.preventDefault(); e.stopPropagation();
+                            if(window.playFromUri){ window.playFromUri(uri); hidePanel(); }
                         });
                         el.appendChild(favBtnFor(uri));
                     }
                     el.addEventListener('mousedown', function(e){ e.preventDefault(); });
                     return el;
                 }
-
+            
                 function renderLoading(){
-                    var list = panel ? panel.querySelector('.spl-slist') : null;
-                    if(!list) return;
-                    list.innerHTML = '';
+                    if(!pList) return;
+                    pList.innerHTML = '';
                     var em = document.createElement('div');
                     em.className = 'spl-sem';
                     em.innerHTML = iconFor('search') + '<span>Searching...</span>';
-                    list.appendChild(em);
+                    pList.appendChild(em);
                 }
-
-                function renderResults(items){
-                    var list = panel ? panel.querySelector('.spl-slist') : null;
-                    if(!list) return;
-                    list.innerHTML = '';
+            
+                function renderList(items, title, emptyMsg){
+                    if(!pList) return;
+                    pList.innerHTML = '';
                     if(!items || !items.length){
                         var em = document.createElement('div');
                         em.className = 'spl-sem';
-                        em.textContent = 'No results';
-                        list.appendChild(em);
+                        em.textContent = emptyMsg;
+                        pList.appendChild(em);
                         return;
                     }
-                    for(var i=0;i<items.length;i++){
-                        list.appendChild(rowFor(items[i]));
+                    if(title){
+                        var h = document.createElement('div');
+                        h.className = 'spl-stitle';
+                        h.textContent = title;
+                        pList.appendChild(h);
                     }
+                    for(var i = 0; i < items.length; i++) pList.appendChild(rowFor(items[i]));
+                    flushLibChecks();
                 }
-
-                function renderRecent(items){
-                    var list = panel ? panel.querySelector('.spl-slist') : null;
-                    if(!list) return;
-                    list.innerHTML = '';
-                    if(!items || !items.length){
-                        var em = document.createElement('div');
-                        em.className = 'spl-sem';
-                        em.textContent = 'No recent searches';
-                        list.appendChild(em);
-                        return;
-                    }
-                    var t = document.createElement('div');
-                    t.className = 'spl-stitle';
-                    t.textContent = 'Recent searches';
-                    list.appendChild(t);
-                    for(var i=0;i<items.length;i++){
-                        list.appendChild(rowFor(items[i]));
-                    }
-                }
-
+            
                 function doRecent(){
                     var my = ++seq;
-                    if(!window.spotAuthToken){ return; }
-                    window.__splOwnCall=true;
-                    fetch('https://api-partner.spotify.com/pathfinder/v2/query', {
-                        method:'POST',
-                        headers:{
-                            'Authorization': window.spotAuthToken,
-                            'Client-Token': window.spotCliToken || '',
-                            'Content-Type':'application/json'
-                        },
-                        body: JSON.stringify({
-                            variables:{limit:50,includeAuthors:true,includeEpisodeContentRatingsV2:true},
-                            operationName:'recentSearches',
-                            extensions:{persistedQuery:{version:1,sha256Hash:window.opHash('recentSearches',RECENT_HASH)}}
+                    if(!window.spotAuthToken){ renderList(null, null, 'No recent searches'); return; }
+                    api('recentSearches', RECENT_HASH, { limit: 50, includeAuthors: true, includeEpisodeContentRatingsV2: true })
+                        .then(function(data){
+                            if(my !== seq) return;
+                            var items = data && data.data && data.data.recentSearches && data.data.recentSearches.recentSearchesItems && data.data.recentSearches.recentSearchesItems.items || [];
+                            var flat = [];
+                            for(var i = 0; i < items.length; i++){
+                                if(items[i] && items[i].data) flat.push(items[i]);
+                            }
+                            renderList(flat, 'Recent searches', 'No recent searches');
                         })
-                    }).then(function(r){ return r.json(); }).then(function(data){
-                        if(my !== seq) return;
-                        var items = data && data.data && data.data.recentSearches && data.data.recentSearches.recentSearchesItems && data.data.recentSearches.recentSearchesItems.items || [];
-                        var flat = [];
-                        for(var i=0;i<items.length;i++){
-                            if(items[i] && items[i].data) flat.push(items[i]);
-                        }
-                        renderRecent(flat);
-                    }).catch(function(){});
-                    window.__splOwnCall=false;
+                        .catch(function(){ if(my === seq) renderList(null, null, 'No recent searches'); });
                 }
-
+            
                 function doSearch(q){
                     var my = ++seq;
-                    if(!window.spotAuthToken){ return; }
-                    window.__splOwnCall=true;
-                    fetch('https://api-partner.spotify.com/pathfinder/v2/query', {
-                        method:'POST',
-                        headers:{
-                            'Authorization': window.spotAuthToken,
-                            'Client-Token': window.spotCliToken || '',
-                            'Content-Type':'application/json'
-                        },
-                        body: JSON.stringify({
-                            variables:{query:q,limit:16,numberOfTopResults:16,offset:0,includeAuthors:true,includeAlbumPreReleases:true,includeEpisodeContentRatingsV2:true},
-                            operationName:'searchSuggestions',
-                            extensions:{persistedQuery:{version:1,sha256Hash:window.opHash('searchSuggestions',HASH)}}
+                    if(!window.spotAuthToken){ renderList(null, null, 'No results'); return; }
+                    api('searchSuggestions', HASH, { query: q, limit: 16, numberOfTopResults: 16, offset: 0, includeAuthors: true, includeAlbumPreReleases: true, includeEpisodeContentRatingsV2: true })
+                        .then(function(data){
+                            if(my !== seq) return;
+                            var items = data && data.data && data.data.searchV2 && data.data.searchV2.topResultsV2 && data.data.searchV2.topResultsV2.itemsV2 || [];
+                            var flat = [];
+                            for(var i = 0; i < items.length; i++){
+                                if(items[i] && items[i].item) flat.push(items[i].item);
+                            }
+                            renderList(flat, null, 'No results');
                         })
-                    }).then(function(r){ return r.json(); }).then(function(data){
-                        if(my !== seq) return;
-                        var items = data && data.data && data.data.searchV2 && data.data.searchV2.topResultsV2 && data.data.searchV2.topResultsV2.itemsV2 || [];
-                        var flat = [];
-                        for(var i=0;i<items.length;i++){
-                            if(items[i] && items[i].item) flat.push(items[i].item);
-                        }
-                        renderResults(flat);
-                    }).catch(function(){});
-                    window.__splOwnCall=false;
+                        .catch(function(){ if(my === seq) renderList(null, null, 'No results'); });
                 }
-
+            
                 function onInput(){
                     var v = pInput.value.trim();
                     if(!v){
@@ -489,112 +474,97 @@ object SearchOverlay {
                         doRecent();
                         return;
                     }
-                    renderLoading();
                     if(v === lastQ) return;
                     lastQ = v;
+                    renderLoading();
                     clearTimeout(debTimer);
                     debTimer = setTimeout(function(){ doSearch(v); }, 220);
                 }
-
+            
                 function buildPanel(){
                     if(panel) return;
                     panel = document.createElement('div');
                     panel.id = 'splSearchPanel';
-
+            
                     var head = document.createElement('div');
                     head.className = 'spl-sph';
-
+            
                     pInput = document.createElement('input');
                     pInput.className = 'spl-spi';
                     pInput.type = 'text';
                     pInput.placeholder = 'What do you want to play?';
-                    pInput.setAttribute('spellcheck','false');
+                    pInput.setAttribute('spellcheck', 'false');
                     pInput.autocomplete = 'off';
-
+            
                     var br = document.createElement('button');
                     br.className = 'spl-sbr';
-                    br.setAttribute('aria-label','Browse');
+                    br.setAttribute('aria-label', 'Browse');
                     br.innerHTML = iconFor('browse');
                     br.addEventListener('mousedown', function(e){ e.preventDefault(); });
                     br.addEventListener('click', function(e){
-                        e.preventDefault();
-                        e.stopPropagation();
-                        var q = (pInput.value||'').trim();
+                        e.preventDefault(); e.stopPropagation();
+                        var q = (pInput.value || '').trim();
                         hidePanel();
-                        if(q) navTo('/search/' + encodeURIComponent(q));
-                        else navTo('/search');
+                        navTo(q ? '/search/' + encodeURIComponent(q) : '/search');
                     });
-
+            
                     var x = document.createElement('button');
                     x.className = 'spl-spx';
-                    x.setAttribute('aria-label','Clear search');
+                    x.setAttribute('aria-label', 'Clear search');
                     x.innerHTML = iconFor('clear');
                     x.addEventListener('mousedown', function(e){ e.preventDefault(); });
                     x.addEventListener('click', function(){
+                        clearTimeout(debTimer);
                         pInput.value = '';
                         lastQ = '';
                         renderLoading();
                         doRecent();
                     });
-
+            
                     head.appendChild(pInput);
                     head.appendChild(x);
                     head.appendChild(br);
-
-                    var list = document.createElement('div');
-                    list.className = 'spl-slist';
-
+            
+                    pList = document.createElement('div');
+                    pList.className = 'spl-slist';
+            
                     panel.appendChild(head);
-                    panel.appendChild(list);
+                    panel.appendChild(pList);
                     document.body.appendChild(panel);
-
+            
                     pInput.addEventListener('input', onInput);
                     pInput.addEventListener('keydown', function(e){
                         if(e.key === 'Escape'){
-                            if(pInput.value){ pInput.value=''; lastQ=''; renderLoading(); doRecent(); }
-                            else hidePanel();
+                            if(pInput.value){
+                                clearTimeout(debTimer);
+                                pInput.value = ''; lastQ = '';
+                                renderLoading(); doRecent();
+                            } else hidePanel();
                         } else if(e.key === 'Enter'){
                             e.preventDefault();
-                            var q = (pInput.value||'').trim();
-                            if(q){
-                                hidePanel();
-                                navTo('/search/' + encodeURIComponent(q));
-                            }
+                            var q = (pInput.value || '').trim();
+                            if(q){ hidePanel(); navTo('/search/' + encodeURIComponent(q)); }
                         }
                     });
-
+            
                     document.addEventListener('mousedown', function(e){
-                        if(panel.style.display !== 'none' && !panel.contains(e.target) && !(anchoredBtn && anchoredBtn.contains(e.target))){
-                            hidePanel();
-                        }
-                    }, true);
-                    document.addEventListener('scroll', function(e){
-                        if(panel.style.display !== 'none'){
-                            var t = e.target;
-                            if(!(t === panel || (panel.contains && panel.contains(t)))) hidePanel();
-                        }
+                        if(!panel || panel.style.display === 'none') return;
+                        if(panel.contains(e.target)) return;
+                        if(findSearchAnchor(e.target)) return;
+                        hidePanel();
                     }, true);
                 }
-
-                function bindSearchIcon(){
-                    var icon = document.querySelector('#global-nav-bar button[data-testid="search-icon"]');
-                    if(!icon || icon._splSearch) return;
-                    icon._splSearch = true;
-                    anchoredBtn = icon;
-                    icon.addEventListener('click', function(e){
+            
+                    document.addEventListener('click', function(e){
+                        var anchor = findSearchAnchor(e.target);
+                        if(!anchor) return;
                         e.preventDefault();
                         e.stopPropagation();
                         if(panel && panel.style.display !== 'none'){ hidePanel(); }
-                        else { buildPanel(); showPanel(); }
+                        else { buildPanel(); showPanelFor(anchor); }
                     }, true);
-                }
-
+                
                 css();
-                var int = setInterval(function(){
-                    if(window.__splBg) return;
-                    bindSearchIcon();
-                }, 2000);
             })();
-        
     """
 }

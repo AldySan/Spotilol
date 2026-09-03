@@ -3,17 +3,49 @@ package com.project.lol.webview.injections
 object DownloadButton {
     const val CONTENT = """
             window.splDoDownload = function(){
-                var id = window.__curTrackId;
-                if(!id){
+                var id = window.splTrackId || null;
+                if (!id) {
+                    try {
+                        var a = document.querySelector('[data-testid="now-playing-widget"] a[href*="/track/"]');
+                        if (a) {
+                            var m = (a.getAttribute('href') || '').match(/\/track\/([a-zA-Z0-9]+)/);
+                            if (m) id = m[1];
+                        }
+                    } catch (e) {}
+                }
+                if (!id) id = window.__curTrackId || null;
+
+                if (!id) {
                     AndBridge.deferMessage('Track not ready');
                     return;
                 }
+
+                var title = '', artist = '', cover = '';
+                try {
+                    var tEl = document.querySelector('a[data-testid=context-item-link]');
+                    if (tEl) title = (tEl.textContent || '').trim();
+                    var aEl = document.querySelector('a[data-testid=context-item-info-artist]');
+                    if (!aEl) aEl = document.querySelector('a[data-testid=context-item-info-show]');
+                    if (aEl) artist = (aEl.textContent || '').trim();
+                    var img = document.querySelector('[data-testid="now-playing-widget"] img[data-testid="cover-art-image"]');
+                    if (img && img.src) {
+                        cover = img.src.replace(/ab67616d0000[0-9a-f]{4}/i, 'ab67616d000082c1');
+                    }
+                } catch (e) {}
+                if (!title)  title  = window.track  || window.__curTrackName  || '';
+                if (!artist) artist = window.artist || window.__curTrackArtist || '';
+                if (!cover)  cover  = window.cover   || window.__curTrackCover  || '';
+
+                var dur = 0;
+                try { if (typeof duration !== 'undefined' && duration) dur = parseInt(duration, 10) || 0; } catch (e) {}
+
                 var payload = JSON.stringify({
                     trackId: id,
-                    title: window.__curTrackName || window.track || '',
-                    artist: window.__curTrackArtist || window.artist || '',
+                    title: title,
+                    artist: artist,
                     album: window.__curTrackAlbum || '',
-                    cover: window.__curTrackCover || window.cover || ''
+                    cover: cover,
+                    durationSec: dur
                 });
                 AndBridge.downloadTrack(payload);
             };
@@ -33,6 +65,6 @@ object DownloadButton {
                 window.dlBtn = btn;
             };
             setInterval(splAddDownloadBtn, 5000);
-        
+
     """
 }

@@ -29,6 +29,7 @@ private data class TrackMeta(
     val artist: String,
     val album: String,
     val cover: String?,
+    val durationSec: Int?,
 )
 
 private data class YtMeta(
@@ -176,6 +177,7 @@ object DownloadManager {
             artist = parsed.optString("artist"),
             album = parsed.optString("album"),
             cover = parsed.optString("cover").ifBlank { null },
+            durationSec = parsed.optInt("durationSec", 0).takeIf { it > 0 },
         )
         Log.d(TAG, "downloadCurrentTrack: queued id=$trackId title=${track.title} artist=${track.artist}")
         onProgress?.invoke(0, "Resolving audio...")
@@ -208,6 +210,7 @@ object DownloadManager {
                     artist = o.optString("artist"),
                     album = o.optString("album"),
                     cover = o.optString("cover").ifBlank { null },
+                    durationSec = o.optInt("durationSec", 0).takeIf { it > 0 },
                 )
             )
         }
@@ -441,7 +444,7 @@ object DownloadManager {
 
         if (signal != null) return TrackResult.Aborted
 
-        val resolved = resolveStream(context, trackId, title, artist, album) ?: run {
+        val resolved = resolveStream(context, trackId, title, artist, album, track.durationSec) ?: run {
             Log.w(TAG, "downloadToFile: no stream source for $trackId")
             lastDownloadError = "Download source not available yet"
             return TrackResult.Failed(title, artist, album)
@@ -505,12 +508,13 @@ object DownloadManager {
         title: String,
         artist: String,
         album: String,
+        durationSec: Int?,
     ): ResolvedStream? {
         val searchText = buildString {
             append(title)
             if (artist.isNotBlank()) append(" $artist")
         }
-        Log.d(TAG, "resolveStream: id=$trackId searching '$searchText'")
+        Log.d(TAG, "resolveStream: id=$trackId dur=${durationSec ?: "unknown"}s searching '$searchText'")
 
         val searchResult = runCatching {
             YouTube.search(searchText, YouTube.SearchFilter.FILTER_SONG).getOrNull()
@@ -532,10 +536,18 @@ object DownloadManager {
             artist = artist,
             album = album,
         )
-        val scored = songItems.mapNotNull { song ->
-            CandidateScorer.ytmusicTransferScore(song, metadata, expectedDurationMs = 0)
+
+        fun scoreWith(expectedMs: Int) = songItems.mapNotNull { song ->
+            CandidateScorer.ytmusicTransferScore(song, metadata, expectedDurationMs = expectedMs)
                 .takeIf { it.isAcceptableMatch() }
         }.sortedByDescending { it.score }
+
+        val expectedMs = (durationSec ?: 0) * 1000
+        val scored = if (expectedMs > 0) {
+            scoreWith(expectedMs).ifEmpty { scoreWith(0) }
+        } else {
+            scoreWith(0)
+        }
 
         val chosen = scored.firstOrNull()?.item ?: run {
             Log.w(TAG, "resolveStream: no acceptable match for '$searchText'")

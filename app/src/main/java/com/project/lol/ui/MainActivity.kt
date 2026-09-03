@@ -658,6 +658,11 @@ class MainActivity : ComponentActivity() {
                                     onRetry = {
                                         webViewError.value = null
                                         webView?.reload()
+                                    },
+                                    modifier = Modifier,
+                                    onGoOffline = {
+                                        webViewError.value = null
+                                        switchOfflineMode(true)
                                     }
                                 )
                             }

@@ -65,7 +65,7 @@ fun SettingsDrawer(
     onDeleteProfile: (String) -> Unit,
     onClearCache: () -> Unit,
     onClearData: () -> Unit,
-    onDebugToggle: (Boolean) -> Unit,
+    onDebugToggle: (Boolean) -> Unit = {},
     blockServiceWorker: Boolean,
     onBlockServiceWorkerChange: (Boolean) -> Unit,
     content: @Composable () -> Unit

@@ -179,7 +179,7 @@ fun SettingsContent(
     onDeleteProfile: (String) -> Unit,
     onClearCache: () -> Unit,
     onClearData: () -> Unit,
-    onDebugToggle: (Boolean) -> Unit,
+    onDebugToggle: (Boolean) -> Unit = {},
     blockServiceWorker: Boolean,
     onBlockServiceWorkerChange: (Boolean) -> Unit,
 ) {
@@ -190,8 +190,6 @@ fun SettingsContent(
     var guiMode by remember { mutableStateOf(prefs.getString("GuiMode", "csshack") ?: "csshack") }
     var customCss by remember { mutableStateOf(prefs.getString("CustomCss", "") ?: "") }
     var amoledTheme by remember { mutableStateOf(amoledThemeState) }
-    var dbgOverlay by remember { mutableStateOf(prefs.getBoolean("DebugOverlay", false)) }
-    var showDevlogDialog by remember { mutableStateOf(false) }
     var swipeStop by remember { mutableStateOf(prefs.getBoolean("SwipeStop", true)) }
     var btAutoPause by remember { mutableStateOf(prefs.getBoolean("BtAutoPause", false)) }
     var btAutoResume by remember { mutableStateOf(prefs.getBoolean("BtAutoResume", false)) }
@@ -222,6 +220,8 @@ fun SettingsContent(
     var showCustomCssDialog by remember { mutableStateOf(false) }
     var showPaletteDialog by remember { mutableStateOf(false) }
     var showChangelogDialog by remember { mutableStateOf(false) }
+    var dbgOverlay by remember { mutableStateOf(prefs.getBoolean("DebugOverlay", false)) }
+    var showDevlogDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier
@@ -387,7 +387,7 @@ fun SettingsContent(
                 checked = hideEmptyPlayer,
                 onCheckedChange = {
                     hideEmptyPlayer = it
-                    prefs.edit().putBoolean("HideEmptyPlayer", it).apply()
+                    prefs.edit { putBoolean("HideEmptyPlayer", it) }
                 }
             )
 
@@ -442,19 +442,6 @@ fun SettingsContent(
                     prefs.edit { putBoolean("PowerSave", it) }
                 }
             )
-
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
-
-            SettingSwitchTile(
-                title = "Block Service Worker",
-                subtitle = "Prevent Spotify's SW from intercepting requests",
-                icon = Icons.Default.Shield,
-                checked = blockSW,
-                onCheckedChange = { enabled ->
-                    blockSW = enabled
-                    onBlockServiceWorkerChange(enabled)
-                }
-            )
         }
 
         SettingSectionCard(
@@ -473,6 +460,19 @@ fun SettingsContent(
                 onCheckedChange = { enabled ->
                     offlineMode = enabled
                     onOfflineModeChange(enabled)
+                }
+            )
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+
+            SettingSwitchTile(
+                title = "Block Service Worker",
+                subtitle = "Prevent Spotify's SW from intercepting requests",
+                icon = Icons.Default.Shield,
+                checked = blockSW,
+                onCheckedChange = { enabled ->
+                    blockSW = enabled
+                    onBlockServiceWorkerChange(enabled)
                 }
             )
         }
@@ -679,7 +679,7 @@ fun SettingsContent(
         ) {
             SettingSwitchTile(
                 title = "Collect Debug",
-                subtitle = "Collect debug event throw by JS",
+                subtitle = "Collect debug events thrown by JS",
                 icon = Icons.Default.BugReport,
                 checked = dbgOverlay,
                 onCheckedChange = { enabled ->
@@ -693,7 +693,7 @@ fun SettingsContent(
 
             SettingTile(
                 title = "Open Devlog",
-                subtitle = if (dbgOverlay) "Live - JS+native events" else "Enable debug first",
+                subtitle = if (dbgOverlay) "Live - JS + native events" else "Enable debug first",
                 icon = Icons.Default.Code,
                 onClick = { showDevlogDialog = true },
                 enabled = dbgOverlay
@@ -1625,6 +1625,41 @@ fun ConfirmationDialog(
     )
 }
 
+@Preview(showBackground = true)
+@Composable
+fun SettingsContentPreview() {
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("preview_prefs", Context.MODE_PRIVATE) }
+    SpotifyTheme {
+        SettingsContent(
+            modifier = Modifier.fillMaxSize(),
+            prefs = prefs,
+            materialYou = false,
+            onMaterialYouChange = {},
+            amoledThemeState = false,
+            onAmoledThemeChange = {},
+            hideTopBar = false,
+            onHideTopBarChange = {},
+            landscapeMode = false,
+            onLandscapeModeChange = {},
+            keepScreenOn = false,
+            onKeepScreenOnChange = {},
+            paletteSeed = null,
+            onPaletteSeedChange = {},
+            onConnectionModeChange = {},
+            onOfflineModeChange = {},
+            onSaveProfile = { _, _ -> },
+            onLoadProfile = {},
+            onDeleteProfile = {},
+            onClearCache = {},
+            onClearData = {},
+            onDebugToggle = {},
+            blockServiceWorker = true,
+            onBlockServiceWorkerChange = {},
+        )
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DevlogLiveDialog(onDismiss: () -> Unit) {
@@ -1673,39 +1708,4 @@ fun DevlogLiveDialog(onDismiss: () -> Unit) {
             }
         }
     )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun SettingsContentPreview() {
-    val context = LocalContext.current
-    val prefs = remember { context.getSharedPreferences("preview_prefs", Context.MODE_PRIVATE) }
-    SpotifyTheme {
-        SettingsContent(
-            modifier = Modifier.fillMaxSize(),
-            prefs = prefs,
-            materialYou = false,
-            onMaterialYouChange = {},
-            amoledThemeState = false,
-            onAmoledThemeChange = {},
-            hideTopBar = false,
-            onHideTopBarChange = {},
-            landscapeMode = false,
-            onLandscapeModeChange = {},
-            keepScreenOn = false,
-            onKeepScreenOnChange = {},
-            paletteSeed = null,
-            onPaletteSeedChange = {},
-            onConnectionModeChange = {},
-            onOfflineModeChange = {},
-            onSaveProfile = { _, _ -> },
-            onLoadProfile = {},
-            onDeleteProfile = {},
-            onClearCache = {},
-            onClearData = {},
-            onDebugToggle = {},
-            blockServiceWorker = true,
-            onBlockServiceWorkerChange = {},
-        )
-    }
 }

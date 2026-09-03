@@ -116,6 +116,7 @@ import androidx.webkit.WebSettingsCompat
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.project.lol.R
 import com.project.lol.bridge.SpotifyBridge
+import com.project.lol.offline.DownloadManager
 import com.project.lol.profile.ProfileManager
 import com.project.lol.proxy.LocalProxyManager
 import com.project.lol.service.MediaNotificationService
@@ -133,8 +134,10 @@ import java.net.URL
 import java.util.concurrent.Executors
 import kotlin.math.min
 import org.json.JSONObject
+import androidx.core.content.edit
+import androidx.core.graphics.scale
+import androidx.core.graphics.toColorInt
 import androidx.core.net.toUri
-import com.project.lol.offline.DownloadManager
 import com.project.lol.ui.components.ErrorScreen
 import com.project.lol.ui.components.mapWebViewError
 import com.project.lol.webview.helpers.AccentTheme
@@ -179,10 +182,10 @@ class MainActivity : ComponentActivity() {
     private val sleepTimerActive = mutableStateOf(false)
 
     private val loadingProgress = mutableIntStateOf(100)
+    private val blockServiceWorkerState = mutableStateOf(true)
     private val webViewError = mutableStateOf<Pair<Int, String>?>(null)
 
     private val canGoBackState = mutableStateOf(false)
-    private val blockServiceWorkerState = mutableStateOf(true)
     private val pipCoverExecutor = Executors.newSingleThreadExecutor()
 
     private val notifPermLauncher = registerForActivityResult(
@@ -265,8 +268,8 @@ class MainActivity : ComponentActivity() {
             val showDialog = showSleepTimerDialog.value
             val timerActive = sleepTimerActive.value
             val loadProgress = loadingProgress.intValue
-            val canGoBack = canGoBackState.value
             val blockServiceWorker = blockServiceWorkerState.value
+            val canGoBack = canGoBackState.value
 
             var settingsDrawerOpen by remember { mutableStateOf(false) }
             var showMiniMenu by remember { mutableStateOf(false) }
@@ -651,8 +654,8 @@ class MainActivity : ComponentActivity() {
                             }
 
                             webViewError.value?.let { (code, desc) ->
-                                ErrorScreen(
-                                    errorType = mapWebViewError(code),
+                                com.project.lol.ui.components.ErrorScreen(
+                                    errorType = com.project.lol.ui.components.mapWebViewError(code),
                                     errorCode = code,
                                     errorDescription = desc,
                                     onRetry = {
@@ -1363,14 +1366,7 @@ class MainActivity : ComponentActivity() {
         webView?.let {
             it.stopLoading()
             it.removeJavascriptInterface("AndBridge")
-            // Two separate feature flags guard this call:
-            //  - GET_WEB_VIEW_RENDERER -> required by WebViewCompat.getWebViewRenderProcess()
-            //  - WEB_VIEW_RENDERER_TERMINATE -> required by WebViewRenderProcess.terminate()
-            // Checking only the terminate flag would still let getWebViewRenderProcess()
-            // throw on WebView versions that don't expose it.
-            if (WebViewFeature.isFeatureSupported(WebViewFeature.GET_WEB_VIEW_RENDERER) &&
-                WebViewFeature.isFeatureSupported(WebViewFeature.WEB_VIEW_RENDERER_TERMINATE)
-            ) {
+            if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_VIEW_RENDERER_TERMINATE)) {
                 try {
                     WebViewCompat.getWebViewRenderProcess(it)?.terminate()
                 } catch (_: Exception) {}

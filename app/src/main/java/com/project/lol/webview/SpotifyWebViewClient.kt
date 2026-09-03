@@ -278,6 +278,7 @@ class SpotifyWebViewClient(
             append(LibraryFetcher.CONTENT)
             append(LibraryParser.CONTENT)
             append(PlaybackControls.CONTENT)
+            append(AndroidAuto.CONTENT)
             append(MainLoop.CONTENT)
             append(AutoFeatures.CONTENT)
             append(AndroidTracker.CONTENT)
@@ -353,9 +354,9 @@ class SpotifyWebViewClient(
                 }
                 "AmoledTheme", "CustomCss", "LyricsStyle" -> {
                     val js = buildAmoledJs(prefs.getBoolean("AmoledTheme", false)) + ";\n" +
-                            buildCustomCssJs(prefs.getString("CustomCss", "") ?: "") + ";\n" +
-                            LyricsTheme.buildLyricsStyleJs(prefs.getString("LyricsStyle", LyricsTheme.DEFAULT_STYLE) ?: LyricsTheme.DEFAULT_STYLE)
+                            buildCustomCssJs(prefs.getString("CustomCss", "") ?: "")
                     wv.evaluateJavascript(js, null)
+                    wv.evaluateJavascript(LyricsTheme.buildLyricsStyleJs(prefs.getString("LyricsStyle", LyricsTheme.DEFAULT_STYLE) ?: LyricsTheme.DEFAULT_STYLE), null)
                 }
                 "PaletteSeed", "MaterialYou" ->
                     wv.evaluateJavascript(AccentTheme.buildAccentJs(wv.context), null)

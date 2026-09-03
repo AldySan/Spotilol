@@ -155,7 +155,7 @@ fun OfflineScreen(
     val searchEngine = remember { GenericSearchEngine<OfflineSong>(maxResult = 100) }
     val songExtractor = remember {
         SearchableFieldExtractor<OfflineSong> { song ->
-            arrayOf(song.title, song.artist)
+            arrayOf(song.title, song.artist, song.album, song.ytAlbum, song.ytArtist)
         }
     }
 
@@ -185,6 +185,7 @@ fun OfflineScreen(
                 Intent(context, OfflineMediaService::class.java).apply {
                     putExtra("title", song.title)
                     putExtra("artist", song.artist)
+                    putExtra("album", song.album.ifBlank { "Spotilol" })
                     putExtra("duration", durationMs.toLong())
                     putExtra("playing", isPlaying)
                     putExtra("position", positionMs.toLong())
@@ -769,13 +770,41 @@ private fun OfflineSongRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+            val subtitle = buildString {
+                append(song.artist.ifBlank { "Unknown artist" })
+                song.album.ifBlank { "" }.takeIf { it.isNotBlank() }?.let {
+                    append(" • $it")
+                }
+            }
             Text(
-                text = song.artist.ifBlank { "Unknown artist" },
+                text = subtitle,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+            val metaLine = buildString {
+                if (song.explicit) append("Explicit")
+                song.durationSec?.let {
+                    if (it > 0) {
+                        if (isNotEmpty()) append(" • ")
+                        append(formatSeconds(it))
+                    }
+                }
+                song.videoId?.let {
+                    if (isNotEmpty()) append(" • ")
+                    append("YouTube")
+                }
+            }
+            if (metaLine.isNotEmpty()) {
+                Text(
+                    text = metaLine,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
         IconButton(onClick = onDelete) {
             Icon(
@@ -946,4 +975,11 @@ private fun NowPlayingBar(
 private fun formatTime(ms: Int): String {
     val totalSec = ms / 1000
     return "%d:%02d".format(totalSec / 60, totalSec % 60)
+}
+
+private fun formatSeconds(sec: Int): String {
+    val h = sec / 3600
+    val m = (sec % 3600) / 60
+    val s = sec % 60
+    return if (h > 0) "%d:%02d:%02d".format(h, m, s) else "%d:%02d".format(m, s)
 }

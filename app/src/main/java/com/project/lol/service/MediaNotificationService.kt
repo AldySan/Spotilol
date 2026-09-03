@@ -4,6 +4,7 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.app.Service
 import android.bluetooth.BluetoothDevice
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -15,9 +16,11 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.media.AudioManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
+import android.os.IBinder
 import android.os.Looper
 import android.os.PowerManager
 import android.support.v4.media.MediaBrowserCompat
@@ -29,19 +32,20 @@ import android.webkit.WebView
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
+import com.project.lol.R
+import androidx.media.MediaBrowserServiceCompat
+import androidx.media.app.NotificationCompat.MediaStyle
+import androidx.media.session.MediaButtonReceiver
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.drawable.IconCompat
 import androidx.core.graphics.scale
 import androidx.core.graphics.toColorInt
-import androidx.media.MediaBrowserServiceCompat
-import androidx.media.app.NotificationCompat.MediaStyle
-import androidx.media.session.MediaButtonReceiver
-import com.project.lol.R
 import com.project.lol.webview.helpers.AccentTheme
 import java.lang.ref.WeakReference
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import kotlin.math.min
 
@@ -62,37 +66,114 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
 
         private const val CUSTOM_ACTION_TOGGLE_FAV = "toggle_fav"
         private const val CUSTOM_ACTION_TOGGLE_SHUFFLE = "toggle_shuffle"
+        private const val CUSTOM_ACTION_REPEAT = "toggle_repeat"
 
-        private const val PLAYBACK_ACTIONS: Long =
+        private val pendingCallbacks =
+            ConcurrentHashMap<String, Result<MutableList<MediaBrowserCompat.MediaItem>>>()
+        private val pendingSearchCallbacks =
+            ConcurrentHashMap<String, Result<MutableList<MediaBrowserCompat.MediaItem>>>()
+
+        private const val MEDIA_ID_PLAYLISTS = "playlists"
+        private const val MEDIA_ID_ALBUMS = "albums"
+        private const val MEDIA_ID_ARTISTS = "artists"
+        private const val MEDIA_ID_PODCASTS = "podcasts"
+
+        private val PLAYBACK_ACTIONS: Long =
             PlaybackStateCompat.ACTION_PLAY or
-                    PlaybackStateCompat.ACTION_PAUSE or
-                    PlaybackStateCompat.ACTION_PLAY_PAUSE or
-                    PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
-                    PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or
-                    PlaybackStateCompat.ACTION_STOP or
-                    PlaybackStateCompat.ACTION_SEEK_TO
+            PlaybackStateCompat.ACTION_PAUSE or
+            PlaybackStateCompat.ACTION_PLAY_PAUSE or
+            PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
+            PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or
+            PlaybackStateCompat.ACTION_STOP or
+            PlaybackStateCompat.ACTION_SEEK_TO
 
         private const val NOTIF_COLOR = 0xFFE0E0E0.toInt()
 
+        var webView: WebView? = null
+        var instance: MediaNotificationService? = null
 
-        @Volatile
-        private var instanceRef: WeakReference<MediaNotificationService>? = null
-        @Volatile
-        private var webViewRef: WeakReference<WebView>? = null
         @Volatile
         private var taskRemoved = false
 
-        var instance: MediaNotificationService?
-            get() = instanceRef?.get()
-            private set(value) {
-                instanceRef = value?.let { WeakReference(it) }
+        @JvmStatic
+        fun onMediaItemsLoaded(parentId: String, json: String) {
+            val result = pendingCallbacks.remove(parentId) ?: return
+            val items = mutableListOf<MediaBrowserCompat.MediaItem>()
+            if (json.isNotEmpty() && json != "null" && json != "[]") {
+                try {
+                    val jsonArray = org.json.JSONArray(json)
+                    for (i in 0 until jsonArray.length()) {
+                        val obj = jsonArray.getJSONObject(i)
+                        val name = obj.optString("name", "Unknown")
+                        val id = obj.optString("id")
+                        if (id.isEmpty()) continue
+                        val image = obj.optString("image")
+                        val artists = obj.optJSONArray("artists")
+                        val isBrowsable = obj.optBoolean("browsable", false)
+                        var sub = ""
+                        if (artists != null && artists.length() > 0) {
+                            sub = "by " + (0 until artists.length()).map { artists.getString(it) }.joinToString(", ")
+                        }
+                        val desc = MediaDescriptionCompat.Builder()
+                            .setMediaId(id)
+                            .setTitle(name)
+                            .setSubtitle(sub)
+                            .setIconUri(if (image.isNotEmpty()) Uri.parse(image) else null)
+                            .build()
+                        val flags = if (isBrowsable) MediaBrowserCompat.MediaItem.FLAG_BROWSABLE
+                        else MediaBrowserCompat.MediaItem.FLAG_PLAYABLE
+                        items.add(MediaBrowserCompat.MediaItem(desc, flags))
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e(TAG, "Error parsing media items", e)
+                }
             }
+            val finalItems = items
+            Handler(Looper.getMainLooper()).post { result.sendResult(finalItems) }
+        }
 
-        var webView: WebView?
-            get() = webViewRef?.get()
-            set(value) {
-                webViewRef = value?.let { WeakReference(it) }
+        @JvmStatic
+        fun onSearchCompleted(query: String, json: String) {
+            val result = pendingSearchCallbacks.remove(query) ?: return
+            val items = mutableListOf<MediaBrowserCompat.MediaItem>()
+            if (json.isNotEmpty() && json != "null" && json != "[]") {
+                try {
+                    val jsonArray = org.json.JSONArray(json)
+                    for (i in 0 until jsonArray.length()) {
+                        val obj = jsonArray.getJSONObject(i)
+                        val name = obj.optString("name", "Unknown")
+                        val id = obj.optString("id")
+                        if (id.isEmpty()) continue
+                        val image = obj.optString("image")
+                        val type = obj.optString("type", "")
+                        val artists = obj.optJSONArray("artists")
+                        val artistText = if (artists != null && artists.length() > 0) {
+                            (0 until artists.length()).map { artists.getString(it) }.joinToString(", ")
+                        } else ""
+                        val sub = when {
+                            type.isNotEmpty() && artistText.isNotEmpty() -> "$type • $artistText"
+                            type.isNotEmpty() -> type
+                            artistText.isNotEmpty() -> "by $artistText"
+                            else -> ""
+                        }
+                        val isBrowsable = obj.optBoolean("browsable", false)
+                        val desc = MediaDescriptionCompat.Builder()
+                            .setMediaId(id)
+                            .setTitle(name)
+                            .setSubtitle(sub)
+                            .setIconUri(if (image.isNotEmpty()) Uri.parse(image) else null)
+                            .build()
+                        val flags = if (isBrowsable) MediaBrowserCompat.MediaItem.FLAG_BROWSABLE
+                        else MediaBrowserCompat.MediaItem.FLAG_PLAYABLE
+                        items.add(MediaBrowserCompat.MediaItem(desc, flags))
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e(TAG, "Error parsing search results", e)
+                }
             }
+            val finalItems = items
+            Handler(Looper.getMainLooper()).post { result.sendResult(finalItems) }
+        }
     }
 
     private val coverExecutor = Executors.newSingleThreadExecutor()
@@ -109,6 +190,8 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
     private var currentPosition: Long = 0L
     private var currentDuration: Long = 0L
     private var lastCoverUrl = ""
+    private var lastActiveContextId: String? = null
+    private var isRepeat = "false"
     private var wakeLock: PowerManager.WakeLock? = null
 
     private val actionReceiver = object : BroadcastReceiver() {
@@ -218,7 +301,7 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
 
     override fun onCreate() {
         super.onCreate()
-        instanceRef = WeakReference(this); instance = this
+        instance = this
 
         try {
             createNotificationChannel()
@@ -272,9 +355,7 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
             android.util.Log.e(TAG, "Failed to re-assert foreground", e)
         }
         try {
-            if (::mediaSession.isInitialized) {
-                MediaButtonReceiver.handleIntent(mediaSession, intent)
-            }
+            MediaButtonReceiver.handleIntent(mediaSession, intent)
         } catch (e: Exception) {
             android.util.Log.e(TAG, "Failed to handle media button intent", e)
         }
@@ -285,28 +366,84 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
         clientPackageName: String,
         clientUid: Int,
         rootHints: Bundle?
-    ): BrowserRoot? = BrowserRoot(MEDIA_ID_ROOT, null)
+    ): BrowserRoot? {
+        val andAuto = getSharedPreferences("spotilol_prefs", MODE_PRIVATE)
+            .getBoolean("AndAuto", true)
+        if (!andAuto) return null
+        val extras = Bundle().apply {
+            putBoolean("android.media.browse.SEARCH_SUPPORTED", true)
+            putBoolean("android.media.browse.CONTENT_STYLE_SUPPORTED", true)
+            putInt("android.media.browse.CONTENT_STYLE_BROWSABLE_HINT", 2)
+            putInt("android.media.browse.CONTENT_STYLE_PLAYABLE_HINT", 1)
+        }
+        return BrowserRoot(MEDIA_ID_ROOT, extras)
+    }
 
     override fun onLoadChildren(
         parentId: String,
         result: Result<MutableList<MediaBrowserCompat.MediaItem>>
     ) {
-        if (parentId != MEDIA_ID_ROOT) {
-            result.sendResult(null)
+        if (parentId == MEDIA_ID_ROOT) {
+            val items = mutableListOf<MediaBrowserCompat.MediaItem>()
+            items.add(createBrowsableItem(MEDIA_ID_PLAYLISTS, getString(com.project.lol.R.string.aa_playlists)))
+            items.add(createBrowsableItem(MEDIA_ID_ALBUMS, getString(com.project.lol.R.string.aa_albums)))
+            items.add(createBrowsableItem(MEDIA_ID_ARTISTS, getString(com.project.lol.R.string.aa_artists)))
+            items.add(createBrowsableItem(MEDIA_ID_PODCASTS, getString(com.project.lol.R.string.aa_podcasts)))
+            result.sendResult(items)
             return
         }
-        result.sendResult(
-            mutableListOf(
-                MediaBrowserCompat.MediaItem(
-                    MediaDescriptionCompat.Builder()
-                        .setMediaId(MEDIA_ID_ROOT)
-                        .setTitle("Spotilol")
-                        .setDescription("Now playing")
-                        .build(),
-                    MediaBrowserCompat.MediaItem.FLAG_PLAYABLE
-                )
-            )
-        )
+        if (parentId.startsWith("spotify:") || parentId == "your_library" ||
+            parentId.contains("collection")
+        ) {
+            lastActiveContextId = parentId
+        }
+        result.detach()
+        pendingCallbacks[parentId] = result
+        wakeAndRun("if (typeof window.fetchMediaItems === 'function') window.fetchMediaItems('$parentId');")
+        Handler(Looper.getMainLooper()).postDelayed({
+            pendingCallbacks.remove(parentId)?.sendResult(mutableListOf())
+        }, 20000L)
+    }
+
+    private fun createBrowsableItem(id: String, title: String): MediaBrowserCompat.MediaItem {
+        val extras = Bundle().apply {
+            putInt("android.media.browse.CONTENT_STYLE_BROWSABLE_HINT", 2)
+            putInt("android.media.browse.CONTENT_STYLE_PLAYABLE_HINT", 1)
+        }
+        val desc = MediaDescriptionCompat.Builder()
+            .setMediaId(id)
+            .setTitle(title)
+            .setExtras(extras)
+            .build()
+        return MediaBrowserCompat.MediaItem(desc, MediaBrowserCompat.MediaItem.FLAG_BROWSABLE)
+    }
+
+    override fun onSearch(
+        query: String,
+        extras: Bundle?,
+        result: Result<MutableList<MediaBrowserCompat.MediaItem>>
+    ) {
+        if (query.isEmpty()) {
+            result.sendResult(mutableListOf())
+            return
+        }
+        result.detach()
+        pendingSearchCallbacks[query] = result
+        wakeAndRun("if (typeof window.searchMediaItems === 'function') window.searchMediaItems('$query');")
+    }
+
+    private fun wakeAndRun(js: String) {
+        val wv = webView ?: return
+        Handler(Looper.getMainLooper()).post {
+            try {
+                wv.resumeTimers()
+                wv.onResume()
+                wv.dispatchWindowVisibilityChanged(android.view.View.VISIBLE)
+                wv.evaluateJavascript(js, null)
+            } catch (e: Exception) {
+                android.util.Log.e(TAG, "Error waking WebView in wakeAndRun", e)
+            }
+        }
     }
 
     override fun onTrimMemory(level: Int) {
@@ -319,8 +456,7 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
 
     override fun onDestroy() {
         releaseWakeLock()
-        coverExecutor.shutdown()
-        instanceRef = null
+        instance = null
         try { unregisterReceiver(actionReceiver) } catch (_: Exception) {}
         try { unregisterReceiver(bluetoothReceiver) } catch (_: Exception) {}
         try { unregisterReceiver(audioBecomingNoisyReceiver) } catch (_: Exception) {}
@@ -362,41 +498,61 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
                 MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS or
                 MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS
             )
-            setCallback(object : MediaSessionCompat.Callback() {
-                override fun onPlay() {
-                    webView?.evaluateJavascript("actPlayPause(true)", null)
-                }
-
-                override fun onPause() {
-                    webView?.evaluateJavascript("actPlayPause(false)", null)
-                }
-
-                override fun onSkipToNext() {
-                    webView?.evaluateJavascript("actSkipForward()", null)
-                }
-
-                override fun onSkipToPrevious() {
-                    webView?.evaluateJavascript("actSkipBack()", null)
-                }
-
-                override fun onStop() {
-                    webView?.evaluateJavascript("actPlayPause(false)", null)
-                }
-
-                override fun onSeekTo(pos: Long) {
-                    webView?.evaluateJavascript("actSeek($pos)", null)
-                }
-
-                override fun onCustomAction(action: String?, extras: Bundle?) {
-                    when (action) {
-                        CUSTOM_ACTION_TOGGLE_FAV -> webView?.evaluateJavascript("actAddToFav()", null)
-                        CUSTOM_ACTION_TOGGLE_SHUFFLE -> webView?.evaluateJavascript("actToggleShuffle()", null)
-                    }
-                }
-            })
+            setCallback(MediaSessionCallback())
             isActive = true
         }
         sessionToken = mediaSession.sessionToken
+    }
+
+    private inner class MediaSessionCallback : MediaSessionCompat.Callback() {
+        override fun onPrepare() {
+            wakeAndRun("actPlayPause(true);")
+        }
+
+        override fun onPrepareFromMediaId(mediaId: String?, extras: Bundle?) {
+            onPlayFromMediaId(mediaId, extras)
+        }
+
+        override fun onPlay() {
+            wakeAndRun("actPlayPause(true);")
+        }
+
+        override fun onPause() {
+            wakeAndRun("actPlayPause(false);")
+        }
+
+        override fun onSkipToNext() {
+            wakeAndRun("actSkipForward();")
+        }
+
+        override fun onSkipToPrevious() {
+            wakeAndRun("actSkipBack();")
+        }
+
+        override fun onStop() {
+            wakeAndRun("actPlayPause(false);")
+        }
+
+        override fun onSeekTo(pos: Long) {
+            wakeAndRun("actSeek($pos);")
+        }
+
+        override fun onCustomAction(action: String?, extras: Bundle?) {
+            when (action) {
+                CUSTOM_ACTION_TOGGLE_FAV, "ADDTOFAV_ACTION" -> wakeAndRun("actAddToFav();")
+                CUSTOM_ACTION_TOGGLE_SHUFFLE, "SHUFFLE_ACTION" -> wakeAndRun("actToggleShuffle();")
+                CUSTOM_ACTION_REPEAT, "REPEAT_ACTION" -> wakeAndRun("actRepeat();")
+            }
+        }
+
+        override fun onPlayFromMediaId(mediaId: String?, extras: Bundle?) {
+            val context = lastActiveContextId
+            if (context != null && mediaId != null) {
+                wakeAndRun("playFromUri('$mediaId', '$context');")
+            } else {
+                wakeAndRun("playFromUri('$mediaId');")
+            }
+        }
     }
 
     private fun registerReceivers() {
@@ -494,6 +650,7 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
 
             isPlaying = obj.optBoolean("playing", false)
             isFavorite = obj.optBoolean("fav", false)
+            isRepeat = obj.optString("repeat", "false")
             val shuffleVal = obj.optString("shuffle", "off")
             isShuffle = shuffleVal == "shuffle" || shuffleVal == "smart"
             isSmartShuffle = shuffleVal == "smart"
@@ -503,11 +660,9 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
 
             if (isPlaying) acquireWakeLock() else releaseWakeLock()
 
-            mainHandler.post {
-                updatePlaybackState()
-                updateMetadata()
-                showNotification()
-            }
+            updatePlaybackState()
+            updateMetadata()
+            showNotification()
         } catch (_: Exception) {}
     }
 
@@ -522,6 +677,11 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
             isSmartShuffle -> R.drawable.ic_shuffle_smart_active
             isShuffle -> R.drawable.ic_shuffle_active
             else -> R.drawable.ic_shuffle
+        }
+        val repeatIcon = when (isRepeat) {
+            "true" -> R.drawable.ic_repeat
+            "mixed" -> R.drawable.ic_repeat_one
+            else -> R.drawable.ic_repeat_off
         }
         val state = PlaybackStateCompat.Builder()
             .setActions(PLAYBACK_ACTIONS)
@@ -543,6 +703,15 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
                     else -> "Enable shuffle"
                 },
                 shuffleIcon
+            )
+            .addCustomAction(
+                CUSTOM_ACTION_REPEAT,
+                when (isRepeat) {
+                    "true" -> "Disable repeat"
+                    "mixed" -> "Disable repeat one"
+                    else -> "Enable repeat"
+                },
+                repeatIcon
             )
             .build()
         if (::mediaSession.isInitialized) {
@@ -567,38 +736,29 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
     }
 
     private fun loadCoverArt(url: String) {
-        // FIX: was a raw Thread per cover - album-flipping machine-gunned the
-        // scheduler. Single-thread executor serializes fetches (covers arrive in
-        // order, no stale-bitmap race between back-to-back track changes) and
-        // keeps exactly one worker alive for the service's lifetime.
-        coverExecutor.execute {
-            var conn: HttpURLConnection? = null
+        Thread {
             try {
-                conn = URL(url).openConnection() as HttpURLConnection
+                val conn = URL(url).openConnection() as HttpURLConnection
                 conn.connectTimeout = 5000
                 conn.readTimeout = 5000
                 conn.connect()
                 val stream = conn.inputStream
                 val raw = BitmapFactory.decodeStream(stream)
                 stream.close()
+                conn.disconnect()
                 if (raw != null) {
-                    val powerSave = getSharedPreferences("spotilol_prefs", MODE_PRIVATE).getBoolean("PowerSave", false)
-                    val target = if (powerSave) 192 else 512
+                    val target = 512
                     val scale = min(target.toFloat() / raw.width, target.toFloat() / raw.height)
                     val w = (raw.width * scale).toInt()
                     val h = (raw.height * scale).toInt()
-                    val scaled = raw.scale(w, h)
+                    val scaled = Bitmap.createScaledBitmap(raw, w, h, true)
                     if (scaled != raw) raw.recycle()
                     coverBitmap = scaled
-                    mainHandler.post {
-                        updateMetadata()
-                        showNotification()
-                    }
+                    updateMetadata()
+                    showNotification()
                 }
-            } catch (_: Exception) {
-                try { conn?.disconnect() } catch (_: Exception) {}
-            }
-        }
+            } catch (_: Exception) {}
+        }.start()
     }
 
     private fun showNotification() {

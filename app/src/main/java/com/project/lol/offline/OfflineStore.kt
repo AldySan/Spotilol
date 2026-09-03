@@ -18,6 +18,15 @@ data class OfflineSong(
     val artist: String,
     val uri: Uri,
     val coverFile: File? = null,
+    val album: String = "",
+    val durationSec: Int? = null,
+    val explicit: Boolean = false,
+    val videoId: String? = null,
+    val ytTitle: String = "",
+    val ytArtist: String = "",
+    val ytAlbum: String = "",
+    val ytThumbnail: String? = null,
+    val shareLink: String? = null,
 )
 
 object OfflineStore {
@@ -44,6 +53,14 @@ object OfflineStore {
         artist: String,
         album: String,
         coverUrl: String?,
+        videoId: String? = null,
+        ytTitle: String = "",
+        ytArtist: String = "",
+        ytAlbum: String = "",
+        ytThumbnail: String? = null,
+        durationSec: Int? = null,
+        explicit: Boolean = false,
+        shareLink: String? = null,
     ) {
         runCatching {
             val file = metaFile(context)
@@ -59,6 +76,14 @@ object OfflineStore {
                     put("artist", artist)
                     put("album", album)
                     put("coverUrl", coverUrl ?: "")
+                    if (videoId != null) put("videoId", videoId)
+                    if (ytTitle.isNotBlank()) put("ytTitle", ytTitle)
+                    if (ytArtist.isNotBlank()) put("ytArtist", ytArtist)
+                    if (ytAlbum.isNotBlank()) put("ytAlbum", ytAlbum)
+                    if (ytThumbnail != null) put("ytThumb", ytThumbnail)
+                    if (durationSec != null) put("durationSec", durationSec)
+                    if (explicit) put("explicit", true)
+                    if (shareLink != null) put("shareLink", shareLink)
                 }
             )
             file.writeText(root.toString())
@@ -92,6 +117,11 @@ object OfflineStore {
 
     fun loadSongs(context: Context): List<OfflineSong> {
         val songs = mutableListOf<OfflineSong>()
+        val manifest = runCatching {
+            val file = metaFile(context)
+            if (file.exists()) JSONObject(file.readText()) else JSONObject()
+        }.getOrDefault(JSONObject())
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val collection = MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
             val projection = arrayOf(
@@ -129,6 +159,7 @@ object OfflineStore {
                             ?.takeIf { it.isNotBlank() }
                             ?: "ms${c.getLong(0)}"
                         val uri = ContentUris.withAppendedId(collection, c.getLong(0))
+                        val extras = manifest.optJSONObject(trackId)
                         songs.add(
                             OfflineSong(
                                 id = trackId,
@@ -136,6 +167,15 @@ object OfflineStore {
                                 artist = artist,
                                 uri = uri,
                                 coverFile = coverFile(context, trackId),
+                                album = extras?.optString("album", "") ?: "",
+                                durationSec = extras?.optInt("durationSec", 0)?.takeIf { it > 0 },
+                                explicit = extras?.optBoolean("explicit", false) ?: false,
+                                videoId = extras?.optString("videoId", null)?.ifBlank { null },
+                                ytTitle = extras?.optString("ytTitle", "") ?: "",
+                                ytArtist = extras?.optString("ytArtist", "") ?: "",
+                                ytAlbum = extras?.optString("ytAlbum", "") ?: "",
+                                ytThumbnail = extras?.optString("ytThumb", null)?.ifBlank { null },
+                                shareLink = extras?.optString("shareLink", null)?.ifBlank { null },
                             )
                         )
                     }
@@ -152,6 +192,7 @@ object OfflineStore {
                 val artist = match?.groupValues?.get(1)?.trim().orEmpty()
                 val title = match?.groupValues?.get(2)?.trim() ?: f.nameWithoutExtension
                 val trackId = match?.groupValues?.get(3) ?: f.nameWithoutExtension
+                val extras = manifest.optJSONObject(trackId)
                 songs.add(
                     OfflineSong(
                         id = trackId,
@@ -159,6 +200,15 @@ object OfflineStore {
                         artist = artist,
                         uri = Uri.fromFile(f),
                         coverFile = coverFile(context, trackId),
+                        album = extras?.optString("album", "") ?: "",
+                        durationSec = extras?.optInt("durationSec", 0)?.takeIf { it > 0 },
+                        explicit = extras?.optBoolean("explicit", false) ?: false,
+                        videoId = extras?.optString("videoId", null)?.ifBlank { null },
+                        ytTitle = extras?.optString("ytTitle", "") ?: "",
+                        ytArtist = extras?.optString("ytArtist", "") ?: "",
+                        ytAlbum = extras?.optString("ytAlbum", "") ?: "",
+                        ytThumbnail = extras?.optString("ytThumb", null)?.ifBlank { null },
+                        shareLink = extras?.optString("shareLink", null)?.ifBlank { null },
                     )
                 )
             }

@@ -31,6 +31,17 @@ private data class TrackMeta(
     val cover: String?,
 )
 
+private data class YtMeta(
+    val videoId: String?,
+    val ytTitle: String,
+    val ytArtist: String,
+    val ytAlbum: String,
+    val ytThumbnail: String?,
+    val durationSec: Int?,
+    val explicit: Boolean,
+    val shareLink: String?,
+)
+
 private data class DownloadedTrack(
     val success: Boolean,
     val title: String,
@@ -39,7 +50,12 @@ private data class DownloadedTrack(
 )
 
 private sealed class TrackResult {
-    data class Saved(val title: String, val artist: String, val album: String) : TrackResult()
+    data class Saved(
+        val title: String,
+        val artist: String,
+        val album: String,
+        val yt: YtMeta? = null,
+    ) : TrackResult()
     data class Failed(val title: String, val artist: String, val album: String) : TrackResult()
     object Aborted : TrackResult()
 }
@@ -252,7 +268,20 @@ object DownloadManager {
             when (result) {
                 is TrackResult.Saved -> {
                     OfflineStore.saveMetadata(
-                        appContext, track.trackId, result.title, result.artist, result.album, track.cover,
+                        appContext,
+                        track.trackId,
+                        result.title,
+                        result.artist,
+                        result.album,
+                        track.cover ?: result.yt?.ytThumbnail,
+                        videoId = result.yt?.videoId,
+                        ytTitle = result.yt?.ytTitle.orEmpty(),
+                        ytArtist = result.yt?.ytArtist.orEmpty(),
+                        ytAlbum = result.yt?.ytAlbum.orEmpty(),
+                        ytThumbnail = result.yt?.ytThumbnail,
+                        durationSec = result.yt?.durationSec,
+                        explicit = result.yt?.explicit ?: false,
+                        shareLink = result.yt?.shareLink,
                     )
                     onProgress?.invoke(100, "Saved to Music/Spotilol")
                     withContext(Dispatchers.Main) { onStatus?.invoke("Saved to Music/Spotilol") }
@@ -339,7 +368,20 @@ object DownloadManager {
                         is TrackResult.Saved -> {
                             saved++
                             OfflineStore.saveMetadata(
-                                appContext, track.trackId, result.title, result.artist, result.album, track.cover,
+                                appContext,
+                                track.trackId,
+                                result.title,
+                                result.artist,
+                                result.album,
+                                track.cover ?: result.yt?.ytThumbnail,
+                                videoId = result.yt?.videoId,
+                                ytTitle = result.yt?.ytTitle.orEmpty(),
+                                ytArtist = result.yt?.ytArtist.orEmpty(),
+                                ytAlbum = result.yt?.ytAlbum.orEmpty(),
+                                ytThumbnail = result.yt?.ytThumbnail,
+                                durationSec = result.yt?.durationSec,
+                                explicit = result.yt?.explicit ?: false,
+                                shareLink = result.yt?.shareLink,
                             )
                             report(100, "Saved")
                         }
@@ -436,7 +478,21 @@ object DownloadManager {
         tmpFile.delete()
         if (uri != null) {
             Log.d(TAG, "downloadToFile: saved to Music/Spotilol uri=$uri")
-            return TrackResult.Saved(effectiveTitle, effectiveArtist, effectiveAlbum)
+            return TrackResult.Saved(
+                effectiveTitle,
+                effectiveArtist,
+                effectiveAlbum,
+                yt = YtMeta(
+                    videoId = resolved.chosen.id,
+                    ytTitle = resolved.chosen.title,
+                    ytArtist = resolved.chosen.artists.joinToString(", ") { it.name },
+                    ytAlbum = resolved.chosen.album?.name.orEmpty(),
+                    ytThumbnail = resolved.chosen.thumbnail,
+                    durationSec = resolved.chosen.duration,
+                    explicit = resolved.chosen.explicit,
+                    shareLink = resolved.chosen.shareLink,
+                ),
+            )
         }
         Log.w(TAG, "downloadToFile: MediaStore save failed")
         lastDownloadError = "Couldn't save file"

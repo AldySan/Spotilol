@@ -11,10 +11,7 @@ import java.lang.ref.WeakReference
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.Locale
-import androidx.core.content.edit
 import com.project.lol.offline.DownloadManager
-import com.project.lol.util.DebugLogStore
-import com.project.lol.webview.helpers.AdIdStore
 
 class SpotifyBridge(private val activityRef: WeakReference<Activity>) {
 
@@ -71,8 +68,8 @@ class SpotifyBridge(private val activityRef: WeakReference<Activity>) {
             for (i in 0 until arr.length()) {
                 candidates.add(arr.optString(i))
             }
-            if (AdIdStore.addAll(candidates)) {
-                DebugLogStore.log("bridge", "ad-id store now " + AdIdStore.size())
+            if (com.project.lol.webview.helpers.AdIdStore.addAll(candidates)) {
+                com.project.lol.util.DebugLogStore.log("bridge", "ad-id store now " + com.project.lol.webview.helpers.AdIdStore.size())
             }
         } catch (_: Exception) {
             // Malformed page-provided payloads are ignored; AdIdStore re-validates.
@@ -128,7 +125,7 @@ class SpotifyBridge(private val activityRef: WeakReference<Activity>) {
             "s" -> "js.sys"
             else -> "js"
         }
-        DebugLogStore.log(tag, m)
+        com.project.lol.util.DebugLogStore.log(tag, m)
     }
 
     @Suppress("unused")
@@ -162,11 +159,13 @@ class SpotifyBridge(private val activityRef: WeakReference<Activity>) {
         parentId?.let { MediaNotificationService.onMediaItemsLoaded(it, json ?: "[]") }
     }
 
+    @Suppress("unused")
     @JavascriptInterface
     fun onSearchCompleted(query: String?, json: String?) {
         query?.let { MediaNotificationService.onSearchCompleted(it, json ?: "[]") }
     }
 
+    @Suppress("unused")
     @JavascriptInterface
     fun manageTShut(enabled: Boolean) {
     }

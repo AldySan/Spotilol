@@ -51,8 +51,8 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.PowerSettingsNew
-import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.ScreenRotation
+import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Smartphone
 import androidx.compose.material.icons.filled.TouchApp
@@ -181,7 +181,7 @@ fun SettingsContent(
     onClearData: () -> Unit,
     onDebugToggle: (Boolean) -> Unit = {},
     blockServiceWorker: Boolean,
-    onBlockServiceWorkerChange: (Boolean) -> Unit,
+    onBlockServiceWorkerChange: (Boolean) -> Unit
 ) {
     var autoplayMode by remember { mutableStateOf(prefs.getString("APlayMode", "disabled") ?: "disabled") }
     var takeControl by remember { mutableStateOf(prefs.getBoolean("TakeControl", true)) }
@@ -198,9 +198,9 @@ fun SettingsContent(
     var lyricsStyle by remember { mutableStateOf(prefs.getString("LyricsStyle", LyricsTheme.DEFAULT_STYLE) ?: LyricsTheme.DEFAULT_STYLE) }
     var connectionMode by remember { mutableStateOf(prefs.getString("ConnectionMode", "normal") ?: "normal") }
     var offlineMode by remember { mutableStateOf(prefs.getBoolean("OfflineMode", false)) }
-    var powerSave by remember { mutableStateOf(prefs.getBoolean("PowerSave", false)) }
     var blockSW by remember { mutableStateOf(blockServiceWorker) }
     var hideEmptyPlayer by remember { mutableStateOf(prefs.getBoolean("HideEmptyPlayer", false)) }
+    var powerSave by remember { mutableStateOf(prefs.getBoolean("PowerSave", false)) }
 
     val context = LocalContext.current
     val platformLocale = LocalLocale.current.platformLocale
@@ -208,7 +208,6 @@ fun SettingsContent(
     var profiles by remember { mutableStateOf(ProfileManager.getProfiles(context)) }
 
     var showConnectionModeDialog by remember { mutableStateOf(false) }
-    var showLyricsStyleDialog by remember { mutableStateOf(false) }
     var showSaveAccountDialog by remember { mutableStateOf(false) }
     var pendingCookies by remember { mutableStateOf<String?>(null) }
     var accountNameInput by remember { mutableStateOf("") }
@@ -222,6 +221,7 @@ fun SettingsContent(
     var showChangelogDialog by remember { mutableStateOf(false) }
     var dbgOverlay by remember { mutableStateOf(prefs.getBoolean("DebugOverlay", false)) }
     var showDevlogDialog by remember { mutableStateOf(false) }
+    var showLyricsStyleDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier
@@ -369,17 +369,6 @@ fun SettingsContent(
 
             HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
-            val lyricsStyleLabel = LyricsTheme.STYLE_OPTIONS
-                .firstOrNull { it.first == lyricsStyle }?.second ?: "Fullscreen (Album Colors)"
-            SettingTile(
-                title = "Lyrics Style",
-                subtitle = lyricsStyleLabel,
-                icon = Icons.AutoMirrored.Filled.QueueMusic,
-                onClick = { showLyricsStyleDialog = true }
-            )
-
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
-
             SettingSwitchTile(
                 title = "Hide Empty Mini Player",
                 subtitle = "Hide the mini player until a track is loaded",
@@ -389,6 +378,17 @@ fun SettingsContent(
                     hideEmptyPlayer = it
                     prefs.edit { putBoolean("HideEmptyPlayer", it) }
                 }
+            )
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+
+            val lyricsStyleLabel = LyricsTheme.STYLE_OPTIONS
+                .firstOrNull { it.first == lyricsStyle }?.second ?: "Fullscreen (Album Colors)"
+            SettingTile(
+                title = "Lyrics Style",
+                subtitle = lyricsStyleLabel,
+                icon = Icons.AutoMirrored.Filled.QueueMusic,
+                onClick = { showLyricsStyleDialog = true }
             )
 
             HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
@@ -501,7 +501,7 @@ fun SettingsContent(
                 checked = btAutoResume,
                 onCheckedChange = {
                     btAutoResume = it
-                    prefs.edit {putBoolean("BtAutoResume", it) }
+                    prefs.edit { putBoolean("BtAutoResume", it) }
                 }
             )
 
@@ -1655,7 +1655,7 @@ fun SettingsContentPreview() {
             onClearData = {},
             onDebugToggle = {},
             blockServiceWorker = true,
-            onBlockServiceWorkerChange = {},
+            onBlockServiceWorkerChange = {}
         )
     }
 }

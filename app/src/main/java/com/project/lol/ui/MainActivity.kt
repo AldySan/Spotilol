@@ -125,6 +125,8 @@ import com.project.lol.ui.theme.SpotifyTheme
 import com.project.lol.util.UpdateChecker
 import com.project.lol.webview.SpotifyWebChromeClient
 import com.project.lol.webview.SpotifyWebViewClient
+import com.project.lol.webview.helpers.DevLogPrelude
+import com.project.lol.webview.helpers.LyricsTheme
 import com.project.lol.webview.helpers.buildAmoledJs
 import com.project.lol.webview.helpers.buildCustomCssJs
 import com.project.lol.webview.injections.LogoutCheck
@@ -137,12 +139,9 @@ import org.json.JSONObject
 import androidx.core.content.edit
 import androidx.core.graphics.scale
 import androidx.core.graphics.toColorInt
-import androidx.core.net.toUri
 import com.project.lol.ui.components.ErrorScreen
 import com.project.lol.ui.components.mapWebViewError
 import com.project.lol.webview.helpers.AccentTheme
-import com.project.lol.webview.helpers.DevLogPrelude
-import com.project.lol.webview.helpers.LyricsTheme
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)

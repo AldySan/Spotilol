@@ -176,8 +176,6 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
         }
     }
 
-    private val coverExecutor = Executors.newSingleThreadExecutor()
-
     private lateinit var mediaSession: MediaSessionCompat
     private var isPlaying = false
     private var isShuffle = false

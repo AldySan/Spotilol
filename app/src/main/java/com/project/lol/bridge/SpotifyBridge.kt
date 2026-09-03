@@ -5,6 +5,7 @@ import android.view.View
 import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
 import android.widget.Toast
+import androidx.core.content.edit
 import com.project.lol.service.MediaNotificationService
 import org.json.JSONObject
 import java.lang.ref.WeakReference

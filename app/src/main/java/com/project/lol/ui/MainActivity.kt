@@ -139,6 +139,7 @@ import org.json.JSONObject
 import androidx.core.content.edit
 import androidx.core.graphics.scale
 import androidx.core.graphics.toColorInt
+import androidx.core.net.toUri
 import com.project.lol.ui.components.ErrorScreen
 import com.project.lol.ui.components.mapWebViewError
 import com.project.lol.webview.helpers.AccentTheme

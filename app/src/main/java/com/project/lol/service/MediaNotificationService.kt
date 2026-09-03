@@ -5,15 +5,23 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.bluetooth.BluetoothDevice
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.SharedPreferences
 import android.content.pm.ServiceInfo
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.media.AudioManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.IBinder
+import android.os.Looper
 import android.os.PowerManager
 import android.support.v4.media.MediaBrowserCompat
 import android.support.v4.media.MediaDescriptionCompat
@@ -21,20 +29,24 @@ import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import android.webkit.WebView
+import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import com.project.lol.R
 import androidx.media.MediaBrowserServiceCompat
 import androidx.media.app.NotificationCompat.MediaStyle
 import androidx.media.session.MediaButtonReceiver
-import android.bluetooth.BluetoothDevice
-import android.media.AudioManager
-import android.net.Uri
-import android.os.Handler
-import android.os.Looper
+import androidx.core.content.ContextCompat
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.drawable.IconCompat
+import androidx.core.graphics.scale
+import androidx.core.graphics.toColorInt
+import com.project.lol.webview.helpers.AccentTheme
+import java.lang.ref.WeakReference
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Executors
 import kotlin.math.min
 
 class MediaNotificationService : MediaBrowserServiceCompat() {
@@ -43,6 +55,7 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
         private const val TAG = "MediaNotifService"
         private const val CHANNEL_ID = "spotilol_media_playback"
         private const val NOTIFICATION_ID = 1
+        private val mainHandler = Handler(Looper.getMainLooper())
         private const val MEDIA_ID_ROOT = "__ROOT__"
 
         const val ACTION_PLAY_PAUSE = "com.project.lol.ACTION_PLAY_PAUSE"
@@ -78,6 +91,9 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
 
         var webView: WebView? = null
         var instance: MediaNotificationService? = null
+
+        @Volatile
+        private var taskRemoved = false
 
         @JvmStatic
         fun onMediaItemsLoaded(parentId: String, json: String) {
@@ -213,6 +229,74 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
         }
     }
 
+    private var lastMediaStatusJson: String? = null
+    private var firstHeadsetCallback = true
+    private var accentCache = 0
+
+    private val prefsListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        if (key == "PaletteSeed" || key == "MaterialYou") {
+            accentCache = 0
+            mainHandler.post {
+                showNotification()
+            }
+        }
+        if (key == "AndAuto") {
+            val andAuto = getSharedPreferences("spotilol_prefs", MODE_PRIVATE)
+                .getBoolean("AndAuto", true)
+            if (andAuto) {
+                lastMediaStatusJson?.let { updateFromMediaStatus(it) }
+            } else {
+                currentTitle = ""
+                currentArtist = ""
+                lastCoverUrl = ""
+                coverBitmap = null
+                mainHandler.post {
+                    updatePlaybackState()
+                    updateMetadata()
+                    showNotification()
+                }
+            }
+        }
+    }
+
+    private val headsetReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action == Intent.ACTION_HEADSET_PLUG) {
+                val state = intent.getIntExtra("state", -1)
+                if (firstHeadsetCallback) {
+                    firstHeadsetCallback = false
+                    return
+                }
+                if (state == 1) {
+                    val prefs = getSharedPreferences("spotilol_prefs", MODE_PRIVATE)
+                    if (prefs.getBoolean("HpAutoResume", false)) resumePlayback()
+                }
+            }
+        }
+    }
+
+    private fun accent(): Int {
+        if (accentCache == 0) {
+            accentCache = try {
+                AccentTheme.resolveHex(this).toColorInt()
+            } catch (_: Exception) {
+                0xFFE0E0E0.toInt()
+            }
+        }
+        return accentCache
+    }
+
+    private fun tintedIcon(resId: Int): IconCompat {
+        val d = AppCompatResources.getDrawable(this, resId)!!.mutate()
+        d.setTint(accent())
+        val bmp = createBitmap(d.intrinsicWidth, d.intrinsicHeight)
+        Canvas(bmp).also { canvas ->
+            d.setBounds(0, 0, bmp.width, bmp.height)
+            d.draw(canvas)
+        }
+        return IconCompat.createWithBitmap(bmp)
+    }
+
     override fun onCreate() {
         super.onCreate()
         instance = this
@@ -245,6 +329,8 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
         } catch (e: Exception) {
             android.util.Log.e(TAG, "Failed to register disconnect receivers", e)
         }
+        getSharedPreferences("spotilol_prefs", MODE_PRIVATE)
+            .registerOnSharedPreferenceChangeListener(prefsListener)
     }
 
     @Suppress("DEPRECATION")
@@ -257,6 +343,10 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (taskRemoved) {
+            stopSelf()
+            return START_NOT_STICKY
+        }
         try {
             ServiceCompat.startForeground(this, NOTIFICATION_ID, buildNotificationSafe(), getStartForegroundServiceType())
         } catch (e: Throwable) {
@@ -267,7 +357,7 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
         } catch (e: Exception) {
             android.util.Log.e(TAG, "Failed to handle media button intent", e)
         }
-        return START_STICKY
+        return START_NOT_STICKY
     }
 
     override fun onGetRoot(
@@ -308,7 +398,6 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
         result.detach()
         pendingCallbacks[parentId] = result
         wakeAndRun("if (typeof window.fetchMediaItems === 'function') window.fetchMediaItems('$parentId');")
-        // Allow up to 20s for the first library load (multiple paginated network calls)
         Handler(Looper.getMainLooper()).postDelayed({
             pendingCallbacks.remove(parentId)?.sendResult(mutableListOf())
         }, 20000L)
@@ -369,9 +458,18 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
         try { unregisterReceiver(actionReceiver) } catch (_: Exception) {}
         try { unregisterReceiver(bluetoothReceiver) } catch (_: Exception) {}
         try { unregisterReceiver(audioBecomingNoisyReceiver) } catch (_: Exception) {}
+        try { unregisterReceiver(headsetReceiver) } catch (_: Exception) {}
+        getSharedPreferences("spotilol_prefs", MODE_PRIVATE)
+            .unregisterOnSharedPreferenceChangeListener(prefsListener)
         if (::mediaSession.isInitialized) {
+            try { mediaSession.isActive = false } catch (_: Exception) {}
             try { mediaSession.release() } catch (_: Exception) {}
         }
+        try {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            getSystemService(NotificationManager::class.java)
+                .cancel(NOTIFICATION_ID)
+        } catch (_: Exception) {}
         super.onDestroy()
     }
 
@@ -488,6 +586,9 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
         } else {
             registerReceiver(bluetoothReceiver, btFilter)
         }
+
+        val hsFilter = IntentFilter(Intent.ACTION_HEADSET_PLUG)
+        ContextCompat.registerReceiver(this, headsetReceiver, hsFilter, ContextCompat.RECEIVER_EXPORTED)
     }
 
     private fun pausePlayback() {
@@ -516,6 +617,7 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
 
     fun updateFromMediaStatus(json: String) {
         try {
+            lastMediaStatusJson = json
             val obj = org.json.JSONObject(json)
             val andAuto = getSharedPreferences("spotilol_prefs", MODE_PRIVATE)
                 .getBoolean("AndAuto", true)
@@ -692,25 +794,27 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
         )
 
         val prevAction = NotificationCompat.Action.Builder(
-            R.drawable.ic_skip_prev, "Previous", getActionPendingIntent(ACTION_PREV)
+            tintedIcon(R.drawable.ic_skip_prev), "Previous", getActionPendingIntent(ACTION_PREV)
         ).build()
 
         val playPauseAction = NotificationCompat.Action.Builder(
-            if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play,
+            tintedIcon(if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play),
             if (isPlaying) "Pause" else "Play",
             getActionPendingIntent(ACTION_PLAY_PAUSE)
         ).build()
 
         val nextAction = NotificationCompat.Action.Builder(
-            R.drawable.ic_skip_next, "Next", getActionPendingIntent(ACTION_NEXT)
+            tintedIcon(R.drawable.ic_skip_next), "Next", getActionPendingIntent(ACTION_NEXT)
         ).build()
 
         val shuffleAction = NotificationCompat.Action.Builder(
-            when {
-                isSmartShuffle -> R.drawable.ic_shuffle_smart_active
-                isShuffle -> R.drawable.ic_shuffle_active
-                else -> R.drawable.ic_shuffle
-            },
+            tintedIcon(
+                when {
+                    isSmartShuffle -> R.drawable.ic_shuffle_smart_active
+                    isShuffle -> R.drawable.ic_shuffle_active
+                    else -> R.drawable.ic_shuffle
+                }
+            ),
             when {
                 isSmartShuffle -> "Disable smart shuffle"
                 isShuffle -> "Disable shuffle"
@@ -720,7 +824,7 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
         ).build()
 
         val favAction = NotificationCompat.Action.Builder(
-            if (isFavorite) R.drawable.ic_favorite_filled else R.drawable.ic_favorite,
+            tintedIcon(if (isFavorite) R.drawable.ic_favorite_filled else R.drawable.ic_favorite),
             if (isFavorite) "Unlike" else "Like",
             getActionPendingIntent(ACTION_FAVORITE)
         ).build()
@@ -742,7 +846,7 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setShowWhen(false)
             .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setColor(NOTIF_COLOR)
+            .setColor(accent())
             .setStyle(buildMediaStyle(isShuffleAvailable))
         actions.forEach { builder.addAction(it) }
 
@@ -783,5 +887,24 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
             if (it.isHeld) it.release()
             wakeLock = null
         }
+    }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        val stopOnSwipe = getSharedPreferences("spotilol_prefs", MODE_PRIVATE)
+            .getBoolean("SwipeStop", true)
+        if (stopOnSwipe) {
+            taskRemoved = true
+            if (::mediaSession.isInitialized) {
+                try { mediaSession.isActive = false } catch (_: Exception) {}
+            }
+            releaseWakeLock()
+            try {
+                getSystemService(NotificationManager::class.java)
+                    .cancel(NOTIFICATION_ID)
+            } catch (_: Exception) {}
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+        }
+        super.onTaskRemoved(rootIntent)
     }
 }

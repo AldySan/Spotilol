@@ -1436,12 +1436,63 @@ class MainActivity : ComponentActivity() {
         } else {
             val wv = webView
             if (wv != null) {
-                Log.d(LinkTag, "loading link in existing webview")
-                wv.loadUrl(link)
+                navigateSpotifyLink(link)
             } else {
                 Log.d(LinkTag, "webview not ready, queueing link")
                 pendingLink = link
             }
+        }
+    }
+
+    private fun navigateSpotifyLink(link: String) {
+        val wv = webView ?: run {
+            pendingLink = link
+            return
+        }
+        val currentHost = wv.url?.let { Uri.parse(it).host }
+        val target = Uri.parse(link)
+        val path = target.path ?: ""
+        val canSpa = currentHost == "open.spotify.com" &&
+            target.host == "open.spotify.com" &&
+            path.length > 1
+        if (!canSpa) {
+            Log.d(LinkTag, "spa not possible (current=$currentHost host=${target.host} path=$path), full redirect")
+            wv.loadUrl(link)
+            return
+        }
+        Log.d(LinkTag, "attempting spa navigation to $path")
+        val js = """
+            (function() {
+                try {
+                    var target = '$path';
+                    if (window.location.pathname === target) return 'same';
+                    window.history.pushState({}, '', target);
+                    window.dispatchEvent(new PopStateEvent('popstate'));
+                    return 'pushed';
+                } catch (e) { return 'error:' + e.message; }
+            })()
+        """.trimIndent()
+        wv.evaluateJavascript(js) { result ->
+            val status = result?.trim('"') ?: "null"
+            Log.d(LinkTag, "spa push result=$status")
+            if (status != "pushed") {
+                Log.d(LinkTag, "spa push failed, falling back to full load")
+                wv.loadUrl(link)
+                return@evaluateJavascript
+            }
+            wv.postDelayed({
+                if (wv.url == null) return@postDelayed
+                wv.evaluateJavascript("window.location.pathname") { check ->
+                    val pathname = check?.trim('"') ?: ""
+                    Log.d(LinkTag, "spa verify pathname=$pathname")
+                    if (pathname != path) {
+                        Log.d(LinkTag, "spa verify failed, falling back to full load")
+                        wv.loadUrl(link)
+                    } else {
+                        Log.d(LinkTag, "spa navigation ok")
+                    }
+                }
+            }, 800)
         }
     }
 

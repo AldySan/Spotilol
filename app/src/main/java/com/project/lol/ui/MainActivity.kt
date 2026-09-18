@@ -138,8 +138,6 @@ import com.project.lol.ui.components.mapWebViewError
 import com.project.lol.webview.helpers.AccentTheme
 import java.util.Locale
 
-private const val LinkTag = "Spl-Link"
-
 @OptIn(ExperimentalMaterial3Api::class)
 class MainActivity : ComponentActivity() {
 
@@ -238,12 +236,7 @@ class MainActivity : ComponentActivity() {
         applyKeepScreenOn()
 
         pendingLink = extractSpotifyLink(intent)
-        Log.d(
-            LinkTag,
-            "onCreate action=${intent?.action} data=${intent?.data} link=$pendingLink serviceOn=${serviceEnabledState.value}"
-        )
         if (pendingLink != null && !serviceEnabledState.value) {
-            Log.d(LinkTag, "service off, auto enabling for incoming link")
             setServiceEnabled(true)
         }
 
@@ -544,7 +537,6 @@ class MainActivity : ComponentActivity() {
                                 val link = pendingLink
                                 val wv = webView
                                 if (link != null && wv != null) {
-                                    Log.d(LinkTag, "webview ready, loading pending link=$link")
                                     pendingLink = null
                                     wv.loadUrl(link)
                                 }
@@ -642,7 +634,6 @@ class MainActivity : ComponentActivity() {
         val uri = intent?.data ?: return null
         val host = uri.host ?: return null
         val accepted = host == "spotify.link" || host.endsWith("spotify.com")
-        Log.d(LinkTag, "extract host=$host accepted=$accepted uri=$uri")
         return if (accepted) uri.toString() else null
     }
 
@@ -1418,10 +1409,6 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         val link = extractSpotifyLink(intent)
-        Log.d(
-            LinkTag,
-            "onNewIntent link=$link serviceOn=${prefs.getBoolean("ServiceOn", true)} webViewReady=${webView != null}"
-        )
         if (link == null) {
             val loggedIn = prefs.getBoolean("LoggedIn", false)
             if (!loggedIn) {
@@ -1430,7 +1417,6 @@ class MainActivity : ComponentActivity() {
             return
         }
         if (!prefs.getBoolean("ServiceOn", true)) {
-            Log.d(LinkTag, "service off, queueing link and enabling service")
             pendingLink = link
             setServiceEnabled(true)
         } else {
@@ -1438,7 +1424,6 @@ class MainActivity : ComponentActivity() {
             if (wv != null) {
                 navigateSpotifyLink(link)
             } else {
-                Log.d(LinkTag, "webview not ready, queueing link")
                 pendingLink = link
             }
         }
@@ -1456,11 +1441,9 @@ class MainActivity : ComponentActivity() {
             target.host == "open.spotify.com" &&
             path.length > 1
         if (!canSpa) {
-            Log.d(LinkTag, "spa not possible (current=$currentHost host=${target.host} path=$path), full redirect")
             wv.loadUrl(link)
             return
         }
-        Log.d(LinkTag, "attempting spa navigation to $path")
         val js = """
             (function() {
                 try {
@@ -1474,9 +1457,7 @@ class MainActivity : ComponentActivity() {
         """.trimIndent()
         wv.evaluateJavascript(js) { result ->
             val status = result?.trim('"') ?: "null"
-            Log.d(LinkTag, "spa push result=$status")
             if (status != "pushed") {
-                Log.d(LinkTag, "spa push failed, falling back to full load")
                 wv.loadUrl(link)
                 return@evaluateJavascript
             }
@@ -1484,12 +1465,8 @@ class MainActivity : ComponentActivity() {
                 if (wv.url == null) return@postDelayed
                 wv.evaluateJavascript("window.location.pathname") { check ->
                     val pathname = check?.trim('"') ?: ""
-                    Log.d(LinkTag, "spa verify pathname=$pathname")
                     if (pathname != path) {
-                        Log.d(LinkTag, "spa verify failed, falling back to full load")
                         wv.loadUrl(link)
-                    } else {
-                        Log.d(LinkTag, "spa navigation ok")
                     }
                 }
             }, 800)

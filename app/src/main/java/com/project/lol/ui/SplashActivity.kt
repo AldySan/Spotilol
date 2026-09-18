@@ -130,7 +130,14 @@ class SplashActivity : ComponentActivity() {
                         targetValue = 0f,
                         animationSpec = tween(500, easing = LinearEasing)
                     ) { value, _ -> contentAlpha = value }
-                    startActivity(Intent(this@SplashActivity, MainActivity::class.java))
+                    val linkIntent = intent?.takeIf { it.action == Intent.ACTION_VIEW && it.data != null }
+                    startActivity(
+                        if (linkIntent != null) {
+                            Intent(linkIntent).setClass(this@SplashActivity, MainActivity::class.java)
+                        } else {
+                            Intent(this@SplashActivity, MainActivity::class.java)
+                        }
+                    )
                     overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
                     finish()
                 }

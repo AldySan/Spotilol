@@ -5,6 +5,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import android.webkit.CookieManager
 import android.webkit.WebStorage
 import android.webkit.WebView
@@ -49,6 +51,7 @@ import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonAdd
@@ -586,6 +589,28 @@ fun SettingsContent(
                 icon = Icons.Default.DeleteForever,
                 onClick = { showClearDataDialog = true },
                 isDestructive = true
+            )
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+
+            SettingTile(
+                title = "Open Spotify Links",
+                subtitle = "Enable link handling to open shared links here",
+                icon = Icons.Default.Link,
+                onClick = {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        runCatching {
+                            context.startActivity(
+                                Intent(Settings.ACTION_APP_OPEN_BY_DEFAULT_SETTINGS)
+                                    .setData(Uri.parse("package:${context.packageName}"))
+                            )
+                        }.onFailure {
+                            Toast.makeText(context, "Not supported on this device", Toast.LENGTH_SHORT).show()
+                        }
+                    } else {
+                        Toast.makeText(context, "Use 'Always' when opening a Spotify link", Toast.LENGTH_LONG).show()
+                    }
+                }
             )
         }
 

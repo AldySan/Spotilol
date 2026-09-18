@@ -138,6 +138,8 @@ import com.project.lol.ui.components.mapWebViewError
 import com.project.lol.webview.helpers.AccentTheme
 import java.util.Locale
 
+private const val LinkTag = "Spl-Link"
+
 @OptIn(ExperimentalMaterial3Api::class)
 class MainActivity : ComponentActivity() {
 
@@ -236,7 +238,12 @@ class MainActivity : ComponentActivity() {
         applyKeepScreenOn()
 
         pendingLink = extractSpotifyLink(intent)
+        Log.d(
+            LinkTag,
+            "onCreate action=${intent?.action} data=${intent?.data} link=$pendingLink serviceOn=${serviceEnabledState.value}"
+        )
         if (pendingLink != null && !serviceEnabledState.value) {
+            Log.d(LinkTag, "service off, auto enabling for incoming link")
             setServiceEnabled(true)
         }
 
@@ -537,6 +544,7 @@ class MainActivity : ComponentActivity() {
                                 val link = pendingLink
                                 val wv = webView
                                 if (link != null && wv != null) {
+                                    Log.d(LinkTag, "webview ready, loading pending link=$link")
                                     pendingLink = null
                                     wv.loadUrl(link)
                                 }
@@ -631,10 +639,11 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun extractSpotifyLink(intent: Intent?): String? {
-        if (intent?.action != Intent.ACTION_VIEW) return null
-        val uri = intent.data ?: return null
-        if (uri.host != "open.spotify.com") return null
-        return uri.toString()
+        val uri = intent?.data ?: return null
+        val host = uri.host ?: return null
+        val accepted = host == "spotify.link" || host.endsWith("spotify.com")
+        Log.d(LinkTag, "extract host=$host accepted=$accepted uri=$uri")
+        return if (accepted) uri.toString() else null
     }
 
     private fun setServiceEnabled(newValue: Boolean) {
@@ -1409,6 +1418,10 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         val link = extractSpotifyLink(intent)
+        Log.d(
+            LinkTag,
+            "onNewIntent link=$link serviceOn=${prefs.getBoolean("ServiceOn", true)} webViewReady=${webView != null}"
+        )
         if (link == null) {
             val loggedIn = prefs.getBoolean("LoggedIn", false)
             if (!loggedIn) {
@@ -1417,13 +1430,16 @@ class MainActivity : ComponentActivity() {
             return
         }
         if (!prefs.getBoolean("ServiceOn", true)) {
+            Log.d(LinkTag, "service off, queueing link and enabling service")
             pendingLink = link
             setServiceEnabled(true)
         } else {
             val wv = webView
             if (wv != null) {
+                Log.d(LinkTag, "loading link in existing webview")
                 wv.loadUrl(link)
             } else {
+                Log.d(LinkTag, "webview not ready, queueing link")
                 pendingLink = link
             }
         }

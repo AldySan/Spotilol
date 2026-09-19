@@ -112,7 +112,6 @@ object FunctionNameExtractor {
      */
     fun hasQArrayObfuscation(playerJs: String): Boolean {
         val hasQArray = Q_ARRAY_PATTERN.containsMatchIn(playerJs)
-        Log.d(TAG, "Q-array obfuscation check: hasQArray=$hasQArray")
 
         if (hasQArray) {
             // Try to count Q array elements for additional info
@@ -123,7 +122,6 @@ object FunctionNameExtractor {
                 if (qDefEnd > start) {
                     val qDef = playerJs.substring(start, qDefEnd)
                     val elementCount = qDef.count { it == '}' } + 1
-                    Log.d(TAG, "Q-array detected with ~$elementCount elements")
                 }
             }
         }
@@ -134,14 +132,12 @@ object FunctionNameExtractor {
      * Extract player.js hash from embedded URLs or compute from content
      */
     fun extractPlayerHash(playerJs: String): String? {
-        Log.d(TAG, "Extracting player hash from playerJs (${playerJs.length} chars)")
 
         // Try to extract from embedded URLs first
         for ((index, pattern) in PLAYER_HASH_PATTERNS.withIndex()) {
             val match = pattern.find(playerJs)
             if (match != null) {
                 val hash = match.groupValues[1]
-                Log.d(TAG, "Player hash found via pattern $index: $hash")
                 return hash
             }
         }
@@ -151,7 +147,6 @@ object FunctionNameExtractor {
         val md = MessageDigest.getInstance("MD5")
         val digest = md.digest(contentToHash.toByteArray())
         val computedHash = digest.take(4).joinToString("") { "%02x".format(it) }
-        Log.d(TAG, "Player hash computed from content: $computedHash")
         return computedHash
     }
 
@@ -161,10 +156,6 @@ object FunctionNameExtractor {
     fun getHardcodedConfig(playerHash: String): HardcodedPlayerConfig? {
         val config = KNOWN_PLAYER_CONFIGS[playerHash]
         if (config != null) {
-            Log.d(TAG, "Found hardcoded config for hash $playerHash:")
-            Log.d(TAG, "  sigFunc=${config.sigFuncName}(${config.sigConstantArg}, ...)")
-            Log.d(TAG, "  nFunc=${config.nFuncName}[${config.nArrayIndex}]")
-            Log.d(TAG, "  signatureTimestamp=${config.signatureTimestamp}")
         } else {
             Log.w(TAG, "No hardcoded config for hash: $playerHash")
             Log.w(TAG, "Known hashes: ${KNOWN_PLAYER_CONFIGS.keys.joinToString()}")
@@ -180,19 +171,13 @@ object FunctionNameExtractor {
      * @param knownHash Optional hash for hardcoded config lookup
      */
     fun extractSigFunctionInfo(playerJs: String, knownHash: String? = null): SigFunctionInfo? {
-        Log.d(TAG, "========== EXTRACTING SIG FUNCTION ==========")
-        Log.d(TAG, "Player.js size: ${playerJs.length} chars")
 
         // Try regex patterns first
         for ((index, pattern) in SIG_FUNCTION_PATTERNS.withIndex()) {
-            Log.v(TAG, "Trying sig pattern $index: ${pattern.pattern.take(60)}...")
             val match = pattern.find(playerJs)
             if (match != null) {
                 val name = match.groupValues[1]
                 val constArg = if (match.groupValues.size > 2) match.groupValues[2].toIntOrNull() else null
-                Log.d(TAG, "SIG FUNCTION FOUND via pattern $index:")
-                Log.d(TAG, "  name=$name, constantArg=$constArg")
-                Log.d(TAG, "  match context: ...${playerJs.substring(maxOf(0, match.range.first - 20), minOf(playerJs.length, match.range.last + 20))}...")
                 return SigFunctionInfo(name, constArg, isHardcoded = false)
             }
         }
@@ -203,12 +188,9 @@ object FunctionNameExtractor {
         if (hasQArrayObfuscation(playerJs)) {
             // Use knownHash if provided, otherwise try to extract
             val hashToUse = knownHash ?: extractPlayerHash(playerJs)
-            Log.d(TAG, "Using hash for hardcoded lookup: $hashToUse (knownHash=$knownHash)")
             if (hashToUse != null) {
                 val config = getHardcodedConfig(hashToUse)
                 if (config != null) {
-                    Log.d(TAG, "USING HARDCODED SIG FUNCTION: ${config.sigFuncName}(${config.sigConstantArgs}, ...)")
-                    Log.d(TAG, "Sig preprocess: ${config.sigPreprocessFunc}(${config.sigPreprocessArgs}, sig)")
                     return SigFunctionInfo(
                         name = config.sigFuncName,
                         constantArg = config.sigConstantArg,
@@ -234,33 +216,24 @@ object FunctionNameExtractor {
      * @param knownHash Optional hash for hardcoded config lookup
      */
     fun extractNFunctionInfo(playerJs: String, knownHash: String? = null): NFunctionInfo? {
-        Log.d(TAG, "========== EXTRACTING N-FUNCTION ==========")
-        Log.d(TAG, "Player.js size: ${playerJs.length} chars")
 
         // Try regex patterns first
         for ((index, pattern) in N_FUNCTION_PATTERNS.withIndex()) {
-            Log.v(TAG, "Trying n-func pattern $index: ${pattern.pattern.take(60)}...")
             val match = pattern.find(playerJs)
             if (match != null) {
                 when (index) {
                     0 -> {
                         val name = match.groupValues[1]
                         val arrayIdx = match.groupValues[2].toIntOrNull()
-                        Log.d(TAG, "N-FUNCTION FOUND via pattern $index:")
-                        Log.d(TAG, "  name=$name, arrayIndex=$arrayIdx")
                         return NFunctionInfo(name, arrayIdx, isHardcoded = false)
                     }
                     1 -> {
                         val name = match.groupValues[2]
                         val arrayIdx = match.groupValues[3].toIntOrNull()
-                        Log.d(TAG, "N-FUNCTION FOUND via pattern $index:")
-                        Log.d(TAG, "  name=$name, arrayIndex=$arrayIdx")
                         return NFunctionInfo(name, arrayIdx, isHardcoded = false)
                     }
                     else -> {
                         val name = match.groupValues[1]
-                        Log.d(TAG, "N-FUNCTION FOUND via pattern $index:")
-                        Log.d(TAG, "  name=$name")
                         return NFunctionInfo(name, null, isHardcoded = false)
                     }
                 }
@@ -273,12 +246,9 @@ object FunctionNameExtractor {
         if (hasQArrayObfuscation(playerJs)) {
             // Use knownHash if provided, otherwise try to extract
             val hashToUse = knownHash ?: extractPlayerHash(playerJs)
-            Log.d(TAG, "Using hash for hardcoded lookup: $hashToUse (knownHash=$knownHash)")
             if (hashToUse != null) {
                 val config = getHardcodedConfig(hashToUse)
                 if (config != null) {
-                    Log.d(TAG, "USING HARDCODED N-FUNCTION: ${config.nFuncName}[${config.nArrayIndex}]")
-                    Log.d(TAG, "N-function constant args: ${config.nConstantArgs}")
                     return NFunctionInfo(config.nFuncName, config.nArrayIndex, config.nConstantArgs, isHardcoded = true)
                 }
             }
@@ -293,7 +263,6 @@ object FunctionNameExtractor {
      * Extract signatureTimestamp from player.js
      */
     fun extractSignatureTimestamp(playerJs: String): Int? {
-        Log.d(TAG, "Extracting signatureTimestamp...")
 
         val patterns = listOf(
             Regex("""signatureTimestamp['":\s]+(\d+)"""),
@@ -306,7 +275,6 @@ object FunctionNameExtractor {
             if (match != null) {
                 val sts = match.groupValues[1].toIntOrNull()
                 if (sts != null) {
-                    Log.d(TAG, "signatureTimestamp found via pattern $index: $sts")
                     return sts
                 }
             }
@@ -317,7 +285,6 @@ object FunctionNameExtractor {
         if (playerHash != null) {
             val config = getHardcodedConfig(playerHash)
             if (config != null) {
-                Log.d(TAG, "Using hardcoded signatureTimestamp: ${config.signatureTimestamp}")
                 return config.signatureTimestamp
             }
         }
@@ -332,11 +299,9 @@ object FunctionNameExtractor {
      * @param knownHash Optional hash from PlayerJsFetcher (preferred over computed)
      */
     fun analyzePlayerJs(playerJs: String, knownHash: String? = null): PlayerAnalysis {
-        Log.d(TAG, "=== PLAYER.JS CIPHER ANALYSIS ===")
 
         // Use knownHash from PlayerJsFetcher if provided, otherwise extract/compute
         val playerHash = if (knownHash != null) {
-            Log.d(TAG, "Using known hash from PlayerJsFetcher: $knownHash")
             knownHash
         } else {
             extractPlayerHash(playerJs)
@@ -346,15 +311,6 @@ object FunctionNameExtractor {
         val sigInfo = extractSigFunctionInfo(playerJs, playerHash)
         val nFuncInfo = extractNFunctionInfo(playerJs, playerHash)
         val signatureTimestamp = extractSignatureTimestamp(playerJs)
-
-        Log.d(TAG, "=== ANALYSIS SUMMARY ===")
-        Log.d(TAG, "Player Hash:        ${playerHash ?: "unknown"}")
-        Log.d(TAG, "Q-Array Obfuscated: $hasQArray")
-        Log.d(TAG, "Sig Function:       ${sigInfo?.name ?: "NOT FOUND"} (hardcoded=${sigInfo?.isHardcoded})")
-        Log.d(TAG, "Sig Constant Arg:   ${sigInfo?.constantArg}")
-        Log.d(TAG, "N-Function:         ${nFuncInfo?.name ?: "NOT FOUND"} (hardcoded=${nFuncInfo?.isHardcoded})")
-        Log.d(TAG, "N-Array Index:      ${nFuncInfo?.arrayIndex}")
-        Log.d(TAG, "Signature TS:       $signatureTimestamp")
 
         return PlayerAnalysis(
             playerHash = playerHash,

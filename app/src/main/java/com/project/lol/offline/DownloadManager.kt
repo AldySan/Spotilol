@@ -21,6 +21,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import java.io.File
+import java.net.HttpURLConnection
+import java.net.URL
 import kotlin.time.Duration.Companion.milliseconds
 
 private data class TrackMeta(
@@ -251,7 +254,7 @@ object DownloadManager {
     private suspend fun runSingle(appContext: Context, track: TrackMeta) {
         if (OfflineStore.isTrackSaved(appContext, track.trackId)) {
             onProgress?.invoke(100, "Already saved")
-            withContext(Dispatchers.Main) { onStatus?.invoke("Already saved to Music/Spotilol") }
+            withContext(Dispatchers.Main) { onStatus?.invoke("Already saved to Music/${DownloadSettings.subfolder(appContext)}") }
             return
         }
         activeTrackId = track.trackId
@@ -282,8 +285,8 @@ object DownloadManager {
                         explicit = result.yt?.explicit ?: false,
                         shareLink = result.yt?.shareLink,
                     )
-                    onProgress?.invoke(100, "Saved to Music/Spotilol")
-                    withContext(Dispatchers.Main) { onStatus?.invoke("Saved to Music/Spotilol") }
+                    onProgress?.invoke(100, "Saved to Music/${DownloadSettings.subfolder(appContext)}")
+                    withContext(Dispatchers.Main) { onStatus?.invoke("Saved to Music/${DownloadSettings.subfolder(appContext)}") }
                 }
                 is TrackResult.Failed -> {
                     val msg = "Download failed: ${lastDownloadError ?: "unknown error"}"
@@ -421,7 +424,7 @@ object DownloadManager {
         withContext(Dispatchers.Main) { onStatus?.invoke(summary) }
         when {
             cancelled -> onProgress?.invoke(-1, summary)
-            saved > 0 -> onProgress?.invoke(100, "$summary — Music/Spotilol")
+            saved > 0 -> onProgress?.invoke(100, "$summary — Music/${DownloadSettings.subfolder(appContext)}")
             failed > 0 -> onProgress?.invoke(-1, summary)
         }
     }
@@ -470,8 +473,72 @@ object DownloadManager {
         }
         progress(99, "Saving...")
 
-        val uri = saveToPublicMusic(context, trackId, effectiveTitle, effectiveArtist, tmpFile, "m4a", "audio/mp4")
-        tmpFile.delete()
+        val format = DownloadSettings.format(context)
+        val writeTags = DownloadSettings.writeTags(context)
+
+        val sourceContainer = Mp3Transcoder.sniffContainer(tmpFile) ?: "m4a"
+        Log.i(TAG, "downloadToFile: source container=$sourceContainer trackId=$trackId")
+
+        fun renameToAudio(source: File, ext: String): File {
+            val target = File(dir, "$trackId.$ext")
+            return if (source.renameTo(target)) target else source
+        }
+
+        val finalFile: File = when (format) {
+            DownloadFormat.M4A -> renameToAudio(tmpFile, sourceContainer)
+            DownloadFormat.MP3 -> {
+                val mp3File = File(dir, "$trackId.mp3")
+                val ok = Mp3Transcoder.transcode(tmpFile, mp3File) { pct ->
+                    progress(60 + pct * 39 / 100, "Converting to MP3")
+                }
+                if (ok) {
+                    tmpFile.delete()
+                    mp3File
+                } else {
+                    Log.w(TAG, "downloadToFile: mp3 transcode failed, keeping original $sourceContainer")
+                    renameToAudio(tmpFile, sourceContainer)
+                }
+            }
+        }
+        val isMp3 = finalFile.name.endsWith(".mp3")
+
+        val tagFormat = when {
+            isMp3 -> DownloadFormat.MP3
+            sourceContainer == "m4a" -> DownloadFormat.M4A
+            else -> null
+        }
+
+        if (writeTags && tagFormat != null) {
+            progress(99, "Writing tags...")
+            TagWriter.writeTags(
+                finalFile,
+                tagFormat,
+                effectiveTitle,
+                effectiveArtist,
+                effectiveAlbum,
+                fetchCoverForTags(context, trackId, track.cover ?: resolved.chosen.thumbnail)
+            )
+        }
+
+        val ext = if (isMp3) DownloadFormat.MP3.ext else sourceContainer
+        val mime = if (isMp3) {
+            DownloadFormat.MP3.mime
+        } else if (sourceContainer == "webm") {
+            "audio/webm"
+        } else {
+            DownloadFormat.M4A.mime
+        }
+
+        val uri = saveToPublicMusic(
+            context,
+            trackId,
+            effectiveTitle,
+            effectiveArtist,
+            finalFile,
+            ext,
+            mime
+        )
+        finalFile.delete()
         if (uri != null) {
             return TrackResult.Saved(
                 effectiveTitle,
@@ -647,6 +714,30 @@ object DownloadManager {
             )
         }
 
+    private fun fetchCoverForTags(context: Context, trackId: String, coverUrl: String?): File? {
+        val cached = File(context.filesDir, "covers/$trackId.jpg")
+        if (cached.exists() && cached.length() > 0) return cached
+        if (coverUrl.isNullOrBlank()) return null
+        return runCatching {
+            cached.parentFile?.mkdirs()
+            val conn = URL(coverUrl).openConnection() as HttpURLConnection
+            conn.connectTimeout = 10000
+            conn.readTimeout = 10000
+            conn.instanceFollowRedirects = true
+            conn.inputStream.use { input ->
+                cached.outputStream().use { output -> input.copyTo(output) }
+            }
+            if (cached.length() > 0) cached else {
+                cached.delete()
+                null
+            }
+        }.getOrElse {
+            Log.w(TAG, "fetchCoverForTags: failed: ${it.message}")
+            runCatching { cached.delete() }
+            null
+        }
+    }
+
     private fun saveToPublicMusic(
         context: Context,
         trackId: String,
@@ -656,7 +747,7 @@ object DownloadManager {
         ext: String,
         mime: String,
     ): String? {
-        val folderName = "Spotilol"
+        val folderName = DownloadSettings.subfolder(context)
         val fileName = "$artist - $title [$trackId]"
             .replace(Regex("""[\\/:*?"<>|]"""), "_")
             .let { if (it.length > 200) it.take(200) else it }

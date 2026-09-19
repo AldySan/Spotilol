@@ -48,8 +48,6 @@ object CipherDeobfuscator {
             return null
         }
 
-        Log.d(TAG, "Deobfuscating cipher for $videoId: sig=${obfuscatedSig.take(20)}..., sp=$sigParam")
-
         val webView = getOrCreateWebView(forceRefresh = isRetry)
             ?: return null
 
@@ -60,7 +58,6 @@ object CipherDeobfuscator {
         val separator = if ("?" in baseUrl) "&" else "?"
         val finalUrl = "$baseUrl${separator}${sigParam}=${Uri.encode(deobfuscatedSig)}"
 
-        Log.d(TAG, "Custom cipher deobfuscation succeeded for $videoId")
         return finalUrl
     }
 
@@ -82,11 +79,9 @@ object CipherDeobfuscator {
         // Extract the 'n' parameter value from the URL
         val nMatch = Regex("[?&]n=([^&]+)").find(url)
         if (nMatch == null) {
-            Log.d(TAG, "No 'n' parameter found in URL, skipping transform")
             return url
         }
         val nValue = Uri.decode(nMatch.groupValues[1])
-        Log.d(TAG, "N-param found: $nValue")
 
         val webView = getOrCreateWebView(forceRefresh = false) ?: return url
 
@@ -96,7 +91,6 @@ object CipherDeobfuscator {
         }
 
         val transformedN = webView.transformN(nValue)
-        Log.d(TAG, "N-param transformed: $nValue -> $transformedN")
 
         // Replace n= parameter in URL
         return url.replaceFirst(
@@ -136,8 +130,6 @@ object CipherDeobfuscator {
         if (nFuncInfo == null) {
             Log.e(TAG, "Could not extract n-function info from player JS (will try brute-force)")
         }
-
-        Log.d(TAG, "Creating CipherWebView with sig=${sigInfo.name}, constantArg=${sigInfo.constantArg}, nFunc=${nFuncInfo?.name}[${nFuncInfo?.arrayIndex}]")
 
         // Create WebView — n-function is exported to window if found, with brute-force fallback
         val webView = CipherWebView.create(

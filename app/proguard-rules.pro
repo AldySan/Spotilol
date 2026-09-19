@@ -40,3 +40,12 @@
 -dontwarn javax.script.**
 # do not add -keep class org.mozilla.javascript.** - it pulls in classes
 # referencing java.beans.* which breaks ART install-time verification
+
+# jaudiotagger - reflection-based tag handling, and Optional streams on old APIs
+-keep class org.jaudiotagger.** { *; }
+-dontwarn org.jaudiotagger.**
+-dontwarn java.lang.instrument.**
+
+# qiujuer LAME - JNI binds by class name, keep the native bridge intact
+-keep class net.qiujuer.lame.** { *; }
+-dontwarn net.qiujuer.lame.**

@@ -112,6 +112,11 @@ dependencies {
     implementation(libs.brotli)
     implementation(libs.okhttp)
 
+    // Audio downloads: mp3 encoding + tagging
+    implementation(libs.mp3.encoder)
+    implementation(libs.mp3.encoder.native)
+    implementation(libs.audio.tagger)
+
     // Core library desugaring (required by NewPipeExtractor)
     coreLibraryDesugaring(libs.desugaring)
 }

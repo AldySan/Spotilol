@@ -177,7 +177,6 @@ object DownloadManager {
             album = parsed.optString("album"),
             cover = parsed.optString("cover").ifBlank { null },
         )
-        Log.d(TAG, "downloadCurrentTrack: queued id=$trackId title=${track.title} artist=${track.artist}")
         onProgress?.invoke(0, "Resolving audio...")
         enqueue(appContext, DownloadJob.Single(track))
     }
@@ -303,7 +302,6 @@ object DownloadManager {
         }
     }
 
-
     private suspend fun runCollection(appContext: Context, job: DownloadJob.Collection) {
         val total = job.tracks.size
         var saved = 0
@@ -346,7 +344,6 @@ object DownloadManager {
 
                 if (OfflineStore.isTrackSaved(appContext, track.trackId)) {
                     skipped++
-                    Log.d(TAG, "runCollection: ${track.trackId} already saved, skipping")
                     report(100, "Already saved")
                     continue
                 }
@@ -471,13 +468,11 @@ object DownloadManager {
             if (signal != null) return TrackResult.Aborted
             return TrackResult.Failed(effectiveTitle, effectiveArtist, effectiveAlbum)
         }
-        Log.d(TAG, "downloadToFile: audio downloaded size=${tmpFile.length()}")
         progress(99, "Saving...")
 
         val uri = saveToPublicMusic(context, trackId, effectiveTitle, effectiveArtist, tmpFile, "m4a", "audio/mp4")
         tmpFile.delete()
         if (uri != null) {
-            Log.d(TAG, "downloadToFile: saved to Music/Spotilol uri=$uri")
             return TrackResult.Saved(
                 effectiveTitle,
                 effectiveArtist,
@@ -510,7 +505,6 @@ object DownloadManager {
             append(title)
             if (artist.isNotBlank()) append(" $artist")
         }
-        Log.d(TAG, "resolveStream: id=$trackId searching '$searchText'")
 
         val searchResult = runCatching {
             YouTube.search(searchText, YouTube.SearchFilter.FILTER_SONG).getOrNull()
@@ -541,7 +535,6 @@ object DownloadManager {
             Log.w(TAG, "resolveStream: no acceptable match for '$searchText'")
             return null
         }
-        Log.d(TAG, "resolveStream: chosen '${chosen.title}' by ${chosen.artists.joinToString { it.name }} (videoId=${chosen.id})")
 
         val connectivityManager =
             context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
@@ -558,7 +551,6 @@ object DownloadManager {
 
         val streamUrl = playback?.streamUrl
         if (streamUrl != null) {
-            Log.d(TAG, "resolveStream: resolved url=${streamUrl.take(80)}")
         } else {
             Log.w(TAG, "resolveStream: no stream url for ${chosen.id}")
         }
@@ -598,7 +590,6 @@ object DownloadManager {
                                 total = conn.getHeaderField("Content-Range")
                                     ?.substringAfter('/')?.toLongOrNull()
                                     ?: conn.contentLengthLong
-                                Log.d(TAG, "httpDownloadRanged: total=$total bytes")
                             }
                             fullBody = code == 200
                             conn.inputStream.use { input ->
@@ -618,7 +609,6 @@ object DownloadManager {
                                     }
                                 }
                             }
-                            if (total > 0) Log.d(TAG, "httpDownloadRanged: chunk done $position/$total")
                             break
                         } catch (e: Exception) {
                             if (shouldAbort?.invoke() == true) return false
@@ -637,7 +627,6 @@ object DownloadManager {
                 }
             }
             val ok = total <= 0 || position >= total
-            Log.d(TAG, "httpDownloadRanged: done ok=$ok position=$position total=$total")
             ok
         } catch (e: Exception) {
             Log.e(TAG, "httpDownloadRanged: exception: ${e.message}", e)

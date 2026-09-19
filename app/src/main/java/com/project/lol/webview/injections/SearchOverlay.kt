@@ -28,6 +28,8 @@ object SearchOverlay {
 
                 var panel = null, pInput = null, debTimer = null, seq = 0;
                 var lastQ = '', anchoredBtn = null;
+                var showGuardUntil = 0;
+                var resizeTimer = null;
 
                 var HASH = '23f33ca50a0f4153dafc5cd1b4d1370db01b72130c2994bd0ffd07d5a7fee8f0';
                 var RECENT_HASH = '3ec071f88e403779d4da9bc5744feb9d64cd07d10daf1f966b912baadaa3d598';
@@ -115,8 +117,19 @@ object SearchOverlay {
                     if(t) t.appendChild(st);
                 }
 
+                function anchorSearchIcon(){
+                    var icon = document.querySelector('#global-nav-bar button[data-testid="search-icon"]');
+                    if(icon && icon.isConnected){
+                        anchoredBtn = icon;
+                        return true;
+                    }
+                    return false;
+                }
+
                 function showPanel(){
-                    if(!panel || !anchoredBtn) return;
+                    if(!panel) return;
+                    if(!anchorSearchIcon()) return;
+                    showGuardUntil = Date.now() + 400;
                     var r = anchoredBtn.getBoundingClientRect();
                     var w = vw();
                     var pw = Math.min(360, w - 24);
@@ -130,6 +143,26 @@ object SearchOverlay {
                         pInput.focus();
                         if(!pInput.value.trim()){ renderLoading(); doRecent(); }
                     }
+                }
+
+                function onViewportResize(){
+                    if(!panel || panel.style.display === 'none') return;
+                    if(Date.now() < showGuardUntil) return;
+                    if(!anchoredBtn || !anchoredBtn.isConnected) return;
+                    clearTimeout(resizeTimer);
+                    resizeTimer = setTimeout(function(){
+                        if(panel && panel.style.display !== 'none' && anchoredBtn && anchoredBtn.isConnected){
+                            var r = anchoredBtn.getBoundingClientRect();
+                            if(r.width > 0 && r.height > 0){
+                                var w = vw();
+                                var pw = Math.min(360, w - 24);
+                                panel.style.width = Math.round(pw) + 'px';
+                                var left = Math.max(8, Math.min(Math.round(r.left), Math.round(w - pw - 8)));
+                                panel.style.top = Math.round(r.bottom + 8) + 'px';
+                                panel.style.left = left + 'px';
+                            }
+                        }
+                    }, 120);
                 }
 
                 function hidePanel(){
@@ -563,12 +596,12 @@ object SearchOverlay {
                     });
 
                     document.addEventListener('mousedown', function(e){
-                        if(panel.style.display !== 'none' && !panel.contains(e.target) && !(anchoredBtn && anchoredBtn.contains(e.target))){
+                        if(panel.style.display !== 'none' && Date.now() >= showGuardUntil && !panel.contains(e.target) && !(anchoredBtn && anchoredBtn.contains(e.target))){
                             hidePanel();
                         }
                     }, true);
                     document.addEventListener('scroll', function(e){
-                        if(panel.style.display !== 'none'){
+                        if(panel.style.display !== 'none' && Date.now() >= showGuardUntil){
                             var t = e.target;
                             if(!(t === panel || (panel.contains && panel.contains(t)))) hidePanel();
                         }
@@ -589,8 +622,37 @@ object SearchOverlay {
                 }
 
                 css();
+                if(window.visualViewport){
+                    window.visualViewport.addEventListener('resize', onViewportResize);
+                }
+                window.addEventListener('resize', onViewportResize);
+                bindSearchIcon();
+                var navBar = document.getElementById('global-nav-bar');
+                var mo = null;
+                var moTarget = null;
+                function startMo(){
+                    navBar = document.getElementById('global-nav-bar');
+                    if(!navBar) return;
+                    if(mo && moTarget === navBar) return;
+                    if(mo) mo.disconnect();
+                    mo = new MutationObserver(function(){
+                        if(window.__splBg) return;
+                        var icon = document.querySelector('#global-nav-bar button[data-testid="search-icon"]');
+                        if(icon && !icon._splSearch) bindSearchIcon();
+                    });
+                    mo.observe(navBar, { childList: true, subtree: true });
+                    moTarget = navBar;
+                }
+                startMo();
+                var navMo = new MutationObserver(function(){ startMo(); });
+                function watchBody(){
+                    if(document.body) navMo.observe(document.body, { childList: true, subtree: false });
+                }
+                watchBody();
+                if(!navBar) document.addEventListener('DOMContentLoaded', watchBody, { once: true });
                 var int = setInterval(function(){
                     if(window.__splBg) return;
+                    if(navBar && !navBar.isConnected) startMo();
                     bindSearchIcon();
                 }, 2000);
             })();

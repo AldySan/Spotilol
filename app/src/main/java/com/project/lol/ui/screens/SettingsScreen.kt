@@ -50,8 +50,12 @@ import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.DirectionsCar
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Person
@@ -114,6 +118,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.webkit.WebViewCompat
 import com.project.lol.R
+import com.project.lol.offline.DownloadFormat
+import com.project.lol.offline.DownloadSettings
 import com.project.lol.profile.ProfileManager
 import com.project.lol.proxy.LocalProxyManager
 import com.project.lol.ui.theme.SpotifyTheme
@@ -219,6 +225,15 @@ fun SettingsContent(
     var dbgOverlay by remember { mutableStateOf(prefs.getBoolean("DebugOverlay", false)) }
     var showDevlogDialog by remember { mutableStateOf(false) }
     var showLyricsStyleDialog by remember { mutableStateOf(false) }
+    var showFormatDialog by remember { mutableStateOf(false) }
+    var showSubfolderDialog by remember { mutableStateOf(false) }
+    var dlFormat by remember {
+        mutableStateOf(DownloadSettings.format(context))
+    }
+    var dlSubfolder by remember {
+        mutableStateOf(DownloadSettings.subfolder(context))
+    }
+    var dlTags by remember { mutableStateOf(DownloadSettings.writeTags(context)) }
 
     Column(
         modifier = modifier
@@ -283,7 +298,7 @@ fun SettingsContent(
 
             SettingSwitchTile(
                 title = "AMOLED Theme",
-                subtitle = "Pure black background (saves battery)",
+                subtitle = "Pure black background to save battery",
                 icon = Icons.Default.DarkMode,
                 checked = amoledTheme,
                 onCheckedChange = { enabled ->
@@ -381,7 +396,7 @@ fun SettingsContent(
 
             SettingSwitchTile(
                 title = "Sort Playlists by Column",
-                subtitle = "Tap a playlist column header to sort: A-Z, then Z-A, then original",
+                subtitle = "Tap a playlist column header to sort alphabetically",
                 icon = Icons.AutoMirrored.Filled.Sort,
                 checked = playlistSortEnabled,
                 onCheckedChange = {
@@ -405,7 +420,7 @@ fun SettingsContent(
 
             SettingSwitchTile(
                 title = "Take Player Control",
-                subtitle = "Auto-accept 'Take Control' prompt",
+                subtitle = "Auto accept the Take Control prompt",
                 icon = Icons.Default.TouchApp,
                 checked = takeControl,
                 onCheckedChange = {
@@ -448,9 +463,9 @@ fun SettingsContent(
             SettingSwitchTile(
                 title = "Offline Mode",
                 subtitle = if (offlineMode) {
-                    "On — playing downloaded songs only"
+                    "On, playing downloaded songs only"
                 } else {
-                    "Play only downloaded songs — restarts the app"
+                    "Play only downloaded songs, restarts the app"
                 },
                 icon = Icons.Default.CloudOff,
                 checked = offlineMode,
@@ -464,7 +479,7 @@ fun SettingsContent(
 
             SettingSwitchTile(
                 title = "Block Service Worker",
-                subtitle = "Prevent Spotify's SW from intercepting requests",
+                subtitle = "Prevent service workers from intercepting requests",
                 icon = Icons.Default.Shield,
                 checked = blockSW,
                 onCheckedChange = { enabled ->
@@ -475,12 +490,46 @@ fun SettingsContent(
         }
 
         SettingSectionCard(
+            title = "DOWNLOADS",
+            icon = Icons.Default.Download
+        ) {
+            SettingTile(
+                title = "Audio Format",
+                subtitle = if (dlFormat == DownloadFormat.MP3) "MP3 converted at 320 kbps" else "M4A original AAC",
+                icon = Icons.Default.GraphicEq,
+                onClick = { showFormatDialog = true }
+            )
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+
+            SettingTile(
+                title = "Download Folder",
+                subtitle = "Saves to $dlSubfolder inside Music",
+                icon = Icons.Default.Folder,
+                onClick = { showSubfolderDialog = true }
+            )
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+
+            SettingSwitchTile(
+                title = "Write Tags and Cover Art",
+                subtitle = "Embed metadata and cover art into the file",
+                icon = Icons.Default.LibraryMusic,
+                checked = dlTags,
+                onCheckedChange = { enabled ->
+                    dlTags = enabled
+                    DownloadSettings.setWriteTags(context, enabled)
+                }
+            )
+        }
+
+        SettingSectionCard(
             title = "BLUETOOTH",
             icon = Icons.Default.Smartphone
         ) {
             SettingSwitchTile(
                 title = "Pause on Disconnect",
-                subtitle = "Pause when BT/headphones disconnect",
+                subtitle = "Pause when BT or wired audio disconnects",
                 icon = Icons.Default.Smartphone,
                 checked = btAutoPause,
                 onCheckedChange = {
@@ -566,7 +615,7 @@ fun SettingsContent(
             }
             SettingTile(
                 title = "MITM Proxy Mode",
-                subtitle = "$modeLabel — restarts the app",
+                subtitle = "$modeLabel, restarts the app",
                 icon = Icons.Default.Shield,
                 onClick = { showConnectionModeDialog = true }
             )
@@ -599,7 +648,7 @@ fun SettingsContent(
             HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
             SettingTile(
-                title = "Empty Cache & Login Data",
+                title = "Empty Cache and Login Data",
                 subtitle = "Clear everything and log out",
                 icon = Icons.Default.DeleteForever,
                 onClick = { showClearDataDialog = true },
@@ -633,7 +682,7 @@ fun SettingsContent(
 
         if (connectionMode == "proxy") {
             SettingSectionCard(
-                title = "SECURITY & NETWORK",
+                title = "SECURITY AND NETWORK",
                 icon = Icons.Default.Shield
             ) {
                 SettingTile(
@@ -709,7 +758,7 @@ fun SettingsContent(
 
             SettingTile(
                 title = "Open Devlog",
-                subtitle = if (dbgOverlay) "Live - JS + native events" else "Enable debug first",
+                subtitle = if (dbgOverlay) "Live JS and native events" else "Enable debug first",
                 icon = Icons.Default.Code,
                 onClick = { showDevlogDialog = true },
                 enabled = dbgOverlay
@@ -856,6 +905,35 @@ fun SettingsContent(
         )
     }
 
+    if (showFormatDialog) {
+        SingleChoiceDialog(
+            title = "Audio Format",
+            options = listOf(
+                DownloadFormat.M4A.name to "M4A original AAC",
+                DownloadFormat.MP3.name to "MP3 converted at 320 kbps"
+            ),
+            selected = dlFormat.name,
+            onSelect = { value ->
+                val f = DownloadFormat.from(value)
+                dlFormat = f
+                DownloadSettings.setFormat(context, f)
+            },
+            onDismiss = { showFormatDialog = false }
+        )
+    }
+
+    if (showSubfolderDialog) {
+        SubfolderDialog(
+            initial = dlSubfolder,
+            onSave = { value ->
+                dlSubfolder = value
+                DownloadSettings.setSubfolder(context, value)
+                showSubfolderDialog = false
+            },
+            onDismiss = { showSubfolderDialog = false }
+        )
+    }
+
     if (showGuiModeDialog) {
         SingleChoiceDialog(
             title = "GUI Hack Mode",
@@ -900,7 +978,7 @@ fun SettingsContent(
 
     if (showClearDataDialog) {
         ConfirmationDialog(
-            title = "Empty Cache & Login Data",
+            title = "Empty Cache and Login Data",
             message = "All cookies and login data will be deleted. On restart you will need to log in again. Continue?",
             confirmText = "Clear All Data",
             isDestructive = true,
@@ -1581,6 +1659,82 @@ fun CustomCssDialog(
         confirmButton = {
             TextButton(
                 onClick = { onSave(tempCss) }
+            ) {
+                Text("Save", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    )
+}
+
+@Composable
+fun SubfolderDialog(
+    initial: String,
+    onSave: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var tempName by remember { mutableStateOf(initial) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(28.dp),
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.Folder,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    text = "Download Folder",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        },
+        text = {
+            Column {
+                Text(
+                    text = "Name of the subfolder inside Music where downloads are saved",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+                OutlinedTextField(
+                    value = tempName,
+                    onValueChange = { tempName = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    prefix = {
+                        Text(
+                            "Music",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
+                    singleLine = true,
+                    shape = RoundedCornerShape(16.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
+                    )
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val cleaned = tempName
+                        .trim()
+                        .replace(Regex("[/\\\\]+"), "-")
+                        .ifBlank { DownloadSettings.DEFAULT_SUBFOLDER }
+                    onSave(cleaned)
+                }
             ) {
                 Text("Save", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             }

@@ -614,12 +614,14 @@ fun SettingsContent(
                 icon = Icons.Default.Link,
                 onClick = {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                        runCatching {
-                            context.startActivity(
-                                Intent(Settings.ACTION_APP_OPEN_BY_DEFAULT_SETTINGS)
-                                    .setData(Uri.parse("package:${context.packageName}"))
-                            )
-                        }.onFailure {
+                        val pkg = Uri.parse("package:${context.packageName}")
+                        val specific = Intent(Settings.ACTION_APP_OPEN_BY_DEFAULT_SETTINGS).setData(pkg)
+                        val generic = Intent(Settings.ACTION_APP_OPEN_BY_DEFAULT_SETTINGS)
+                        val appInfo = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).setData(pkg)
+                        val opened = listOf(specific, generic, appInfo).any { intent ->
+                            runCatching { context.startActivity(intent) }.isSuccess
+                        }
+                        if (!opened) {
                             Toast.makeText(context, "Not supported on this device", Toast.LENGTH_SHORT).show()
                         }
                     } else {

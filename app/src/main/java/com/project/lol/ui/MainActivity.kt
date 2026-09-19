@@ -20,7 +20,6 @@ import android.os.Bundle
 import android.os.CountDownTimer
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
 import android.util.Rational
 import android.widget.Toast
 import android.view.LayoutInflater
@@ -420,20 +419,16 @@ class MainActivity : ComponentActivity() {
                             }
 
                             bridge.onDownloadTrack = { payload ->
-                                Log.d("Spl-DL", "bridge.onDownloadTrack: payload=$payload")
                                 wireDownloadCallbacks()
                                 startDownloadService()
                                 DownloadManager.downloadCurrentTrack(this@MainActivity, payload)
                             }
 
                             bridge.onDownloadCollection = { payload ->
-                                Log.d("Spl-DL", "bridge.onDownloadCollection: payload=${payload.take(300)}")
                                 wireDownloadCallbacks()
                                 startDownloadService()
                                 DownloadManager.downloadCollection(this@MainActivity, payload)
                             }
-
-
 
                             AndroidView(
                                 factory = { context ->

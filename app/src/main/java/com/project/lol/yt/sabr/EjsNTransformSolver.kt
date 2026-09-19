@@ -42,11 +42,9 @@ object EjsNTransformSolver {
     suspend fun transformNParamInUrl(url: String): String {
         val nMatch = Regex("[?&]n=([^&]+)").find(url)
         if (nMatch == null) {
-            Log.d(TAG, "No 'n' parameter in SABR URL")
             return url
         }
         val nValue = Uri.decode(nMatch.groupValues[1])
-        Log.d(TAG, "SABR n-param: $nValue")
 
         return withContext(NonCancellable) {
             val solver = getOrCreateSolver()
@@ -61,7 +59,6 @@ object EjsNTransformSolver {
 
             try {
                 val transformed = solver.transformN(nValue)
-                Log.d(TAG, "SABR n-param transformed: $nValue -> $transformed")
                 url.replaceFirst(
                     Regex("([?&])n=[^&]+"),
                     "$1n=${Uri.encode(transformed)}"
@@ -85,7 +82,6 @@ object EjsNTransformSolver {
                 return@withContext null
             }
             val (playerJs, hash) = result
-            Log.d(TAG, "Creating EJS n-solver (player hash=$hash, ${playerJs.length} chars)")
 
             try {
                 val sv = SolverWebView.create(CipherDeobfuscator.appContext, playerJs)
@@ -159,7 +155,6 @@ object EjsNTransformSolver {
             }
 
             File(solverCacheDir, "player.js").writeText(playerJs)
-            Log.d(TAG, "EJS solver assets written (${playerJs.length} chars)")
 
             val html = """<!DOCTYPE html>
 <html><head>
@@ -241,13 +236,11 @@ function transformN(nValue) {
 
         @JavascriptInterface
         fun onLog(message: String) {
-            Log.d(TAG, message)
         }
 
         @JavascriptInterface
         fun onSolverReady(nAvailable: String) {
             nFunctionAvailable = nAvailable == "true"
-            Log.d(TAG, "EJS solver ready: n=$nFunctionAvailable")
             initContinuation.resume(this)
         }
 
@@ -275,7 +268,6 @@ function transformN(nValue) {
 
         @JavascriptInterface
         fun onNResult(result: String) {
-            Log.d(TAG, "N-transform result: ${result.take(50)}")
             nContinuation?.resume(result)
             nContinuation = null
         }
@@ -294,7 +286,6 @@ function transformN(nValue) {
             webView.onPause()
             webView.removeAllViews()
             webView.destroy()
-            Log.d(TAG, "EJS solver WebView closed")
         }
 
         private fun escapeJsString(s: String): String {

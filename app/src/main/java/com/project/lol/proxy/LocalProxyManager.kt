@@ -132,15 +132,12 @@ object LocalProxyManager {
         val password = getOrCreateKeystorePassword(context)
 
         if (!ksFile.exists()) {
-            Log.d(TAG, "Generating new CA certificate")
             generateCA(ksFile, password)
         } else {
             try {
-                Log.d(TAG, "Loading existing CA certificate")
                 loadCA(ksFile, password)
             } catch (_: Exception) {
                 try {
-                    Log.d(TAG, "Migrating keystore to new password")
                     val ks = KeyStore.getInstance(KEYSTORE_TYPE)
                     ksFile.inputStream().use { ks.load(it, "".toCharArray()) }
                     val entry = ks.getEntry(CA_ALIAS, KeyStore.PasswordProtection("".toCharArray())) as KeyStore.PrivateKeyEntry
@@ -150,7 +147,6 @@ object LocalProxyManager {
                     newKs.load(null, null)
                     newKs.setKeyEntry(CA_ALIAS, caKeyPair!!.private, password.toCharArray(), arrayOf(caCert))
                     ksFile.outputStream().use { newKs.store(it, password.toCharArray()) }
-                    Log.d(TAG, "Keystore migrated to new password")
                 } catch (e2: Exception) {
                     Log.w(TAG, "Failed to load/migrate CA, regenerating", e2)
                     ksFile.delete()
@@ -203,7 +199,6 @@ object LocalProxyManager {
         ks.setKeyEntry(CA_ALIAS, caKeyPair!!.private, password.toCharArray(), arrayOf(caCert))
         ksFile.outputStream().use { ks.store(it, password.toCharArray()) }
 
-        Log.d(TAG, "CA certificate generated and saved")
     }
 
     private fun loadCA(ksFile: File, password: String) {
@@ -214,7 +209,6 @@ object LocalProxyManager {
         caKeyPair = KeyPair(entry.certificate.publicKey, entry.privateKey)
         caCert = entry.certificate as X509Certificate
 
-        Log.d(TAG, "CA certificate loaded")
     }
 
     /**
@@ -271,7 +265,6 @@ object LocalProxyManager {
             try {
                 val ss = ServerSocket(0, 128, java.net.InetAddress.getByName("127.0.0.1"))
                 serverSocket = ss
-                Log.d(TAG, "Proxy started on port ${ss.localPort} (dedicated acceptor)")
 
                 while (!ss.isClosed) {
                     val client = try {
@@ -291,7 +284,6 @@ object LocalProxyManager {
     fun stop() {
         try {
             serverSocket?.close()
-            Log.d(TAG, "Proxy stopped")
         } catch (e: Exception) {
             Log.e(TAG, "Error stopping proxy", e)
         } finally {
@@ -416,7 +408,6 @@ object LocalProxyManager {
     }
 
     private fun handleConnect(client: Socket, host: String, targetPort: Int = 443) {
-        Log.d(TAG, "CONNECT $host:$targetPort")
 
         var clientSSLSocket: SSLSocket? = null
         var upstreamSSLSocket: SSLSocket? = null
@@ -452,12 +443,10 @@ object LocalProxyManager {
             // We only ever offer "http/1.1" to the client above, so this is always false currently.
             // Kept so upstream ALPN stays correct if that ever changes.
             val useHttp2 = negotiatedProtocol == "h2"
-            Log.d(TAG, "Protocol for $host: ${negotiatedProtocol ?: "none"}")
 
             val borrowed = borrowUpstreamSocket(host, targetPort)
             var upstream: SSLSocket = if (borrowed != null) {
                 fromPool = true
-                Log.d(TAG, "Reusing pooled upstream connection for $host")
                 borrowed
             } else {
                 openUpstreamSocket(host, targetPort, useHttp2)
@@ -489,7 +478,6 @@ object LocalProxyManager {
                     } catch (e: Exception) {
                         //Retry once on a fresh socket instead of failing the whole tunnel;
                         if (!fromPool) throw e
-                        Log.d(TAG, "Pooled upstream for $host was stale, reconnecting")
                         try { upstream.close() } catch (_: Exception) {}
                         upstream = openUpstreamSocket(host, targetPort, false)
                         upstreamSSLSocket = upstream
@@ -849,12 +837,10 @@ object LocalProxyManager {
                 val cert = ks.getCertificate(alias) as? X509Certificate ?: continue
                 try {
                     if (cert.encoded.contentEquals(ourEncoded)) {
-                        Log.d(TAG, "CA found in trust store under alias: $alias")
                         return true
                     }
                 } catch (_: Exception) {}
             }
-            Log.d(TAG, "CA not found in Android trust store")
             return false
         } catch (e: Exception) {
             Log.e(TAG, "Failed to query AndroidCAStore", e)
@@ -937,7 +923,6 @@ object LocalProxyManager {
                         ?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
                 } catch (_: Exception) { null }
                 val name = realName ?: displayName
-                Log.d(TAG, "CA exported to Downloads as $name")
                 File(File(Environment.getExternalStorageDirectory(), Environment.DIRECTORY_DOWNLOADS), name).absolutePath
             } catch (e: Exception) {
                 Log.e(TAG, "MediaStore export failed, falling back to app dir", e)
@@ -962,7 +947,6 @@ object LocalProxyManager {
             val dir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: context.filesDir
             val file = File(dir, "Spotilol_CA.pem")
             file.writeText(pem)
-            Log.d(TAG, "CA exported to app dir: ${file.absolutePath}")
             file.absolutePath
         } catch (e: Exception) {
             Log.e(TAG, "Failed to export CA certificate", e)

@@ -28,15 +28,11 @@ class PoTokenGenerator {
     private var webPoTokenGenerator: PoTokenWebView? = null
 
     fun getWebClientPoToken(videoId: String, sessionId: String): PoTokenResult? {
-        Log.d(TAG, "getWebClientPoToken called: videoId=$videoId, sessionId=$sessionId")
-        Log.d(TAG, "WebView state: supported=$webViewSupported, badImpl=$webViewBadImpl")
         if (!webViewSupported || webViewBadImpl) {
-            Log.d(TAG, "WebView not available: supported=$webViewSupported, badImpl=$webViewBadImpl")
             return null
         }
 
         return try {
-            Log.d(TAG, "Calling runBlocking to generate poToken...")
             runBlocking {
                 withTimeout(POTOKEN_TIMEOUT_MS) {
                     getWebClientPoToken(videoId, sessionId, forceRecreate = false)
@@ -65,7 +61,6 @@ class PoTokenGenerator {
      * [PoTokenWebView.generatePoToken] was called
      */
     private suspend fun getWebClientPoToken(videoId: String, sessionId: String, forceRecreate: Boolean): PoTokenResult {
-        Log.d(TAG, "Web poToken requested: videoId=$videoId, sessionId=$sessionId")
 
         val (poTokenGenerator, streamingPot, hasBeenRecreated) =
             webPoTokenGenLock.withLock {
@@ -73,7 +68,6 @@ class PoTokenGenerator {
                     forceRecreate || webPoTokenGenerator == null || webPoTokenGenerator!!.isExpired || webPoTokenSessionId != sessionId
 
                 if (shouldRecreate) {
-                    Log.d(TAG, "Creating new PoTokenWebView (forceRecreate=$forceRecreate)")
                     webPoTokenSessionId = sessionId
 
                     withContext(Dispatchers.Main) {
@@ -86,7 +80,6 @@ class PoTokenGenerator {
                     // The streaming poToken needs to be generated exactly once before generating
                     // any other (player) tokens.
                     webPoTokenStreamingPot = webPoTokenGenerator!!.generatePoToken(webPoTokenSessionId!!)
-                    Log.d(TAG, "Streaming poToken generated for sessionId=${webPoTokenSessionId?.take(20)}...")
                 }
 
                 Triple(webPoTokenGenerator!!, webPoTokenStreamingPot!!, shouldRecreate)
@@ -107,8 +100,6 @@ class PoTokenGenerator {
                 return getWebClientPoToken(videoId = videoId, sessionId = sessionId, forceRecreate = true)
             }
         }
-
-        Log.d(TAG, "poToken generated successfully: player=${playerPot.take(20)}..., streaming=${streamingPot.take(20)}...")
 
         return PoTokenResult(playerPot, streamingPot)
     }

@@ -55,11 +55,10 @@ class PoTokenWebView private constructor(
         webView.webChromeClient = object : WebChromeClient() {
             override fun onConsoleMessage(m: ConsoleMessage): Boolean {
                 val msg = m.message()
-                // Log all console messages for debugging
                 when (m.messageLevel()) {
                     ConsoleMessage.MessageLevel.ERROR -> Log.e(TAG, "JS: $msg")
                     ConsoleMessage.MessageLevel.WARNING -> Log.w(TAG, "JS: $msg")
-                    else -> Log.d(TAG, "JS: $msg")
+                    else -> {}
                 }
 
                 if (msg.contains("Uncaught")) {
@@ -81,7 +80,6 @@ class PoTokenWebView private constructor(
      * run it, and obtain an `integrityToken`.
      */
     private fun loadHtmlAndObtainBotguard() {
-        Log.d(TAG, "loadHtmlAndObtainBotguard() called")
 
         scope.launch(exceptionHandler) {
             val html = withContext(Dispatchers.IO) {
@@ -100,7 +98,6 @@ class PoTokenWebView private constructor(
      */
     @JavascriptInterface
     fun downloadAndRunBotguard() {
-        Log.d(TAG, "downloadAndRunBotguard() called")
 
         makeBotguardServiceRequest(
             "https://www.youtube.com/api/jnn/v1/Create",
@@ -142,22 +139,18 @@ class PoTokenWebView private constructor(
      */
     @JavascriptInterface
     fun onRunBotguardResult(botguardResponse: String) {
-        Log.d(TAG, "botguardResponse: $botguardResponse")
         makeBotguardServiceRequest(
             "https://www.youtube.com/api/jnn/v1/GenerateIT",
             "[ \"$REQUEST_KEY\", \"$botguardResponse\" ]",
         ) { responseBody ->
-            Log.d(TAG, "GenerateIT response: $responseBody")
             try {
                 val (integrityToken, expirationTimeInSeconds) = parseIntegrityTokenData(responseBody)
-                Log.d(TAG, "Parsed integrityToken (${integrityToken.take(50)}...), expires in $expirationTimeInSeconds sec")
 
                 // leave 10 minutes of margin just to be sure
                 expirationInstant = Instant.now().plusSeconds(expirationTimeInSeconds).minus(10, ChronoUnit.MINUTES)
 
                 // Store integrityToken and create the minter callback ONCE
                 // NOTE: createPoTokenMinter is now async, so we use .then()
-                Log.d(TAG, "Evaluating createPoTokenMinter JavaScript...")
                 webView.evaluateJavascript(
                     """try {
                         console.log('[JS] Setting integrityToken and calling createPoTokenMinter...');
@@ -187,7 +180,6 @@ class PoTokenWebView private constructor(
      */
     @JavascriptInterface
     fun onMinterCreated() {
-        Log.d(TAG, "poToken minter created successfully, initialization complete")
         continuation.resume(this)
     }
     //endregion
@@ -196,7 +188,6 @@ class PoTokenWebView private constructor(
     suspend fun generatePoToken(identifier: String): String {
         return withContext(Dispatchers.Main) {
             suspendCancellableCoroutine { cont ->
-                Log.d(TAG, "generatePoToken() called with identifier $identifier")
                 addPoTokenEmitter(identifier, cont)
                 // NOTE: obtainPoToken is now async, so we use .then()
                 webView.evaluateJavascript(
@@ -236,7 +227,6 @@ class PoTokenWebView private constructor(
      */
     @JavascriptInterface
     fun onObtainPoTokenResult(identifier: String, poTokenU8: String) {
-        Log.d(TAG, "Generated poToken (before decoding): identifier=$identifier poTokenU8=$poTokenU8")
         val poToken = try {
             u8ToBase64(poTokenU8)
         } catch (t: Throwable) {
@@ -244,7 +234,6 @@ class PoTokenWebView private constructor(
             return
         }
 
-        Log.d(TAG, "Generated poToken: identifier=$identifier poToken=$poToken")
         popPoTokenContinuation(identifier)?.resume(poToken)
     }
 

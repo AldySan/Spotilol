@@ -111,7 +111,6 @@ dependencies {
     implementation(libs.newpipeextractor)
     implementation(libs.brotli)
     implementation(libs.okhttp)
-    implementation(libs.timber)
 
     // Core library desugaring (required by NewPipeExtractor)
     coreLibraryDesugaring(libs.desugaring)

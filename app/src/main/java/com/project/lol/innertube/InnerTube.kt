@@ -24,7 +24,6 @@ import java.io.IOException
 import kotlinx.coroutines.delay
 import java.util.*
 import kotlin.io.encoding.Base64
-import timber.log.Timber
 import kotlin.io.encoding.ExperimentalEncodingApi
 
 /**
@@ -257,6 +256,5 @@ class InnerTube {
             contentType(ContentType.Application.Json)
         }
     }
-
 
 }

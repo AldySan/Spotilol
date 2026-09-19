@@ -85,18 +85,11 @@ object YTPlayerUtils {
         connectivityManager: ConnectivityManager,
         skipValidation: Boolean = false,
     ): Result<PlaybackData> = runCatching {
-        Log.d(TAG, "=== PLAYER RESPONSE FOR PLAYBACK ===")
-        Log.d(TAG, "videoId: $videoId")
-        Log.d(TAG, "playlistId: $playlistId")
-        Log.d(TAG, "audioQuality: $audioQuality")
 
         // Check if this is an uploaded/privately owned track
         val isUploadedTrack = playlistId == "MLPT" || playlistId?.contains("MLPT") == true
-        Log.d(TAG, "Content type detection (preliminary):")
-        Log.d(TAG, "  isUploadedTrack (from playlistId): $isUploadedTrack")
 
         val isLoggedIn = YouTube.cookie != null
-        Log.d(TAG, "Authentication status: ${if (isLoggedIn) "LOGGED_IN" else "ANONYMOUS"}")
 
         // Run signature-timestamp and PoToken generation in parallel — they are
         // independent and each takes 1-3s, so overlapping them nearly halves the
@@ -111,11 +104,7 @@ object YTPlayerUtils {
         val potFuture: java.util.concurrent.CompletableFuture<PoTokenResult?>? =
             if (mainClientNeedsPoToken && sessionId != null) {
                 java.util.concurrent.CompletableFuture.supplyAsync {
-                    Log.d(TAG, "Generating PoToken for WEB_REMIX with sessionId")
-                    try {
-                        poTokenGenerator.getWebClientPoToken(videoId, sessionId).also {
-                            if (it != null) Log.d(TAG, "PoToken generated successfully")
-                        }
+                    try {                    poTokenGenerator.getWebClientPoToken(videoId, sessionId)
                     } catch (e: Exception) {
                         Log.e(TAG, "PoToken generation failed: ${e.message}", e)
                         null
@@ -133,7 +122,6 @@ object YTPlayerUtils {
             Log.w(TAG, "Signature timestamp timed out or failed: ${e.message}")
             SignatureTimestampResult(null, isAgeRestricted = false)
         }
-        Log.d(TAG, "Signature timestamp: ${signatureTimestamp.timestamp}")
         var poToken: PoTokenResult? = try {
             potFuture?.get(POT_FUTURE_TIMEOUT_SEC, java.util.concurrent.TimeUnit.SECONDS)
         } catch (e: Exception) {
@@ -150,17 +138,7 @@ object YTPlayerUtils {
         }
 
         // Try WEB_REMIX with signature timestamp and poToken (same as before)
-        Log.d(TAG, "Attempting to get player response using MAIN_CLIENT: ${MAIN_CLIENT.clientName}")
         var mainPlayerResponse = YouTube.player(videoId, playlistId, MAIN_CLIENT, signatureTimestamp.timestamp, poToken?.playerRequestPoToken).getOrThrow()
-
-        // Debug uploaded track response
-        if (isUploadedTrack || playlistId?.contains("MLPT") == true) {
-            println("[PLAYBACK_DEBUG] Main player response status: ${mainPlayerResponse.playabilityStatus.status}")
-            println("[PLAYBACK_DEBUG] Playability reason: ${mainPlayerResponse.playabilityStatus.reason}")
-            println("[PLAYBACK_DEBUG] Video details: title=${mainPlayerResponse.videoDetails?.title}, videoId=${mainPlayerResponse.videoDetails?.videoId}")
-            println("[PLAYBACK_DEBUG] Streaming data null? ${mainPlayerResponse.streamingData == null}")
-            println("[PLAYBACK_DEBUG] Adaptive formats count: ${mainPlayerResponse.streamingData?.adaptiveFormats?.size ?: 0}")
-        }
 
         var usedAgeRestrictedClient: YouTubeClient? = null
         val wasOriginallyAgeRestricted: Boolean
@@ -172,11 +150,9 @@ object YTPlayerUtils {
 
         if (isAgeRestrictedFromResponse && isLoggedIn) {
             // Age-restricted: use WEB_CREATOR directly (no NewPipe needed from here)
-            Log.d(TAG, "Age-restricted detected, using WEB_CREATOR")
             Log.i(TAG, "Age-restricted: using WEB_CREATOR for videoId=$videoId")
             val creatorResponse = YouTube.player(videoId, playlistId, WEB_CREATOR, null, null).getOrNull()
             if (creatorResponse?.playabilityStatus?.status == "OK") {
-                Log.d(TAG, "WEB_CREATOR works for age-restricted content")
                 mainPlayerResponse = creatorResponse
                 usedAgeRestrictedClient = WEB_CREATOR
             }
@@ -198,7 +174,6 @@ object YTPlayerUtils {
         val isAgeRestricted = currentStatus in listOf("AGE_CHECK_REQUIRED", "AGE_VERIFICATION_REQUIRED", "LOGIN_REQUIRED", "CONTENT_CHECK_REQUIRED")
 
         if (isAgeRestricted) {
-            Log.d(TAG, "Content is still age-restricted (status: $currentStatus), will try fallback clients")
             Log.i(TAG, "Age-restricted content detected: videoId=$videoId, status=$currentStatus")
         }
 
@@ -227,19 +202,15 @@ object YTPlayerUtils {
                 // try with streams from main client first (use retry response if available)
                 client = MAIN_CLIENT
                 streamPlayerResponse = retryMainPlayerResponse ?: mainPlayerResponse
-                Log.d(TAG, "Trying stream from MAIN_CLIENT: ${client.clientName}")
             } else {
                 // after main client use fallback clients
                 client = STREAM_FALLBACK_CLIENTS[clientIndex]
-                Log.d(TAG, "Trying fallback client ${clientIndex + 1}/${STREAM_FALLBACK_CLIENTS.size}: ${client.clientName}")
 
                 if (client.loginRequired && !isLoggedIn && YouTube.cookie == null) {
                     // skip client if it requires login but user is not logged in
-                    Log.d(TAG, "Skipping client ${client.clientName} - requires login but user is not logged in")
                     continue
                 }
 
-                Log.d(TAG, "Fetching player response for fallback client: ${client.clientName}")
                 // Only pass poToken for clients that support it
                 val clientPoToken = if (client.useWebPoTokens) poToken?.playerRequestPoToken else null
                 // Skip signature timestamp for age-restricted (faster), use it for normal content
@@ -263,11 +234,9 @@ object YTPlayerUtils {
 
             // process current client response
             if (streamPlayerResponse?.playabilityStatus?.status == "OK") {
-                Log.d(TAG, "Player response status OK for client: ${if (clientIndex == -1) MAIN_CLIENT.clientName else STREAM_FALLBACK_CLIENTS[clientIndex].clientName}")
 
                 // Skip NewPipe for age-restricted content (NewPipe doesn't use our auth)
                 val responseToUse = if (wasOriginallyAgeRestricted) {
-                    Log.d(TAG, "Skipping NewPipe for age-restricted content")
                     streamPlayerResponse
                 } else {
                     // Try to get streams using newPipePlayer method
@@ -283,15 +252,11 @@ object YTPlayerUtils {
                     )
 
                 if (format == null) {
-                    Log.d(TAG, "No suitable format found for client: ${if (clientIndex == -1) MAIN_CLIENT.clientName else STREAM_FALLBACK_CLIENTS[clientIndex].clientName}")
                     continue
                 }
 
-                Log.d(TAG, "Format found: ${format.mimeType}, bitrate: ${format.bitrate}")
-
                 streamUrl = findUrlOrNull(format, videoId, responseToUse, skipNewPipe = wasOriginallyAgeRestricted)
                 if (streamUrl == null) {
-                    Log.d(TAG, "Stream URL not found for format")
                     continue
                 }
 
@@ -306,51 +271,24 @@ object YTPlayerUtils {
                 val isPrivatelyOwnedTrack = streamPlayerResponse.videoDetails?.musicVideoType == "MUSIC_VIDEO_TYPE_PRIVATELY_OWNED_TRACK"
                 val musicVideoType = streamPlayerResponse.videoDetails?.musicVideoType
 
-                Log.d(TAG, "=== N-TRANSFORM DECISION ===")
-                Log.d(TAG, "Content type analysis:")
-                Log.d(TAG, "  musicVideoType: $musicVideoType")
-                Log.d(TAG, "  isPrivatelyOwnedTrack: $isPrivatelyOwnedTrack")
-                Log.d(TAG, "  isUploadedTrack (from playlistId): $isUploadedTrack")
-                Log.d(TAG, "  wasOriginallyAgeRestricted: $wasOriginallyAgeRestricted")
-                Log.d(TAG, "Client analysis:")
-                Log.d(TAG, "  currentClient: ${currentClient.clientName}")
-                Log.d(TAG, "  useWebPoTokens: ${currentClient.useWebPoTokens}")
-
                 // Apply n-transform and PoToken for web clients OR for private tracks (including TVHTML5)
                 val needsNTransform = currentClient.useWebPoTokens ||
                     currentClient.clientName in listOf("WEB", "WEB_REMIX", "WEB_CREATOR", "TVHTML5") ||
                     isPrivatelyOwnedTrack
 
-                Log.d(TAG, "N-transform decision:")
-                Log.d(TAG, "  needsNTransform: $needsNTransform")
-                Log.d(TAG, "  Reason: useWebPoTokens=${currentClient.useWebPoTokens}, " +
-                    "clientInList=${currentClient.clientName in listOf("WEB", "WEB_REMIX", "WEB_CREATOR", "TVHTML5")}, " +
-                    "isPrivatelyOwnedTrack=$isPrivatelyOwnedTrack")
-
                 if (needsNTransform) {
                     try {
-                        Log.d(TAG, "Applying n-transform to stream URL...")
-                        Log.d(TAG, "  Original URL length: ${streamUrl.length}")
-                        Log.d(TAG, "  Original URL preview: ${streamUrl.take(100)}...")
 
                         val originalUrl = streamUrl
                         // Use CipherDeobfuscator for n-transform (fixed implementation)
                         streamUrl = CipherDeobfuscator.transformNParamInUrl(streamUrl)
 
-                        Log.d(TAG, "  Transformed URL length: ${streamUrl.length}")
-                        Log.d(TAG, "  URL changed: ${originalUrl != streamUrl}")
-
                         // Append pot= parameter with streaming data poToken
                         val needsPoToken = (currentClient.useWebPoTokens || isPrivatelyOwnedTrack) && poToken?.streamingDataPoToken != null
-                        Log.d(TAG, "PoToken decision:")
-                        Log.d(TAG, "  needsPoToken: $needsPoToken")
-                        Log.d(TAG, "  hasStreamingDataPoToken: ${poToken?.streamingDataPoToken != null}")
 
                         if (needsPoToken) {
-                            Log.d(TAG, "Appending pot= parameter to stream URL")
                             val separator = if ("?" in streamUrl) "&" else "?"
                             streamUrl = "${streamUrl}${separator}pot=${Uri.encode(poToken.streamingDataPoToken)}"
-                            Log.d(TAG, "  Final URL length (with pot): ${streamUrl.length}")
                         }
                     } catch (e: Exception) {
                         Log.e(TAG, "N-transform or pot append failed: ${e.message}", e)
@@ -358,16 +296,12 @@ object YTPlayerUtils {
                         // Continue with original URL
                     }
                 } else {
-                    Log.d(TAG, "Skipping n-transform (not required for this client/content)")
                 }
 
                 streamExpiresInSeconds = streamPlayerResponse.streamingData?.expiresInSeconds
                 if (streamExpiresInSeconds == null) {
-                    Log.d(TAG, "Stream expiration time not found")
                     continue
                 }
-
-                Log.d(TAG, "Stream expires in: $streamExpiresInSeconds seconds")
 
                 // Check if this is a privately owned track (uploaded song)
                 val isPrivatelyOwned = streamPlayerResponse.videoDetails?.musicVideoType == "MUSIC_VIDEO_TYPE_PRIVATELY_OWNED_TRACK"
@@ -375,10 +309,7 @@ object YTPlayerUtils {
                 if (clientIndex == STREAM_FALLBACK_CLIENTS.size - 1 || isPrivatelyOwned) {
                     /** skip [validateStatus] for last client or private tracks */
                     if (isPrivatelyOwned) {
-                        Log.d(TAG, "Skipping validation for privately owned track: ${currentClient.clientName}")
-                        println("[PLAYBACK_DEBUG] Using stream without validation for PRIVATELY_OWNED_TRACK")
                     } else {
-                        Log.d(TAG, "Using last fallback client without validation: ${STREAM_FALLBACK_CLIENTS[clientIndex].clientName}")
                     }
                     Log.i(TAG, "Playback: client=${currentClient.clientName}, videoId=$videoId, private=$isPrivatelyOwned")
                     break
@@ -386,32 +317,23 @@ object YTPlayerUtils {
 
                 if (skipValidation || validateStatus(streamUrl)) {
                     // working stream found
-                    Log.d(TAG, "Stream validated successfully with client: ${currentClient.clientName}")
                     // Log for release builds
                     Log.i(TAG, "Playback: client=${currentClient.clientName}, videoId=$videoId")
                     break
                 } else {
-                    Log.d(TAG, "Stream validation failed for client: ${currentClient.clientName}")
                 }
             } else {
-                Log.d(TAG, "Player response status not OK: ${streamPlayerResponse?.playabilityStatus?.status}, reason: ${streamPlayerResponse?.playabilityStatus?.reason}")
             }
         }
 
         if (streamPlayerResponse == null) {
             Log.e(TAG, "Bad stream player response - all clients failed")
-            if (isUploadedTrack) {
-                println("[PLAYBACK_DEBUG] FAILURE: All clients failed for uploaded track videoId=$videoId")
-            }
             throw Exception("Bad stream player response")
         }
 
         if (streamPlayerResponse.playabilityStatus.status != "OK") {
             val errorReason = streamPlayerResponse.playabilityStatus.reason
             Log.e(TAG, "Playability status not OK: $errorReason")
-            if (isUploadedTrack) {
-                println("[PLAYBACK_DEBUG] FAILURE: Playability not OK for uploaded track - status=${streamPlayerResponse.playabilityStatus.status}, reason=$errorReason")
-            }
             throw Exception(errorReason)
         }
 
@@ -430,10 +352,6 @@ object YTPlayerUtils {
             throw Exception("Could not find stream url")
         }
 
-        Log.d(TAG, "Successfully obtained playback data with format: ${format.mimeType}, bitrate: ${format.bitrate}")
-        if (isUploadedTrack) {
-            println("[PLAYBACK_DEBUG] SUCCESS: Got playback data for uploaded track - format=${format.mimeType}, streamUrl=${streamUrl.take(100)}...")
-        }
         PlaybackData(
             audioConfig,
             videoDetails,
@@ -443,8 +361,7 @@ object YTPlayerUtils {
             streamExpiresInSeconds,
         )
     }.onFailure { e ->
-        println("[PLAYBACK_DEBUG] EXCEPTION during playback for videoId=$videoId: ${e::class.simpleName}: ${e.message}")
-        e.printStackTrace()
+        Log.e(TAG, "Playback failed for videoId=$videoId", e)
     }
     /**
      * Simple player response intended to use for metadata only.
@@ -454,7 +371,6 @@ object YTPlayerUtils {
         videoId: String,
         playlistId: String? = null,
     ): Result<PlayerResponse> {
-        Log.d(TAG, "Fetching metadata-only player response for videoId: $videoId using MAIN_CLIENT: ${MAIN_CLIENT.clientName}")
         return YouTube.player(videoId, playlistId, client = WEB_REMIX) // ANDROID_VR does not work with history
             .onSuccess { Log.d(TAG, "Successfully fetched metadata") }
             .onFailure { Log.e(TAG, "Failed to fetch metadata", it) }
@@ -465,7 +381,6 @@ object YTPlayerUtils {
         audioQuality: AudioQuality,
         connectivityManager: ConnectivityManager,
     ): PlayerResponse.StreamingData.Format? {
-        Log.d(TAG, "Finding format with audioQuality: $audioQuality, network metered: ${connectivityManager.isActiveNetworkMetered}")
 
         val format = playerResponse.streamingData?.adaptiveFormats
             ?.filter { it.isAudio && it.isOriginal }
@@ -478,9 +393,7 @@ object YTPlayerUtils {
             }
 
         if (format != null) {
-            Log.d(TAG, "Selected format: ${format.mimeType}, bitrate: ${format.bitrate}")
         } else {
-            Log.d(TAG, "No suitable audio format found")
         }
 
         return format
@@ -498,7 +411,6 @@ object YTPlayerUtils {
      *  - other HTTP codes (4xx/5xx) → invalid
      */
     private fun validateStatus(url: String): Boolean {
-        Log.d(TAG, "Validating stream URL status")
         try {
             val requestBuilder = okhttp3.Request.Builder()
                 .head()
@@ -512,7 +424,6 @@ object YTPlayerUtils {
             response.close()
             val code = response.code
             val accepted = response.isSuccessful || code == 405 || code == 403 || code == 410
-            Log.d(TAG, "Stream URL validation: code=$code accepted=$accepted")
             return accepted
         } catch (e: java.io.IOException) {
             // Network timeout / reset while HEAD-probing. The stream URL itself may still
@@ -531,18 +442,15 @@ object YTPlayerUtils {
     )
 
     private fun getSignatureTimestampOrNull(videoId: String): SignatureTimestampResult {
-        Log.d(TAG, "Getting signature timestamp for videoId: $videoId")
         val result = NewPipeExtractor.getSignatureTimestamp(videoId)
         return result.fold(
             onSuccess = { timestamp ->
-                Log.d(TAG, "Signature timestamp obtained: $timestamp")
                 SignatureTimestampResult(timestamp, isAgeRestricted = false)
             },
             onFailure = { error ->
                 val isAgeRestricted = error.message?.contains("age-restricted", ignoreCase = true) == true ||
                     error.cause?.message?.contains("age-restricted", ignoreCase = true) == true
                 if (isAgeRestricted) {
-                    Log.d(TAG, "Age-restricted content detected from NewPipe")
                     Log.i(TAG, "Age-restricted detected early via NewPipe: videoId=$videoId")
                 } else {
                     Log.e(TAG, "Failed to get signature timestamp", error)
@@ -559,46 +467,37 @@ object YTPlayerUtils {
         playerResponse: PlayerResponse,
         skipNewPipe: Boolean = false
     ): String? {
-        Log.d(TAG, "Finding stream URL for format: ${format.mimeType}, videoId: $videoId, skipNewPipe: $skipNewPipe")
 
         // First check if format already has a URL
         if (!format.url.isNullOrEmpty()) {
-            Log.d(TAG, "Using URL from format directly")
             return format.url
         }
 
         // Try custom cipher deobfuscation for signatureCipher formats
         val signatureCipher = format.signatureCipher ?: format.cipher
         if (!signatureCipher.isNullOrEmpty()) {
-            Log.d(TAG, "Format has signatureCipher, using custom deobfuscation")
             val customDeobfuscatedUrl = CipherDeobfuscator.deobfuscateStreamUrl(signatureCipher, videoId)
             if (customDeobfuscatedUrl != null) {
-                Log.d(TAG, "Stream URL obtained via custom cipher deobfuscation")
                 return customDeobfuscatedUrl
             }
-            Log.d(TAG, "Custom cipher deobfuscation failed")
         }
 
         // Skip NewPipe for age-restricted content
         if (skipNewPipe) {
-            Log.d(TAG, "Skipping NewPipe methods for age-restricted content")
             return null
         }
 
         // Try to get URL using NewPipeExtractor signature deobfuscation
         val deobfuscatedUrl = NewPipeExtractor.getStreamUrl(format, videoId)
         if (deobfuscatedUrl != null) {
-            Log.d(TAG, "Stream URL obtained via NewPipe deobfuscation")
             return deobfuscatedUrl
         }
 
         // Fallback: try to get URL from StreamInfo
-        Log.d(TAG, "Trying StreamInfo fallback for URL")
         val streamUrls = YouTube.getNewPipeStreamUrls(videoId)
         if (streamUrls.isNotEmpty()) {
             val streamUrl = streamUrls.find { it.first == format.itag }?.second
             if (streamUrl != null) {
-                Log.d(TAG, "Stream URL obtained from StreamInfo")
                 return streamUrl
             }
 
@@ -610,7 +509,6 @@ object YTPlayerUtils {
             }?.second
 
             if (audioStream != null) {
-                Log.d(TAG, "Audio stream URL obtained from StreamInfo (different itag)")
                 return audioStream
             }
         }
@@ -620,6 +518,5 @@ object YTPlayerUtils {
     }
 
     fun forceRefreshForVideo(videoId: String) {
-        Log.d(TAG, "Force refreshing for videoId: $videoId")
     }
 }

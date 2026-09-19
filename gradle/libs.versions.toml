@@ -17,6 +17,8 @@ newpipe = "0.26.3"
 okhttp = "5.4.0"
 serialization = "1.11.0"
 desugaring = "2.1.5"
+jump3r = "1.0.5"
+jaudiotagger = "3.0.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -59,6 +61,11 @@ serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-jso
 
 # Desugaring
 desugaring = { module = "com.android.tools:desugar_jdk_libs_nio", version.ref = "desugaring" }
+
+# Audio tagging & mp3 encoding
+mp3-encoder = { group = "de.sciss", name = "jump3r", version.ref = "jump3r" }
+mp3-encoder-native = { group = "net.qiujuer.lame", name = "lame", version = "1.0.0" }
+audio-tagger = { group = "net.jthink", name = "jaudiotagger", version.ref = "jaudiotagger" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

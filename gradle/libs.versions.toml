@@ -14,7 +14,6 @@ bouncycastle = "1.70"
 ktor = "3.5.1"
 brotli = "0.1.2"
 newpipe = "0.26.3"
-timber = "5.0.1"
 okhttp = "5.4.0"
 serialization = "1.11.0"
 desugaring = "2.1.5"
@@ -53,7 +52,6 @@ newpipeextractor = { module = "com.github.TeamNewPipe:NewPipeExtractor", version
 brotli = { module = "org.brotli:dec", version.ref = "brotli" }
 
 # Utils
-timber = { module = "com.jakewharton.timber:timber", version.ref = "timber" }
 okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
 
 # Serialization

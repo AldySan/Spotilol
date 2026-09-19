@@ -136,11 +136,6 @@ class SpotifyWebChromeClient(
         }
     }
 
-    @Deprecated("Deprecated in Java")
-    override fun onConsoleMessage(message: String?, lineNumber: Int, sourceId: String?) {
-        android.util.Log.d("SpotifyJS", "$message [$sourceId:$lineNumber]")
-    }
-
     override fun onProgressChanged(view: WebView?, newProgress: Int) {
         super.onProgressChanged(view, newProgress)
         onProgressChanged?.invoke(newProgress)

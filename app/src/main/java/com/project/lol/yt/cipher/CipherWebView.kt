@@ -54,9 +54,6 @@ class CipherWebView private constructor(
         private set
 
     init {
-        Log.d(TAG, "Initializing CipherWebView...")
-        Log.d(TAG, "  sigInfo: name=${sigInfo?.name}, constantArg=${sigInfo?.constantArg}, hardcoded=${sigInfo?.isHardcoded}")
-        Log.d(TAG, "  nFuncInfo: name=${nFuncInfo?.name}, arrayIdx=${nFuncInfo?.arrayIndex}, hardcoded=${nFuncInfo?.isHardcoded}")
 
         val settings = webView.settings
         settings.javaScriptEnabled = true
@@ -79,25 +76,19 @@ class CipherWebView private constructor(
                 val msg = m.message()
                 val src = "${m.sourceId()}:${m.lineNumber()}"
 
-                // Log all console messages for debugging
                 when (m.messageLevel()) {
                     ConsoleMessage.MessageLevel.ERROR -> {
                         if (!msg.contains("is not defined")) {
                             Log.e(TAG, "JS ERROR: $msg at $src")
                         }
                     }
-                    ConsoleMessage.MessageLevel.WARNING -> {
-                        Log.w(TAG, "JS WARN: $msg at $src")
-                    }
-                    else -> {
-                        Log.v(TAG, "JS LOG: $msg")
-                    }
+                    ConsoleMessage.MessageLevel.WARNING -> Log.w(TAG, "JS WARN: $msg at $src")
+                    else -> {}
                 }
                 return super.onConsoleMessage(m)
             }
         }
 
-        Log.d(TAG, "WebView settings configured")
     }
 
     private fun loadPlayerJsFromFile() {
@@ -105,12 +96,6 @@ class CipherWebView private constructor(
         val nFuncName = nFuncInfo?.name
         val nArrayIdx = nFuncInfo?.arrayIndex
         val isHardcoded = sigInfo?.isHardcoded == true || nFuncInfo?.isHardcoded == true
-
-        Log.d(TAG, "=== LOADING PLAYER.JS INTO WEBVIEW ===")
-        Log.d(TAG, "Player.js size: ${playerJs.length} chars")
-        Log.d(TAG, "Export mode: ${if (isHardcoded) "HARDCODED" else "EXTRACTED"}")
-        Log.d(TAG, "Sig function: $sigFuncName (constantArg=${sigInfo?.constantArg})")
-        Log.d(TAG, "N function: $nFuncName (arrayIdx=$nArrayIdx)")
 
         usingHardcodedMode = isHardcoded
 
@@ -124,17 +109,13 @@ class CipherWebView private constructor(
                     // Full wrapper: JI(48, 1918, f1(1, 6528, sig))
                     val mainArgsStr = sigConstArgs.joinToString(", ")
                     val prepArgsStr = preprocessArgs.joinToString(", ")
-                    Log.d(TAG, "Sig function needs full wrapper:")
-                    Log.d(TAG, "  $sigFuncName($mainArgsStr, $preprocessFunc($prepArgsStr, sig))")
                     add("window._cipherSigFunc = function(sig) { return $sigFuncName($mainArgsStr, $preprocessFunc($prepArgsStr, sig)); };")
                 } else if (!sigConstArgs.isNullOrEmpty()) {
                     // Wrapper with constant args only (no preprocessing)
                     val argsStr = sigConstArgs.joinToString(", ")
-                    Log.d(TAG, "Sig function needs wrapper with constant args: $argsStr")
                     add("window._cipherSigFunc = function(sig) { return $sigFuncName($argsStr, sig); };")
                 } else if (isHardcoded) {
                     // For hardcoded mode without full args, we'll inject the function export after player.js loads
-                    Log.d(TAG, "Will export sig function $sigFuncName in hardcoded mode (legacy)")
                     add("window._cipherSigFunc = typeof $sigFuncName !== 'undefined' ? $sigFuncName : null;")
                 } else {
                     add("window._cipherSigFunc = typeof $sigFuncName !== 'undefined' ? $sigFuncName : null;")
@@ -146,7 +127,6 @@ class CipherWebView private constructor(
                     // Generate wrapper function for n-functions that require constant args
                     // e.g. GU(6, 6010, n) -> window._nTransformFunc = function(n) { return GU(6, 6010, n); };
                     val argsStr = nConstArgs.joinToString(", ")
-                    Log.d(TAG, "N-function needs wrapper with constant args: $argsStr")
                     add("window._nTransformFunc = function(n) { return $nFuncName($argsStr, n); };")
                 } else {
                     val nExpr = if (nArrayIdx != null) {
@@ -159,9 +139,7 @@ class CipherWebView private constructor(
             }
         }
 
-        Log.d(TAG, "Export statements: ${exports.size}")
         exports.forEachIndexed { idx, stmt ->
-            Log.v(TAG, "  Export[$idx]: ${stmt.take(80)}...")
         }
 
         val modifiedJs = if (exports.isNotEmpty()) {
@@ -171,7 +149,6 @@ class CipherWebView private constructor(
                 Log.w(TAG, "Export injection point '})(_yt_player);' not found, appending exports")
                 playerJs + "\n" + exportCode
             } else {
-                Log.d(TAG, "Exports injected into IIFE closure")
                 modified
             }
         } else {
@@ -182,17 +159,14 @@ class CipherWebView private constructor(
         cipherCacheDir.mkdirs()
         val playerJsFile = File(cipherCacheDir, "player.js")
         playerJsFile.writeText(modifiedJs)
-        Log.d(TAG, "Player.js written to cache: ${playerJsFile.absolutePath} (${modifiedJs.length} chars)")
 
         // Build HTML with comprehensive discovery and validation
         val html = buildDiscoveryHtml()
-        Log.d(TAG, "Discovery HTML built (${html.length} chars)")
 
         webView.loadDataWithBaseURL(
             "http://appassets.androidplatform.net/cipher/",
             html, "text/html", "utf-8", null
         )
-        Log.d(TAG, "WebView loading started...")
     }
 
     /**
@@ -414,21 +388,15 @@ function discoverAndInit() {
 
     @JavascriptInterface
     fun logDebug(message: String) {
-        Log.d(TAG, "JS: $message")
     }
 
     @JavascriptInterface
     fun onDiscoveryDone(sigFuncName: String, nFuncName: String, info: String) {
-        Log.d(TAG, "=== DISCOVERY COMPLETE ===")
-        Log.d(TAG, "Sig function: ${sigFuncName.ifEmpty { "NOT FOUND" }}")
-        Log.d(TAG, "N function: ${nFuncName.ifEmpty { "NOT FOUND" }}")
-        Log.d(TAG, "Info: $info")
 
         sigFunctionAvailable = sigFuncName.isNotEmpty()
         if (nFuncName.isNotEmpty()) {
             discoveredNFuncName = nFuncName
             nFunctionAvailable = true
-            Log.d(TAG, "N-function AVAILABLE: $nFuncName")
         } else {
             Log.e(TAG, "N-function NOT AVAILABLE")
             nFunctionAvailable = false
@@ -437,8 +405,6 @@ function discoverAndInit() {
 
     @JavascriptInterface
     fun onNDiscoveryDone(funcName: String, info: String) {
-        // Legacy interface - redirects to new combined discovery
-        Log.d(TAG, "Legacy onNDiscoveryDone: funcName=$funcName, info=$info")
         if (funcName.isNotEmpty()) {
             discoveredNFuncName = funcName
             nFunctionAvailable = true
@@ -447,11 +413,6 @@ function discoverAndInit() {
 
     @JavascriptInterface
     fun onPlayerJsLoaded() {
-        Log.d(TAG, "=== PLAYER.JS LOAD COMPLETE ===")
-        Log.d(TAG, "sigFunctionAvailable=$sigFunctionAvailable")
-        Log.d(TAG, "nFunctionAvailable=$nFunctionAvailable")
-        Log.d(TAG, "discoveredNFuncName=$discoveredNFuncName")
-        Log.d(TAG, "usingHardcodedMode=$usingHardcodedMode")
 
         initContinuation.resume(this)
     }
@@ -466,10 +427,6 @@ function discoverAndInit() {
     // ==================== SIGNATURE DEOBFUSCATION ====================
 
     suspend fun deobfuscateSignature(obfuscatedSig: String): String {
-        Log.d(TAG, "========== DEOBFUSCATE SIGNATURE ==========")
-        Log.d(TAG, "Input sig length: ${obfuscatedSig.length}")
-        Log.d(TAG, "Input sig preview: ${obfuscatedSig.take(50)}...")
-        Log.d(TAG, "sigInfo: name=${sigInfo?.name}, constantArg=${sigInfo?.constantArg}")
 
         if (sigInfo == null) {
             Log.e(TAG, "Signature function info not available")
@@ -481,7 +438,6 @@ function discoverAndInit() {
                 sigContinuation = cont
                 val constArgJs = if (sigInfo.constantArg != null) "${sigInfo.constantArg}" else "null"
                 val jsCall = "deobfuscateSig('${sigInfo.name}', $constArgJs, '${escapeJsString(obfuscatedSig)}')"
-                Log.d(TAG, "Evaluating JS: ${jsCall.take(100)}...")
                 webView.evaluateJavascript(jsCall, null)
             }
         }
@@ -489,9 +445,6 @@ function discoverAndInit() {
 
     @JavascriptInterface
     fun onSigResult(result: String) {
-        Log.d(TAG, "========== SIGNATURE RESULT ==========")
-        Log.d(TAG, "Result length: ${result.length}")
-        Log.d(TAG, "Result preview: ${result.take(50)}...")
         sigContinuation?.resume(result)
         sigContinuation = null
     }
@@ -507,10 +460,6 @@ function discoverAndInit() {
     // ==================== N-TRANSFORM ====================
 
     suspend fun transformN(nValue: String): String {
-        Log.d(TAG, "========== N-TRANSFORM ==========")
-        Log.d(TAG, "Input n value: $nValue")
-        Log.d(TAG, "nFunctionAvailable: $nFunctionAvailable")
-        Log.d(TAG, "discoveredNFuncName: $discoveredNFuncName")
 
         if (!nFunctionAvailable) {
             Log.e(TAG, "N-transform function not discovered")
@@ -521,7 +470,6 @@ function discoverAndInit() {
             suspendCancellableCoroutine { cont ->
                 nContinuation = cont
                 val jsCall = "transformN('${escapeJsString(nValue)}')"
-                Log.d(TAG, "Evaluating JS: $jsCall")
                 webView.evaluateJavascript(jsCall, null)
             }
         }
@@ -529,9 +477,6 @@ function discoverAndInit() {
 
     @JavascriptInterface
     fun onNResult(result: String) {
-        Log.d(TAG, "========== N-TRANSFORM RESULT ==========")
-        Log.d(TAG, "Result: $result")
-        Log.d(TAG, "Result length: ${result.length}")
         nContinuation?.resume(result)
         nContinuation = null
     }
@@ -547,14 +492,12 @@ function discoverAndInit() {
     // ==================== CLEANUP ====================
 
     fun close() {
-        Log.d(TAG, "Closing CipherWebView...")
         webView.clearHistory()
         webView.clearCache(true)
         webView.loadUrl("about:blank")
         webView.onPause()
         webView.removeAllViews()
         webView.destroy()
-        Log.d(TAG, "CipherWebView closed")
     }
 
     // ==================== UTILITIES ====================
@@ -578,10 +521,6 @@ function discoverAndInit() {
             sigInfo: FunctionNameExtractor.SigFunctionInfo?,
             nFuncInfo: FunctionNameExtractor.NFunctionInfo? = null,
         ): CipherWebView {
-            Log.d(TAG, "=== CREATING CIPHER WEBVIEW ===")
-            Log.d(TAG, "playerJs size: ${playerJs.length} chars")
-            Log.d(TAG, "sigInfo: $sigInfo")
-            Log.d(TAG, "nFuncInfo: $nFuncInfo")
 
             return withContext(Dispatchers.Main) {
                 suspendCancellableCoroutine { cont ->

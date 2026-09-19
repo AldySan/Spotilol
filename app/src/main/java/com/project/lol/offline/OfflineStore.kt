@@ -31,7 +31,8 @@ data class OfflineSong(
 
 object OfflineStore {
     private const val TAG = "Spl-DL"
-    private const val FOLDER = "Spotilol"
+
+    private fun folder(context: Context): String = DownloadSettings.subfolder(context)
 
     private val TrackIdRegex = Regex("\\[([^\\]]+)\\]\\.[^.]+$")
     private val FileNameRegex = Regex("^(.*) - (.*) \\[([^\\]]+)\\]\\.[^.]+$")
@@ -123,6 +124,7 @@ object OfflineStore {
         }.getOrDefault(JSONObject())
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val folder = folder(context)
             val collection = MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
             val projection = arrayOf(
                 MediaStore.Audio.Media._ID,
@@ -135,7 +137,7 @@ object OfflineStore {
                 collection,
                 projection,
                 "${MediaStore.Audio.Media.RELATIVE_PATH} LIKE ? AND ${MediaStore.Audio.Media.IS_PENDING}=0",
-                arrayOf("%Music/$FOLDER%"),
+                arrayOf("%Music/$folder%"),
                 "${MediaStore.Audio.Media.DATE_ADDED} DESC",
             )?.use { c ->
                 while (c.moveToNext()) {
@@ -184,7 +186,7 @@ object OfflineStore {
         } else {
             val dir = File(
                 Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC),
-                FOLDER,
+                folder(context),
             )
             dir.listFiles()?.sortedByDescending { it.lastModified() }?.forEach { f ->
                 if (!f.isFile) return@forEach
@@ -239,6 +241,7 @@ object OfflineStore {
     fun isTrackSaved(context: Context, trackId: String): Boolean {
         if (trackId.isBlank()) return false
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val folder = folder(context)
             val escaped = trackId
                 .replace("\\", "\\\\")
                 .replace("%", "\\%")
@@ -249,14 +252,14 @@ object OfflineStore {
                     arrayOf(MediaStore.Audio.Media._ID),
                     "${MediaStore.Audio.Media.RELATIVE_PATH} LIKE ? AND " +
                             "${MediaStore.Audio.Media.DISPLAY_NAME} LIKE ? ESCAPE '\\'",
-                    arrayOf("%Music/$FOLDER%", "%[$escaped]%"),
+                    arrayOf("%Music/$folder%", "%[$escaped]%"),
                     null,
                 )?.use { it.count > 0 } ?: false
             }.getOrDefault(false)
         } else {
             val dir = File(
                 Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC),
-                FOLDER,
+                folder(context),
             )
             val marker = "[$trackId]."
             runCatching {

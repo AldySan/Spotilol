@@ -84,6 +84,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -663,7 +664,6 @@ class MainActivity : ComponentActivity() {
 
     private fun switchOfflineMode(enabled: Boolean) {
         prefs.edit().putBoolean("OfflineMode", enabled).apply()
-        prefs.edit().putBoolean("ServiceOn", false).apply()
         stopService(Intent(this, MediaNotificationService::class.java))
         val intent = Intent(this, SplashActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
@@ -947,13 +947,12 @@ class MainActivity : ComponentActivity() {
                         Column(modifier = Modifier.width(220.dp)) {
                             Row(
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable(onClick = onOpenSettings)
+                                    .fillMaxWidth()                                                .clickable(onClick = onOpenSettings)
                                     .padding(horizontal = 16.dp, vertical = 12.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Menu,
+                                    imageVector = Icons.Default.Settings,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onSurface
                                 )
@@ -965,7 +964,7 @@ class MainActivity : ComponentActivity() {
                                     modifier = Modifier.weight(1f)
                                 )
                                 Icon(
-                                    imageVector = Icons.Default.ChevronRight,
+                                    imageVector = Icons.Default.Menu,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                                 )

@@ -36,6 +36,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.BrightnessHigh
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Check
@@ -197,6 +198,7 @@ fun SettingsContent(
     var offlineMode by remember { mutableStateOf(prefs.getBoolean("OfflineMode", false)) }
     var blockSW by remember { mutableStateOf(blockServiceWorker) }
     var hideEmptyPlayer by remember { mutableStateOf(prefs.getBoolean("HideEmptyPlayer", false)) }
+    var playlistSortEnabled by remember { mutableStateOf(prefs.getBoolean("PlaylistSortEnabled", true)) }
     var lyricsStyle by remember { mutableStateOf(prefs.getString("LyricsStyle", LyricsTheme.DEFAULT_STYLE) ?: LyricsTheme.DEFAULT_STYLE) }
 
     val context = LocalContext.current
@@ -372,6 +374,19 @@ fun SettingsContent(
                 onCheckedChange = {
                     hideEmptyPlayer = it
                     prefs.edit().putBoolean("HideEmptyPlayer", it).apply()
+                }
+            )
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+
+            SettingSwitchTile(
+                title = "Sort Playlists by Column",
+                subtitle = "Tap a playlist column header to sort: A-Z, then Z-A, then original",
+                icon = Icons.AutoMirrored.Filled.Sort,
+                checked = playlistSortEnabled,
+                onCheckedChange = {
+                    playlistSortEnabled = it
+                    prefs.edit().putBoolean("PlaylistSortEnabled", it).apply()
                 }
             )
 

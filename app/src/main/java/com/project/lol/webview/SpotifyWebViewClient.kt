@@ -77,10 +77,12 @@ class SpotifyWebViewClient(
         val powerSave = prefs?.getBoolean("PowerSave", false) ?: false
         val blockSW = prefs?.getBoolean("BlockServiceWorker", true) ?: true
         val hideEmptyPlayer = prefs?.getBoolean("HideEmptyPlayer", false) ?: false
+        val playlistSort = prefs?.getBoolean("PlaylistSortEnabled", true) ?: true
 
         view?.evaluateJavascript("window.__spotilolUseProxy=$useProxy;", null)
         view?.evaluateJavascript("window.__splPowerSavePref=$powerSave;", null)
         view?.evaluateJavascript("window.__splHideEmpty=$hideEmptyPlayer;", null)
+        view?.evaluateJavascript("window.__splPlaylistSortEnabled=$playlistSort;", null)
         // FIX: these payloads were injected raw - strip them like every other
         // injection, served from cache.
         if (isGoogleAuthUrl(url)) {
@@ -240,6 +242,7 @@ class SpotifyWebViewClient(
         val debugOverlay = prefs.getBoolean("DebugOverlay", false)
         val takeControl = prefs.getBoolean("TakeControl", true)
         val hideEmptyPlayer = prefs.getBoolean("HideEmptyPlayer", false)
+        val playlistSortEnabled = prefs.getBoolean("PlaylistSortEnabled", true)
         val lyricsStyle = prefs.getString("LyricsStyle", LyricsTheme.DEFAULT_STYLE) ?: LyricsTheme.DEFAULT_STYLE
 
         val js = buildString {
@@ -248,6 +251,7 @@ class SpotifyWebViewClient(
             append("window.__spotilolUseProxy=$useProxy;\n")
             append("window.__splTakeControl=$takeControl;\n")
             append("window.__splHideEmpty=$hideEmptyPlayer;\n")
+            append("window.__splPlaylistSortEnabled=$playlistSortEnabled;\n")
             if (debugOverlay) {
                 append(DevLogPrelude.js())
                 append("\n")
@@ -290,6 +294,7 @@ class SpotifyWebViewClient(
             append(LyricsSyncFix.CONTENT)
             append(QueueAutoClose.CONTENT)
             append(LibraryAutoClose.CONTENT)
+            append(PlaylistSort.CONTENT)
             if (playerMode == "spotilol") {
                 append(SpotilolPlayer.CONTENT)
             }
@@ -354,6 +359,10 @@ class SpotifyWebViewClient(
                 "HideEmptyPlayer" -> {
                     val hideEmpty = prefs.getBoolean("HideEmptyPlayer", false)
                     wv.evaluateJavascript("window.__splHideEmpty=$hideEmpty; if(window.splApplyEmpty) window.splApplyEmpty();", null)
+                }
+                "PlaylistSortEnabled" -> {
+                    val sortOn = prefs.getBoolean("PlaylistSortEnabled", true)
+                    wv.evaluateJavascript("window.__splPlaylistSortEnabled=$sortOn; if(window.splPlaylistSort) window.splPlaylistSort.refresh();", null)
                 }
             }
         }

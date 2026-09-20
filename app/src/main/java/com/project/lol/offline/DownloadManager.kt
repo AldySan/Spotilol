@@ -254,7 +254,7 @@ object DownloadManager {
     private suspend fun runSingle(appContext: Context, track: TrackMeta) {
         if (OfflineStore.isTrackSaved(appContext, track.trackId)) {
             onProgress?.invoke(100, "Already saved")
-            withContext(Dispatchers.Main) { onStatus?.invoke("Already saved to Music/${DownloadSettings.subfolder(appContext)}") }
+            withContext(Dispatchers.Main) { onStatus?.invoke("Already saved to Music/${DownloadPrefs.subfolder(appContext)}") }
             return
         }
         activeTrackId = track.trackId
@@ -285,8 +285,8 @@ object DownloadManager {
                         explicit = result.yt?.explicit ?: false,
                         shareLink = result.yt?.shareLink,
                     )
-                    onProgress?.invoke(100, "Saved to Music/${DownloadSettings.subfolder(appContext)}")
-                    withContext(Dispatchers.Main) { onStatus?.invoke("Saved to Music/${DownloadSettings.subfolder(appContext)}") }
+                    onProgress?.invoke(100, "Saved to Music/${DownloadPrefs.subfolder(appContext)}")
+                    withContext(Dispatchers.Main) { onStatus?.invoke("Saved to Music/${DownloadPrefs.subfolder(appContext)}") }
                 }
                 is TrackResult.Failed -> {
                     val msg = "Download failed: ${lastDownloadError ?: "unknown error"}"
@@ -424,7 +424,7 @@ object DownloadManager {
         withContext(Dispatchers.Main) { onStatus?.invoke(summary) }
         when {
             cancelled -> onProgress?.invoke(-1, summary)
-            saved > 0 -> onProgress?.invoke(100, "$summary — Music/${DownloadSettings.subfolder(appContext)}")
+            saved > 0 -> onProgress?.invoke(100, "$summary — Music/${DownloadPrefs.subfolder(appContext)}")
             failed > 0 -> onProgress?.invoke(-1, summary)
         }
     }
@@ -473,8 +473,8 @@ object DownloadManager {
         }
         progress(99, "Saving...")
 
-        val format = DownloadSettings.format(context)
-        val writeTags = DownloadSettings.writeTags(context)
+        val format = DownloadPrefs.format(context)
+        val writeTags = DownloadPrefs.writeTags(context)
 
         val sourceContainer = Mp3Transcoder.sniffContainer(tmpFile) ?: "m4a"
         Log.i(TAG, "downloadToFile: source container=$sourceContainer trackId=$trackId")
@@ -747,7 +747,7 @@ object DownloadManager {
         ext: String,
         mime: String,
     ): String? {
-        val folderName = DownloadSettings.subfolder(context)
+        val folderName = DownloadPrefs.subfolder(context)
         val fileName = "$artist - $title [$trackId]"
             .replace(Regex("""[\\/:*?"<>|]"""), "_")
             .let { if (it.length > 200) it.take(200) else it }

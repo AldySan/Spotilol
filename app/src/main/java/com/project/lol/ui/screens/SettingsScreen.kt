@@ -119,7 +119,7 @@ import androidx.compose.ui.unit.sp
 import androidx.webkit.WebViewCompat
 import com.project.lol.R
 import com.project.lol.offline.DownloadFormat
-import com.project.lol.offline.DownloadSettings
+import com.project.lol.offline.DownloadPrefs
 import com.project.lol.profile.ProfileManager
 import com.project.lol.proxy.LocalProxyManager
 import com.project.lol.ui.theme.SpotifyTheme
@@ -228,12 +228,12 @@ fun SettingsContent(
     var showFormatDialog by remember { mutableStateOf(false) }
     var showSubfolderDialog by remember { mutableStateOf(false) }
     var dlFormat by remember {
-        mutableStateOf(DownloadSettings.format(context))
+        mutableStateOf(DownloadPrefs.format(context))
     }
     var dlSubfolder by remember {
-        mutableStateOf(DownloadSettings.subfolder(context))
+        mutableStateOf(DownloadPrefs.subfolder(context))
     }
-    var dlTags by remember { mutableStateOf(DownloadSettings.writeTags(context)) }
+    var dlTags by remember { mutableStateOf(DownloadPrefs.writeTags(context)) }
 
     Column(
         modifier = modifier
@@ -518,7 +518,7 @@ fun SettingsContent(
                 checked = dlTags,
                 onCheckedChange = { enabled ->
                     dlTags = enabled
-                    DownloadSettings.setWriteTags(context, enabled)
+                    DownloadPrefs.setWriteTags(context, enabled)
                 }
             )
         }
@@ -916,7 +916,7 @@ fun SettingsContent(
             onSelect = { value ->
                 val f = DownloadFormat.from(value)
                 dlFormat = f
-                DownloadSettings.setFormat(context, f)
+                DownloadPrefs.setFormat(context, f)
             },
             onDismiss = { showFormatDialog = false }
         )
@@ -927,7 +927,7 @@ fun SettingsContent(
             initial = dlSubfolder,
             onSave = { value ->
                 dlSubfolder = value
-                DownloadSettings.setSubfolder(context, value)
+                DownloadPrefs.setSubfolder(context, value)
                 showSubfolderDialog = false
             },
             onDismiss = { showSubfolderDialog = false }
@@ -1732,7 +1732,7 @@ fun SubfolderDialog(
                     val cleaned = tempName
                         .trim()
                         .replace(Regex("[/\\\\]+"), "-")
-                        .ifBlank { DownloadSettings.DEFAULT_SUBFOLDER }
+                        .ifBlank { DownloadPrefs.DEFAULT_SUBFOLDER }
                     onSave(cleaned)
                 }
             ) {

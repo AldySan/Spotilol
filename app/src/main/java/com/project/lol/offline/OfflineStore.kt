@@ -32,7 +32,7 @@ data class OfflineSong(
 object OfflineStore {
     private const val TAG = "Spl-DL"
 
-    private fun folder(context: Context): String = DownloadSettings.subfolder(context)
+    private fun folder(context: Context): String = DownloadPrefs.subfolder(context)
 
     private val TrackIdRegex = Regex("\\[([^\\]]+)\\]\\.[^.]+$")
     private val FileNameRegex = Regex("^(.*) - (.*) \\[([^\\]]+)\\]\\.[^.]+$")

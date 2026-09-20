@@ -245,16 +245,6 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
                 .getBoolean("AndAuto", true)
             if (andAuto) {
                 lastMediaStatusJson?.let { updateFromMediaStatus(it) }
-            } else {
-                currentTitle = ""
-                currentArtist = ""
-                lastCoverUrl = ""
-                coverBitmap = null
-                mainHandler.post {
-                    updatePlaybackState()
-                    updateMetadata()
-                    showNotification()
-                }
             }
         }
     }
@@ -619,28 +609,16 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
         try {
             lastMediaStatusJson = json
             val obj = org.json.JSONObject(json)
-            val andAuto = getSharedPreferences("spotilol_prefs", MODE_PRIVATE)
-                .getBoolean("AndAuto", true)
+            currentTitle = obj.optString("track", "")
+            currentArtist = obj.optString("artist", "")
+            val coverUrl = obj.optString("cover", "")
 
-            if (andAuto) {
-                currentTitle = obj.optString("track", "")
-                currentArtist = obj.optString("artist", "")
-                val coverUrl = obj.optString("cover", "")
-
-                if (coverUrl.isNotEmpty() && coverUrl != "null" && coverUrl != lastCoverUrl) {
-                    lastCoverUrl = coverUrl
-                    loadCoverArt(coverUrl)
-                } else if (coverUrl.isEmpty() || coverUrl == "null") {
-                    lastCoverUrl = ""
-                    coverBitmap = null
-                }
-            } else {
-                if (currentTitle.isNotEmpty() || currentArtist.isNotEmpty() || coverBitmap != null) {
-                    currentTitle = ""
-                    currentArtist = ""
-                    lastCoverUrl = ""
-                    coverBitmap = null
-                }
+            if (coverUrl.isNotEmpty() && coverUrl != "null" && coverUrl != lastCoverUrl) {
+                lastCoverUrl = coverUrl
+                loadCoverArt(coverUrl)
+            } else if (coverUrl.isEmpty() || coverUrl == "null") {
+                lastCoverUrl = ""
+                coverBitmap = null
             }
 
             isPlaying = obj.optBoolean("playing", false)

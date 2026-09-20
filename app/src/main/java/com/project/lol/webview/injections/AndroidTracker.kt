@@ -34,8 +34,7 @@ object AndroidTracker {
                     } else shuffle='off';
                     var fb = document.querySelector('div[data-testid=now-playing-widget]>div:last-child>button');
                     if(fb && fb.getAttribute('aria-checked')==='true') isfav=true; else isfav=false;
-                    var pb = document.querySelector('button[data-testid=control-button-playpause]');
-                    if(pb) playing=pb.getAttribute('aria-label')!=='Play';
+                    playing=window.splIsPlayingSticky();
                     var rg = document.querySelector('div[data-testid=playback-progressbar] input[type=range]');
                     if(rg) { duration=parseInt(rg.getAttribute('max')); position=parseInt(rg.getAttribute('value')); }
                     else { duration=null; position=null; }

@@ -52,6 +52,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.view.WindowCompat
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.google.firebase.perf.FirebasePerformance
@@ -68,6 +69,10 @@ class SplashActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            isAppearanceLightStatusBars = false
+            isAppearanceLightNavigationBars = false
+        }
         super.onCreate(savedInstanceState)
 
         requestedOrientation = if (

@@ -126,10 +126,10 @@ object SpotilolPlayer {
 
                 document.getElementById('spl-prev').onclick=function(){actSkipBack()};
                 document.getElementById('spl-next').onclick=function(){actSkipForward()};
-                document.getElementById('spl-play').onclick=function(){var pb=document.querySelector('button[data-testid=control-button-playpause]');actPlayPause(pb&&pb.getAttribute('aria-label')==='Play')};
+                document.getElementById('spl-play').onclick=function(){var st=window.splIsPlaying();actPlayPause(st===null?null:!st)};
                 document.getElementById('spl-prev-mini').onclick=function(){actSkipBack()};
                 document.getElementById('spl-next-mini').onclick=function(){actSkipForward()};
-                document.getElementById('spl-play-mini').onclick=function(){var pb=document.querySelector('button[data-testid=control-button-playpause]');actPlayPause(pb&&pb.getAttribute('aria-label')==='Play')};
+                document.getElementById('spl-play-mini').onclick=function(){var st=window.splIsPlaying();actPlayPause(st===null?null:!st)};
                 document.getElementById('spl-shuffle').onclick=function(){var sb=splFindShuffle();if(sb&&sb.getAttribute('aria-disabled')!=='true')sb.click()};
                 document.getElementById('spl-repeat').onclick=function(){actRepeat()};
                 document.getElementById('spl-lyrics').onclick=function(){if(this.classList.contains('spl-disabled'))return;if(typeof closeNowPlay==='function') closeNowPlay();var lb=document.querySelector('button[data-testid=lyrics-button]');if(lb&&!lb.disabled)lb.click()};
@@ -279,8 +279,7 @@ object SpotilolPlayer {
 
                         var rg=document.querySelector('[data-testid="playback-progressbar"] input[type=range]');
                         if(pp||ppm){
-                            var pb=document.querySelector('button[data-testid=control-button-playpause]');
-                            var isPlaying=pb&&pb.getAttribute('aria-label')!=='Play';
+                            var isPlaying=window.splIsPlayingSticky();
                             var ph=isPlaying
                                 ?'<svg viewBox="0 0 16 16"><path fill="currentColor" d="M2.7 1a.7.7 0 0 0-.7.7v12.6a.7.7 0 0 0 .7.7h2.6a.7.7 0 0 0 .7-.7V1.7a.7.7 0 0 0-.7-.7zm8 0a.7.7 0 0 0-.7.7v12.6a.7.7 0 0 0 .7.7h2.6a.7.7 0 0 0 .7-.7V1.7a.7.7 0 0 0-.7-.7z"/></svg>'
                                 :'<svg viewBox="0 0 16 16"><path fill="currentColor" d="M3 1.713a.7.7 0 0 1 1.05-.607l10.89 6.288a.7.7 0 0 1 0 1.212L4.05 14.894A.7.7 0 0 1 3 14.288z"/></svg>';

@@ -49,7 +49,7 @@ object MainLoop {
                 pb.classList.add('fuckd');
 
                 pBtn.addEventListener('click', function(e){
-                    if(pBtn.getAttribute('aria-label')!=='Play') {
+                    if(window.splIsPlaying()!==false) {
                         reqPause=true;
                         ulFlag=false;
                         AndBridge.wakeOff();
@@ -60,13 +60,13 @@ object MainLoop {
                         AndBridge.wakeUp();
                         ulFlag=true;
                         setTimeout(function(){
-                            if(ulFlag && pBtn.getAttribute('aria-label')==='Play') {
+                            if(ulFlag && window.splIsPlaying()===false) {
                                 AndBridge.deferMessage('unlock');
                                 actSkipForward();
                                 var uTries=0;
                                 var uIv=setInterval(function(){
                                     uTries++;
-                                    if(pBtn.getAttribute('aria-label')!=='Play'){
+                                    if(window.splIsPlaying()!==false){
                                         window.__splUnlocked=true;
                                         ulFlag=false;
                                         clearInterval(uIv);

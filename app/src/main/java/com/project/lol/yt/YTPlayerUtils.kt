@@ -84,6 +84,7 @@ object YTPlayerUtils {
         audioQuality: AudioQuality,
         connectivityManager: ConnectivityManager,
         skipValidation: Boolean = false,
+        preferredMimeType: String? = null,
     ): Result<PlaybackData> = runCatching {
 
         // Check if this is an uploaded/privately owned track
@@ -249,6 +250,7 @@ object YTPlayerUtils {
                         responseToUse,
                         audioQuality,
                         connectivityManager,
+                        preferredMimeType,
                     )
 
                 if (format == null) {
@@ -380,24 +382,29 @@ object YTPlayerUtils {
         playerResponse: PlayerResponse,
         audioQuality: AudioQuality,
         connectivityManager: ConnectivityManager,
+        preferredMimeType: String? = null,
     ): PlayerResponse.StreamingData.Format? {
 
-        val format = playerResponse.streamingData?.adaptiveFormats
+        val candidates = playerResponse.streamingData?.adaptiveFormats
             ?.filter { it.isAudio && it.isOriginal }
-            ?.maxByOrNull {
-                it.bitrate * when (audioQuality) {
-                    AudioQuality.AUTO -> if (connectivityManager.isActiveNetworkMetered) -1 else 1
-                    AudioQuality.HIGH -> 1
-                    AudioQuality.LOW -> -1
-                } + (if (it.mimeType.startsWith("audio/webm")) 10240 else 0) // prefer opus stream
+            ?.let { formats ->
+                if (preferredMimeType == null) formats
+                else {
+                    val preferred = formats.filter { it.mimeType.startsWith(preferredMimeType) }
+                    if (preferred.isNotEmpty()) preferred else formats
+                }
             }
+            ?: return null
 
-        if (format != null) {
-        } else {
+        return candidates.maxByOrNull {
+            it.bitrate * when (audioQuality) {
+                AudioQuality.AUTO -> if (connectivityManager.isActiveNetworkMetered) -1 else 1
+                AudioQuality.HIGH -> 1
+                AudioQuality.LOW -> -1
+            } + (if (preferredMimeType == null && it.mimeType.startsWith("audio/webm")) 10240 else 0)
         }
-
-        return format
     }
+
     /**
      * Checks if the stream url returns a successful status.
      *

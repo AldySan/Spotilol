@@ -9,6 +9,11 @@ import android.provider.MediaStore
 import android.util.Log
 import com.project.lol.innertube.YouTube
 import com.project.lol.innertube.models.SongItem
+import com.project.lol.offline.audio.M4aEncoder
+import com.project.lol.offline.audio.Mp3Encoder
+import com.project.lol.offline.audio.Mp4Remux
+import com.project.lol.offline.audio.Mp4Tags
+import com.project.lol.offline.audio.Tags
 import com.project.lol.yt.AudioQuality
 import com.project.lol.yt.CandidateScorer
 import com.project.lol.yt.CandidateScorer.isAcceptableMatch
@@ -64,8 +69,16 @@ private sealed class TrackResult {
 }
 
 private data class ResolvedStream(
+    val container: String,
+    val mimeType: String,
     val url: String,
     val chosen: SongItem,
+)
+
+private data class FinalAudio(
+    val file: File,
+    val ext: String,
+    val mime: String,
 )
 
 private sealed class DownloadJob {
@@ -80,6 +93,7 @@ private sealed class DownloadJob {
 object DownloadManager {
     private const val TAG = "Spl-DL"
     private const val BATCH_INTER_TRACK_DELAY_MS = 300L
+    private const val PROGRESS_MIN_INTERVAL_MS = 200L
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -110,11 +124,18 @@ object DownloadManager {
     @Volatile
     var lastLabel: String = ""
 
+    @Volatile
+    private var lastProgressAt = 0L
+
     private val pendingJobs = java.util.concurrent.atomic.AtomicInteger(0)
 
     fun isWorkPending(): Boolean = pendingJobs.get() > 0
 
     private fun progress(pct: Int, label: String) {
+        val now = System.currentTimeMillis()
+        val terminal = pct <= 0 || pct >= 100
+        if (!terminal && now - lastProgressAt < PROGRESS_MIN_INTERVAL_MS) return
+        lastProgressAt = now
         lastPct = pct
         lastLabel = label
         onProgress?.invoke(pct, label)
@@ -441,7 +462,11 @@ object DownloadManager {
 
         if (signal != null) return TrackResult.Aborted
 
-        val resolved = resolveStream(context, trackId, title, artist, album) ?: run {
+        val format = DownloadPrefs.format(context)
+        val resolved = resolveStream(
+            context, trackId, title, artist, album,
+            preferredMimeType = if (format == DownloadFormat.M4A) "audio/mp4" else null,
+        ) ?: run {
             Log.w(TAG, "downloadToFile: no stream source for $trackId")
             lastDownloadError = "Download source not available yet"
             return TrackResult.Failed(title, artist, album)
@@ -473,44 +498,85 @@ object DownloadManager {
         }
         progress(99, "Saving...")
 
-        val format = DownloadPrefs.format(context)
         val writeTags = DownloadPrefs.writeTags(context)
 
-        val sourceContainer = Mp3Transcoder.sniffContainer(tmpFile) ?: "m4a"
-        Log.i(TAG, "downloadToFile: source container=$sourceContainer trackId=$trackId")
+        val sourceContainer = resolved.container
+        val sourceMime = resolved.mimeType
+        Log.i(TAG, "downloadToFile: source container=$sourceContainer mime=$sourceMime trackId=$trackId")
 
         fun renameToAudio(source: File, ext: String): File {
             val target = File(dir, "$trackId.$ext")
             return if (source.renameTo(target)) target else source
         }
 
-        val finalFile: File = when (format) {
-            DownloadFormat.M4A -> renameToAudio(tmpFile, sourceContainer)
+        fun m4aFrom(source: File): FinalAudio? {
+            val out = File(dir, "$trackId.m4a")
+            val ok = M4aEncoder.transcode(source, out, onProgress = { pct ->
+                progress(60 + pct * 39 / 100, "Converting to M4A")
+            })
+            if (!ok) return null
+            source.delete()
+            return FinalAudio(out, DownloadFormat.M4A.ext, DownloadFormat.M4A.mime)
+        }
+
+        fun canonicalM4a(source: File): FinalAudio {
+            if (Mp4Tags.isTaggable(source)) {
+                return FinalAudio(renameToAudio(source, "m4a"), "m4a", DownloadFormat.M4A.mime)
+            }
+            progress(60, "Preparing M4A")
+            val out = File(dir, "$trackId.canonical.m4a")
+            return if (Mp4Remux.remux(source, out)) {
+                source.delete()
+                FinalAudio(out, DownloadFormat.M4A.ext, DownloadFormat.M4A.mime)
+            } else {
+                Log.w(TAG, "downloadToFile: m4a remux failed, keeping original")
+                FinalAudio(renameToAudio(source, "m4a"), "m4a", DownloadFormat.M4A.mime)
+            }
+        }
+
+        val finalAudio: FinalAudio? = when (format) {
+            DownloadFormat.M4A -> when {
+                sourceContainer == "m4a" -> canonicalM4a(tmpFile)
+                M4aEncoder.isTranscodable(sourceMime) -> m4aFrom(tmpFile)
+                else -> null
+            }
             DownloadFormat.MP3 -> {
                 val mp3File = File(dir, "$trackId.mp3")
-                val ok = Mp3Transcoder.transcode(tmpFile, mp3File) { pct ->
+                val ok = Mp3Encoder.transcode(tmpFile, mp3File) { pct ->
                     progress(60 + pct * 39 / 100, "Converting to MP3")
                 }
                 if (ok) {
                     tmpFile.delete()
-                    mp3File
+                    FinalAudio(mp3File, DownloadFormat.MP3.ext, DownloadFormat.MP3.mime)
                 } else {
-                    Log.w(TAG, "downloadToFile: mp3 transcode failed, keeping original $sourceContainer")
-                    renameToAudio(tmpFile, sourceContainer)
+                    Log.w(TAG, "downloadToFile: mp3 transcode failed, falling back to $sourceContainer output")
+                    when {
+                        sourceContainer == "m4a" -> canonicalM4a(tmpFile)
+                        M4aEncoder.isTranscodable(sourceMime) -> m4aFrom(tmpFile)
+                        else -> null
+                    }
                 }
             }
         }
-        val isMp3 = finalFile.name.endsWith(".mp3")
+
+        if (finalAudio == null) {
+            Log.w(TAG, "downloadToFile: could not produce ${format.name} output from $sourceContainer/$sourceMime")
+            runCatching { tmpFile.delete() }
+            lastDownloadError = "Audio conversion failed"
+            return TrackResult.Failed(effectiveTitle, effectiveArtist, effectiveAlbum)
+        }
+
+        val finalFile = finalAudio.file
 
         val tagFormat = when {
-            isMp3 -> DownloadFormat.MP3
-            sourceContainer == "m4a" -> DownloadFormat.M4A
+            finalAudio.ext == "mp3" -> DownloadFormat.MP3
+            finalAudio.ext == "m4a" -> DownloadFormat.M4A
             else -> null
         }
 
         if (writeTags && tagFormat != null) {
             progress(99, "Writing tags...")
-            TagWriter.writeTags(
+            Tags.writeTags(
                 finalFile,
                 tagFormat,
                 effectiveTitle,
@@ -520,23 +586,14 @@ object DownloadManager {
             )
         }
 
-        val ext = if (isMp3) DownloadFormat.MP3.ext else sourceContainer
-        val mime = if (isMp3) {
-            DownloadFormat.MP3.mime
-        } else if (sourceContainer == "webm") {
-            "audio/webm"
-        } else {
-            DownloadFormat.M4A.mime
-        }
-
         val uri = saveToPublicMusic(
             context,
             trackId,
             effectiveTitle,
             effectiveArtist,
             finalFile,
-            ext,
-            mime
+            finalAudio.ext,
+            finalAudio.mime
         )
         finalFile.delete()
         if (uri != null) {
@@ -567,6 +624,7 @@ object DownloadManager {
         title: String,
         artist: String,
         album: String,
+        preferredMimeType: String? = null,
     ): ResolvedStream? {
         val searchText = buildString {
             append(title)
@@ -612,16 +670,29 @@ object DownloadManager {
                 audioQuality = AudioQuality.HIGH,
                 connectivityManager = connectivityManager,
                 skipValidation = true,
+                preferredMimeType = preferredMimeType,
             ).getOrNull()
         }.onFailure { Log.e(TAG, "resolveStream: playback resolve failed: ${it.message}", it) }
             .getOrNull()
 
-        val streamUrl = playback?.streamUrl
-        if (streamUrl != null) {
-        } else {
-            Log.w(TAG, "resolveStream: no stream url for ${chosen.id}")
+        val data = playback ?: run {
+            Log.w(TAG, "resolveStream: no playback data for ${chosen.id}")
+            return null
         }
-        return streamUrl?.let { ResolvedStream(it, chosen) }
+
+        val streamUrl = data.streamUrl
+        if (streamUrl == null) {
+            Log.w(TAG, "resolveStream: no stream url for ${chosen.id}")
+            return null
+        }
+
+        val mimeType = data.format.mimeType.substringBefore(';').trim()
+        val container = when {
+            mimeType.startsWith("audio/mp4") -> "m4a"
+            mimeType.startsWith("audio/webm") -> "webm"
+            else -> "m4a"
+        }
+        return ResolvedStream(container, mimeType, streamUrl, chosen)
     }
 
     @Volatile

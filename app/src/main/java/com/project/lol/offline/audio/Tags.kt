@@ -1,7 +1,8 @@
-package com.project.lol.offline
+package com.project.lol.offline.audio
 
 import android.graphics.BitmapFactory
 import android.util.Log
+import com.project.lol.offline.DownloadFormat
 import org.jaudiotagger.audio.AudioFileIO
 import org.jaudiotagger.audio.mp3.MP3File
 import org.jaudiotagger.tag.FieldKey
@@ -12,7 +13,7 @@ import org.jaudiotagger.tag.mp4.Mp4Tag
 import org.jaudiotagger.tag.mp4.field.Mp4TagCoverField
 import java.io.File
 
-object TagWriter {
+object Tags {
     private const val TAG = "Spl-DL"
 
     fun writeTags(

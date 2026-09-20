@@ -1,0 +1,1 @@
+-keep class net.qiujuer.lame.** { *; }

@@ -28,6 +28,59 @@ object PlayerCore {
                     try{window.__splFloaters[i]();}catch(e){}
                 }
             },250);
+            if(typeof window.__splPbVal==='undefined') window.__splPbVal=null;
+            window.splPbNode=function(){
+                var n=document.querySelector('button[data-testid=control-button-playpause]');
+                if(n) return n;
+                if(window.pBtn) return window.pBtn;
+                return null;
+            };
+            window.splMediaEl=function(){
+                var els=document.querySelectorAll('audio,video'),best=null;
+                for(var i=0;i<els.length;i++){
+                    var e=els[i];
+                    if(!e.currentSrc&&!e.src&&!e.srcObject) continue;
+                    if(e.paused===false) return e;
+                    if(!best&&e.readyState>=1) best=e;
+                }
+                return best;
+            };
+            window.splIsPlaying=function(){
+                try{
+                    var pb=window.splPbNode();
+                    if(pb){
+                        var al=pb.getAttribute('aria-label')||'';
+                        if(al==='Play') return false;
+                        if(al==='Pause') return true;
+                    }
+                    var el=window.splMediaEl();
+                    if(el) return el.paused===false;
+                    var ms=navigator.mediaSession&&navigator.mediaSession.playbackState;
+                    if(ms==='playing') return true;
+                    if(ms==='paused') return false;
+                    var r=document.querySelector('div[data-testid=playback-progressbar] input[type=range]');
+                    if(r){
+                        var v=parseFloat(r.value||'0');
+                        if(!isNaN(v)){
+                            var now=Date.now();
+                            if(typeof window.__splPbVal!=='number'){ window.__splPbVal=v; window.__splPbAt=now; }
+                            else{
+                                if(v!==window.__splPbVal){ window.__splPbVal=v; window.__splPbAt=now; }
+                                var dt=now-window.__splPbAt;
+                                if(dt<1500) return true;
+                                if(dt>3000) return false;
+                            }
+                        }
+                    }
+                }catch(e){}
+                return null;
+            };
+            window.splIsPlayingSticky=function(){
+                var s=window.splIsPlaying();
+                if(s!==null) window.__splLastPlaying=s;
+                return window.__splLastPlaying===true;
+            };
+
         
     """
 }

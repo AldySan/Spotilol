@@ -115,7 +115,6 @@ dependencies {
     // Audio downloads: opus decoding, mp3 encoding
     implementation(project(":lame"))
     implementation(project(":opus"))
-    implementation(libs.audio.tagger)
 
     // Core library desugaring (required by NewPipeExtractor)
     coreLibraryDesugaring(libs.desugaring)

@@ -67,12 +67,13 @@ object PlaybackControls {
             window.actPlayPause = function(play) {
                 var pb = window.pBtn;
                 if (!pb) return;
-                if (play === null || typeof play === 'undefined') {
+                var cur = (typeof window.splIsPlaying === 'function') ? window.splIsPlaying() : null;
+                if (play === null || typeof play === 'undefined' || cur === null) {
                     pb.click();
                 } else if (play === true) {
-                    if (!window.playing) pb.click();
+                    if (!cur) pb.click();
                 } else if (play === false) {
-                    if (window.playing) pb.click();
+                    if (cur) pb.click();
                 }
             };
             window.actSkipBack = function() {

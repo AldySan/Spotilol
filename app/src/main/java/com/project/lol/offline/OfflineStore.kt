@@ -118,10 +118,30 @@ object OfflineStore {
 
     fun loadSongs(context: Context): List<OfflineSong> {
         val songs = mutableListOf<OfflineSong>()
+        val seen = mutableSetOf<String>()
         val manifest = runCatching {
             val file = metaFile(context)
             if (file.exists()) JSONObject(file.readText()) else JSONObject()
         }.getOrDefault(JSONObject())
+
+        for (tree in DownloadPrefs.knownFolders(context)) {
+            if (!DownloadFolder.hasAccess(context, tree)) continue
+            for (entry in DownloadFolder.listChildren(context, tree)) {
+                val match = FileNameRegex.find(entry.name) ?: continue
+                val trackId = match.groupValues[3].trim()
+                if (trackId.isBlank() || !seen.add(trackId)) continue
+                songs.add(
+                    buildSong(
+                        context = context,
+                        manifest = manifest,
+                        trackId = trackId,
+                        title = match.groupValues[2].trim().ifBlank { entry.name },
+                        artist = match.groupValues[1].trim(),
+                        uri = entry.uri,
+                    )
+                )
+            }
+        }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val folder = folder(context)
@@ -160,24 +180,16 @@ object OfflineStore {
                         val trackId = TrackIdRegex.find(displayName)?.groupValues?.get(1)
                             ?.takeIf { it.isNotBlank() }
                             ?: "ms${c.getLong(0)}"
+                        if (!seen.add(trackId)) return@runCatching
                         val uri = ContentUris.withAppendedId(collection, c.getLong(0))
-                        val extras = manifest.optJSONObject(trackId)
                         songs.add(
-                            OfflineSong(
-                                id = trackId,
+                            buildSong(
+                                context = context,
+                                manifest = manifest,
+                                trackId = trackId,
                                 title = title,
                                 artist = artist,
                                 uri = uri,
-                                coverFile = coverFile(context, trackId),
-                                album = extras?.optString("album", "") ?: "",
-                                durationSec = extras?.optInt("durationSec", 0)?.takeIf { it > 0 },
-                                explicit = extras?.optBoolean("explicit", false) ?: false,
-                                videoId = extras?.optString("videoId", null)?.ifBlank { null },
-                                ytTitle = extras?.optString("ytTitle", "") ?: "",
-                                ytArtist = extras?.optString("ytArtist", "") ?: "",
-                                ytAlbum = extras?.optString("ytAlbum", "") ?: "",
-                                ytThumbnail = extras?.optString("ytThumb", null)?.ifBlank { null },
-                                shareLink = extras?.optString("shareLink", null)?.ifBlank { null },
                             )
                         )
                     }
@@ -194,28 +206,47 @@ object OfflineStore {
                 val artist = match?.groupValues?.get(1)?.trim().orEmpty()
                 val title = match?.groupValues?.get(2)?.trim() ?: f.nameWithoutExtension
                 val trackId = match?.groupValues?.get(3) ?: f.nameWithoutExtension
-                val extras = manifest.optJSONObject(trackId)
+                if (!seen.add(trackId)) return@forEach
                 songs.add(
-                    OfflineSong(
-                        id = trackId,
+                    buildSong(
+                        context = context,
+                        manifest = manifest,
+                        trackId = trackId,
                         title = title,
                         artist = artist,
                         uri = Uri.fromFile(f),
-                        coverFile = coverFile(context, trackId),
-                        album = extras?.optString("album", "") ?: "",
-                        durationSec = extras?.optInt("durationSec", 0)?.takeIf { it > 0 },
-                        explicit = extras?.optBoolean("explicit", false) ?: false,
-                        videoId = extras?.optString("videoId", null)?.ifBlank { null },
-                        ytTitle = extras?.optString("ytTitle", "") ?: "",
-                        ytArtist = extras?.optString("ytArtist", "") ?: "",
-                        ytAlbum = extras?.optString("ytAlbum", "") ?: "",
-                        ytThumbnail = extras?.optString("ytThumb", null)?.ifBlank { null },
-                        shareLink = extras?.optString("shareLink", null)?.ifBlank { null },
                     )
                 )
             }
         }
         return songs
+    }
+
+    private fun buildSong(
+        context: Context,
+        manifest: JSONObject,
+        trackId: String,
+        title: String,
+        artist: String,
+        uri: Uri,
+    ): OfflineSong {
+        val extras = manifest.optJSONObject(trackId)
+        return OfflineSong(
+            id = trackId,
+            title = title,
+            artist = artist,
+            uri = uri,
+            coverFile = coverFile(context, trackId),
+            album = extras?.optString("album", "") ?: "",
+            durationSec = extras?.optInt("durationSec", 0)?.takeIf { it > 0 },
+            explicit = extras?.optBoolean("explicit", false) ?: false,
+            videoId = extras?.optString("videoId", null)?.ifBlank { null },
+            ytTitle = extras?.optString("ytTitle", "") ?: "",
+            ytArtist = extras?.optString("ytArtist", "") ?: "",
+            ytAlbum = extras?.optString("ytAlbum", "") ?: "",
+            ytThumbnail = extras?.optString("ytThumb", null)?.ifBlank { null },
+            shareLink = extras?.optString("shareLink", null)?.ifBlank { null },
+        )
     }
 
     fun deleteSong(context: Context, song: OfflineSong): Boolean {
@@ -234,12 +265,17 @@ object OfflineStore {
     }
 
     /**
-     * TRUE if a track with this Spotify ID is already saved in Music/Spotilol.
-     * Used to de-duplicate album/playlist batch downloads. MediaStore is the
-     * source of truth on Q+; the folder listing on older devices.
+     * TRUE if a track with this Spotify ID is already saved in any folder downloads use. Used to
+     * de-duplicate album/playlist batch downloads. MediaStore is the source of truth on Q+; the
+     * folder listing on older devices.
      */
     fun isTrackSaved(context: Context, trackId: String): Boolean {
         if (trackId.isBlank()) return false
+        val marker = "[$trackId]."
+        for (tree in DownloadPrefs.knownFolders(context)) {
+            if (!DownloadFolder.hasAccess(context, tree)) continue
+            if (DownloadFolder.listChildren(context, tree).any { it.name.contains(marker) }) return true
+        }
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val folder = folder(context)
             val escaped = trackId
@@ -261,7 +297,6 @@ object OfflineStore {
                 Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC),
                 folder(context),
             )
-            val marker = "[$trackId]."
             runCatching {
                 dir.listFiles()?.any { it.isFile && it.name.contains(marker) } == true
             }.getOrDefault(false)

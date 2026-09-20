@@ -275,7 +275,7 @@ object DownloadManager {
     private suspend fun runSingle(appContext: Context, track: TrackMeta) {
         if (OfflineStore.isTrackSaved(appContext, track.trackId)) {
             onProgress?.invoke(100, "Already saved")
-            withContext(Dispatchers.Main) { onStatus?.invoke("Already saved to Music/${DownloadPrefs.subfolder(appContext)}") }
+            withContext(Dispatchers.Main) { onStatus?.invoke("Already saved to ${DownloadPrefs.folderLabel(appContext)}") }
             return
         }
         activeTrackId = track.trackId
@@ -306,8 +306,8 @@ object DownloadManager {
                         explicit = result.yt?.explicit ?: false,
                         shareLink = result.yt?.shareLink,
                     )
-                    onProgress?.invoke(100, "Saved to Music/${DownloadPrefs.subfolder(appContext)}")
-                    withContext(Dispatchers.Main) { onStatus?.invoke("Saved to Music/${DownloadPrefs.subfolder(appContext)}") }
+                    onProgress?.invoke(100, "Saved to ${DownloadPrefs.folderLabel(appContext)}")
+                    withContext(Dispatchers.Main) { onStatus?.invoke("Saved to ${DownloadPrefs.folderLabel(appContext)}") }
                 }
                 is TrackResult.Failed -> {
                     val msg = "Download failed: ${lastDownloadError ?: "unknown error"}"
@@ -445,7 +445,7 @@ object DownloadManager {
         withContext(Dispatchers.Main) { onStatus?.invoke(summary) }
         when {
             cancelled -> onProgress?.invoke(-1, summary)
-            saved > 0 -> onProgress?.invoke(100, "$summary — Music/${DownloadPrefs.subfolder(appContext)}")
+            saved > 0 -> onProgress?.invoke(100, "$summary — ${DownloadPrefs.folderLabel(appContext)}")
             failed > 0 -> onProgress?.invoke(-1, summary)
         }
     }
@@ -586,7 +586,7 @@ object DownloadManager {
             )
         }
 
-        val uri = saveToPublicMusic(
+        val uri = saveToDestination(
             context,
             trackId,
             effectiveTitle,
@@ -681,8 +681,8 @@ object DownloadManager {
         }
 
         val streamUrl = data.streamUrl
-        if (streamUrl == null) {
-            Log.w(TAG, "resolveStream: no stream url for ${chosen.id}")
+        if (streamUrl.isBlank()) {
+            Log.w(TAG, "resolveStream: empty stream url for ${chosen.id}")
             return null
         }
 
@@ -809,7 +809,7 @@ object DownloadManager {
         }
     }
 
-    private fun saveToPublicMusic(
+    private fun saveToDestination(
         context: Context,
         trackId: String,
         title: String,
@@ -822,6 +822,15 @@ object DownloadManager {
         val fileName = "$artist - $title [$trackId]"
             .replace(Regex("""[\\/:*?"<>|]"""), "_")
             .let { if (it.length > 200) it.take(200) else it }
+
+        val picked = DownloadPrefs.folder(context)
+        if (picked != null && DownloadFolder.hasAccess(context, picked)) {
+            val uri = DownloadFolder.create(context, picked, "$fileName.$ext", mime, tmpFile)
+            if (uri != null) return uri.toString()
+            Log.w(TAG, "saveToDestination: picked folder failed, falling back to Music/$folderName")
+        } else if (picked != null) {
+            Log.w(TAG, "saveToDestination: no access to the picked folder, using Music/$folderName")
+        }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val displayName = "$fileName.$ext"
@@ -836,14 +845,14 @@ object DownloadManager {
             val uri = context.contentResolver.insert(
                 MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, values
             ) ?: run {
-                Log.w(TAG, "saveToPublicMusic: MediaStore insert returned null")
+                Log.w(TAG, "saveToDestination: MediaStore insert returned null")
                 return null
             }
             try {
                 context.contentResolver.openOutputStream(uri)?.use { out ->
                     tmpFile.inputStream().use { it.copyTo(out) }
                 } ?: run {
-                    Log.w(TAG, "saveToPublicMusic: openOutputStream returned null")
+                    Log.w(TAG, "saveToDestination: openOutputStream returned null")
                     context.contentResolver.delete(uri, null, null)
                     return null
                 }
@@ -851,7 +860,7 @@ object DownloadManager {
                 values.put(MediaStore.MediaColumns.IS_PENDING, 0)
                 context.contentResolver.update(uri, values, null, null)
             } catch (e: Exception) {
-                Log.w(TAG, "saveToPublicMusic: MediaStore write failed: ${e.message}")
+                Log.w(TAG, "saveToDestination: MediaStore write failed: ${e.message}")
                 runCatching { context.contentResolver.delete(uri, null, null) }
                 return null
             }
@@ -863,7 +872,7 @@ object DownloadManager {
             ).apply { mkdirs() }
             val outFile = java.io.File(dir, "$fileName.$ext")
             if (!tmpFile.renameTo(outFile)) {
-                Log.w(TAG, "saveToPublicMusic: rename to public dir failed (API < 29)")
+                Log.w(TAG, "saveToDestination: rename to public dir failed (API < 29)")
                 return null
             }
             return outFile.absolutePath

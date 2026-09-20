@@ -11,6 +11,8 @@ import android.webkit.CookieManager
 import android.webkit.WebStorage
 import android.webkit.WebView
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -118,6 +120,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.webkit.WebViewCompat
 import com.project.lol.R
+import com.project.lol.offline.DownloadFolder
 import com.project.lol.offline.DownloadFormat
 import com.project.lol.offline.DownloadPrefs
 import com.project.lol.profile.ProfileManager
@@ -226,12 +229,30 @@ fun SettingsContent(
     var showDevlogDialog by remember { mutableStateOf(false) }
     var showLyricsStyleDialog by remember { mutableStateOf(false) }
     var showFormatDialog by remember { mutableStateOf(false) }
-    var showSubfolderDialog by remember { mutableStateOf(false) }
+    var showFolderDialog by remember { mutableStateOf(false) }
     var dlFormat by remember {
         mutableStateOf(DownloadPrefs.format(context))
     }
-    var dlSubfolder by remember {
-        mutableStateOf(DownloadPrefs.subfolder(context))
+    var dlFolderPath by remember {
+        mutableStateOf(DownloadPrefs.folderDisplayPath(context))
+    }
+    var dlFolderLabel by remember {
+        mutableStateOf(DownloadPrefs.folderLabel(context))
+    }
+    fun refreshFolderState() {
+        dlFolderPath = DownloadPrefs.folderDisplayPath(context)
+        dlFolderLabel = DownloadPrefs.folderLabel(context)
+    }
+    val folderPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        if (DownloadFolder.persist(context, uri)) {
+            DownloadPrefs.setFolder(context, uri)
+            refreshFolderState()
+        } else {
+            Toast.makeText(context, "Could not keep access to that folder", Toast.LENGTH_SHORT).show()
+        }
     }
     var dlTags by remember { mutableStateOf(DownloadPrefs.writeTags(context)) }
 
@@ -504,9 +525,9 @@ fun SettingsContent(
 
             SettingTile(
                 title = "Download Folder",
-                subtitle = "Saves to $dlSubfolder inside Music",
+                subtitle = "Saves to $dlFolderLabel",
                 icon = Icons.Default.Folder,
-                onClick = { showSubfolderDialog = true }
+                onClick = { showFolderDialog = true }
             )
 
             HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
@@ -922,15 +943,20 @@ fun SettingsContent(
         )
     }
 
-    if (showSubfolderDialog) {
-        SubfolderDialog(
-            initial = dlSubfolder,
-            onSave = { value ->
-                dlSubfolder = value
-                DownloadPrefs.setSubfolder(context, value)
-                showSubfolderDialog = false
+    if (showFolderDialog) {
+        DownloadFolderDialog(
+            currentPath = dlFolderPath,
+            onPick = {
+                showFolderDialog = false
+                val tree = DownloadPrefs.folder(context)
+                folderPicker.launch(tree?.let { DownloadFolder.documentUri(it) })
             },
-            onDismiss = { showSubfolderDialog = false }
+            onUseDefault = {
+                DownloadPrefs.setFolder(context, null)
+                refreshFolderState()
+                showFolderDialog = false
+            },
+            onDismiss = { showFolderDialog = false }
         )
     }
 
@@ -1672,12 +1698,12 @@ fun CustomCssDialog(
 }
 
 @Composable
-fun SubfolderDialog(
-    initial: String,
-    onSave: (String) -> Unit,
+fun DownloadFolderDialog(
+    currentPath: String,
+    onPick: () -> Unit,
+    onUseDefault: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    var tempName by remember { mutableStateOf(initial) }
     AlertDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(28.dp),
@@ -1699,44 +1725,35 @@ fun SubfolderDialog(
         text = {
             Column {
                 Text(
-                    text = "Name of the subfolder inside Music where downloads are saved",
+                    text = currentPath,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "Pick any folder you can write to, an SD card included. " +
+                        "Tracks already saved stay in the library.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(bottom = 12.dp)
+                    modifier = Modifier.padding(top = 6.dp)
                 )
-                OutlinedTextField(
-                    value = tempName,
-                    onValueChange = { tempName = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    prefix = {
-                        Text(
-                            "Music",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    },
-                    singleLine = true,
-                    shape = RoundedCornerShape(16.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
-                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
-                    )
+                Text(
+                    text = "Use default (Music/${DownloadPrefs.DEFAULT_SUBFOLDER})",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onUseDefault() }
+                        .padding(top = 14.dp)
                 )
             }
         },
         confirmButton = {
-            TextButton(
-                onClick = {
-                    val cleaned = tempName
-                        .trim()
-                        .replace(Regex("[/\\\\]+"), "-")
-                        .ifBlank { DownloadPrefs.DEFAULT_SUBFOLDER }
-                    onSave(cleaned)
-                }
-            ) {
-                Text("Save", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+            TextButton(onClick = onPick) {
+                Text(
+                    "Choose folder",
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
         },
         dismissButton = {

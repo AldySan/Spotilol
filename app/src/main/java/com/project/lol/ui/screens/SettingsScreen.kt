@@ -49,11 +49,13 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
+import androidx.compose.material3.SecondaryScrollableTabRow
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TooltipAnchorPosition
@@ -171,6 +173,14 @@ private const val DEBUG_UNLOCK_TAPS = 5
 
 private const val DEBUG_INFO_TEXT =
     "Experimental. Debug tools can behave differently between devices and may change or be removed in future builds. Events are kept in a rolling in-memory buffer, and a logcat-style capture and export may be added later."
+
+private enum class SettingsTab(val label: String) {
+    Appearance("Appearance"),
+    Playback("Playback"),
+    Content("Content"),
+    Advanced("Advanced"),
+    About("About")
+}
 
 
 
@@ -294,565 +304,612 @@ fun SettingsContent(
         if (debugUnlocked) {
             debugUnlocked = false
             prefs.edit().putBoolean("DebugUnlocked", false).apply()
+            if (dbgOverlay) {
+                dbgOverlay = false
+                prefs.edit().putBoolean("DebugOverlay", false).apply()
+                onDebugToggle(false)
+            }
             Toast.makeText(context, "Debug tools hidden", Toast.LENGTH_SHORT).show()
         } else {
             Toast.makeText(context, "Debug is hidden", Toast.LENGTH_SHORT).show()
         }
     }
 
+    var settingsTab by remember { mutableStateOf(SettingsTab.Appearance) }
+    val tabScrollStates = SettingsTab.entries.map { rememberScrollState() }
+    val scrollState = tabScrollStates[settingsTab.ordinal]
+
+    val pkg = remember { WebViewCompat.getCurrentWebViewPackage(context) }
+    val packageInfo = remember {
+        runCatching {
+            context.packageManager.getPackageInfo(context.packageName, 0)
+        }.getOrNull()
+    }
+    val appVersionName = packageInfo?.versionName ?: "1.0.0"
+
     Column(
-        modifier = modifier
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        modifier = modifier.fillMaxWidth()
     ) {
-        SettingSectionCard(
-            title = "APPEARANCE",
-            icon = TablerIcons.Palette
-        ) {
-            val guiLabel = when (guiMode) {
-                "csshack" -> "Mobile CSS + JS"
-                "bigwindow" -> "Wide Window"
-                "none" -> "None"
-                else -> "Mobile CSS + JS"
+        SecondaryScrollableTabRow(
+            selectedTabIndex = settingsTab.ordinal,
+            containerColor = Color.Transparent,
+            edgePadding = 4.dp,
+            divider = {
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
             }
-            SettingTile(
-                title = "GUI Hack Mode",
-                subtitle = guiLabel,
-                icon = TablerIcons.Palette,
-                onClick = { showGuiModeDialog = true }
-            )
-
-            HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
-
-            SettingTile(
-                title = "Custom CSS",
-                subtitle = if (customCss.isBlank()) "None configured" else customCss,
-                icon = TablerIcons.Code,
-                onClick = { showCustomCssDialog = true }
-            )
-
-            HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
-
-            SettingSwitchTile(
-                title = "Material You Theme",
-                subtitle = "Use Android system dynamic colors",
-                icon = TablerIcons.ColorSwatch,
-                checked = materialYou,
-                onCheckedChange = { enabled ->
-                    onMaterialYouChange(enabled)
-                    prefs.edit().putBoolean("MaterialYou", enabled).apply()
-                }
-            )
-
-            HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
-
-            val accentLabel = when {
-                materialYou -> "Dynamic (system colors)"
-                paletteSeed.isNullOrBlank() -> "Default"
-                else -> "Custom $paletteSeed"
-            }
-            SettingTile(
-                title = "Accent Color",
-                subtitle = accentLabel,
-                icon = TablerIcons.ColorSwatch,
-                onClick = { showPaletteDialog = true }
-            )
-
-            HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
-
-            SettingSwitchTile(
-                title = "AMOLED Theme",
-                subtitle = "Pure black background to save battery",
-                icon = TablerIcons.Moon,
-                checked = amoledTheme,
-                onCheckedChange = { enabled ->
-                    amoledTheme = enabled
-                    onAmoledThemeChange(enabled)
-                    prefs.edit().putBoolean("AmoledTheme", enabled).apply()
-                }
-            )
-
-            HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
-
-            SettingSwitchTile(
-                title = "Hide Top Bar",
-                subtitle = "Swipe down from the top to show it",
-                icon = TablerIcons.EyeOff,
-                checked = hideTopBar,
-                onCheckedChange = { enabled ->
-                    onHideTopBarChange(enabled)
-                    prefs.edit().putBoolean("HideTopBar", enabled).apply()
-                }
-            )
-
-            HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
-
-            SettingSwitchTile(
-                title = "Landscape Mode",
-                subtitle = "Allow rotating to landscape",
-                icon = TablerIcons.RotateClockwise2,
-                checked = landscapeMode,
-                onCheckedChange = { enabled ->
-                    onLandscapeModeChange(enabled)
-                    prefs.edit().putBoolean("LandscapeMode", enabled).apply()
-                }
-            )
-
-            HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
-
-            SettingSwitchTile(
-                title = "Keep Screen On",
-                subtitle = "Prevent the screen from turning off",
-                icon = TablerIcons.BrightnessUp,
-                checked = keepScreenOn,
-                onCheckedChange = { enabled ->
-                    onKeepScreenOnChange(enabled)
-                    prefs.edit().putBoolean("KeepScreenOn", enabled).apply()
-                }
-            )
-
-            HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
-
-            SettingSwitchTile(
-                title = "Playlist Scrollbar",
-                subtitle = "Draggable scrollbar on playlists and lists",
-                icon = TablerIcons.ArrowsUpDown,
-                checked = showScrollbar,
-                onCheckedChange = { enabled ->
-                    showScrollbar = enabled
-                    prefs.edit().putBoolean("ShowScrollbar", enabled).apply()
-                    MediaNotificationService.webView?.evaluateJavascript(
-                        "if(window.splScrollbar){window.splScrollbar($enabled)}else{window.__splShowScrollbar=$enabled}",
-                        null
-                    )
-                }
-            )
-        }
-
-        SettingSectionCard(
-            title = "PLAYER",
-            icon = TablerIcons.PlayerPlay
         ) {
-            val autoplayLabel = when (autoplayMode) {
-                "disabled" -> "Disabled"
-                "onetime" -> "One time at start"
-                "permanent" -> "Permanent"
-                else -> "One time at start"
-            }
-            SettingTile(
-                title = "AutoPlay Mode",
-                subtitle = autoplayLabel,
-                icon = TablerIcons.PlayerPlay,
-                onClick = { showAutoPlayDialog = true }
-            )
-
-            HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
-
-            val playerModeLabel = when (playerMode) {
-                "spotilol" -> "Spotilol Player"
-                "original" -> "Spotify Original"
-                else -> "Spotilol Player"
-            }
-            SettingTile(
-                title = "Player Mode",
-                subtitle = playerModeLabel,
-                icon = TablerIcons.PlayerPlay,
-                onClick = { showPlayerModeDialog = true }
-            )
-
-            HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
-
-            SettingSwitchTile(
-                title = "Hide Empty Mini Player",
-                subtitle = "Hide the mini player until a track is loaded",
-                icon = TablerIcons.EyeOff,
-                checked = hideEmptyPlayer,
-                onCheckedChange = {
-                    hideEmptyPlayer = it
-                    prefs.edit().putBoolean("HideEmptyPlayer", it).apply()
-                }
-            )
-
-            HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
-
-            SettingSwitchTile(
-                title = "Sort Playlists by Column",
-                subtitle = "Tap a playlist column header to sort alphabetically",
-                icon = TablerIcons.ArrowsSort,
-                checked = playlistSortEnabled,
-                onCheckedChange = {
-                    playlistSortEnabled = it
-                    prefs.edit().putBoolean("PlaylistSortEnabled", it).apply()
-                }
-            )
-
-            HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
-
-            val lyricsStyleLabel = LyricsTheme.STYLE_OPTIONS
-                .firstOrNull { it.first == lyricsStyle }?.second ?: "Fullscreen (Album Colors)"
-            SettingTile(
-                title = "Lyrics Style",
-                subtitle = lyricsStyleLabel,
-                icon = TablerIcons.Playlist,
-                onClick = { showLyricsStyleDialog = true }
-            )
-
-            HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
-
-            SettingSwitchTile(
-                title = "Take Player Control",
-                subtitle = "Auto accept the Take Control prompt",
-                icon = TablerIcons.Click,
-                checked = takeControl,
-                onCheckedChange = {
-                    takeControl = it
-                    prefs.edit().putBoolean("TakeControl", it).apply()
-                }
-            )
-
-            HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
-
-            SettingSwitchTile(
-                title = "Android Auto Controls",
-                subtitle = "Media metadata for notifications",
-                icon = TablerIcons.Car,
-                checked = andAuto,
-                onCheckedChange = {
-                    andAuto = it
-                    prefs.edit().putBoolean("AndAuto", it).apply()
-                }
-            )
-
-            HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
-
-            SettingSwitchTile(
-                title = "Always Close Now Playing",
-                subtitle = "Auto-close the Now Playing panel",
-                icon = TablerIcons.ArrowsMinimize,
-                checked = closeNowPlay,
-                onCheckedChange = {
-                    closeNowPlay = it
-                    prefs.edit().putBoolean("CloseNowPlay", it).apply()
-                }
-            )
-        }
-
-        SettingSectionCard(
-            title = "OFFLINE",
-            icon = TablerIcons.CloudOff
-        ) {
-            SettingSwitchTile(
-                title = "Offline Mode",
-                subtitle = if (offlineMode) {
-                    "On, playing downloaded songs only"
-                } else {
-                    "Play only downloaded songs, restarts the app"
-                },
-                icon = TablerIcons.CloudOff,
-                checked = offlineMode,
-                onCheckedChange = { enabled ->
-                    offlineMode = enabled
-                    onOfflineModeChange(enabled)
-                }
-            )
-
-            HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
-
-            SettingSwitchTile(
-                title = "Block Service Worker",
-                subtitle = "Prevent service workers from intercepting requests",
-                icon = TablerIcons.Shield,
-                checked = blockSW,
-                onCheckedChange = { enabled ->
-                    blockSW = enabled
-                    onBlockServiceWorkerChange(enabled)
-                }
-            )
-        }
-
-        SettingSectionCard(
-            title = "DOWNLOADS",
-            icon = TablerIcons.Download
-        ) {
-            SettingTile(
-                title = "Audio Format",
-                subtitle = if (dlFormat == DownloadFormat.MP3) "MP3 converted at 320 kbps" else "M4A original AAC",
-                icon = TablerIcons.WaveSine,
-                onClick = { showFormatDialog = true }
-            )
-
-            HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
-
-            SettingTile(
-                title = "Download Folder",
-                subtitle = "Saves to $dlFolderLabel",
-                icon = TablerIcons.Folder,
-                onClick = { showFolderDialog = true }
-            )
-
-            HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
-
-            SettingSwitchTile(
-                title = "Write Tags and Cover Art",
-                subtitle = "Embed metadata and cover art into the file",
-                icon = TablerIcons.Playlist,
-                checked = dlTags,
-                onCheckedChange = { enabled ->
-                    dlTags = enabled
-                    DownloadPrefs.setWriteTags(context, enabled)
-                }
-            )
-        }
-
-        SettingSectionCard(
-            title = "BLUETOOTH",
-            icon = TablerIcons.DeviceMobile
-        ) {
-            SettingSwitchTile(
-                title = "Pause on Disconnect",
-                subtitle = "Pause when BT or wired audio disconnects",
-                icon = TablerIcons.DeviceMobile,
-                checked = btAutoPause,
-                onCheckedChange = {
-                    btAutoPause = it
-                    prefs.edit().putBoolean("BtAutoPause", it).apply()
-                }
-            )
-
-            HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
-
-            SettingSwitchTile(
-                title = "Resume on Connect",
-                subtitle = "Resume when BT device connects",
-                icon = TablerIcons.DeviceMobile,
-                checked = btAutoResume,
-                onCheckedChange = {
-                    btAutoResume = it
-                    prefs.edit().putBoolean("BtAutoResume", it).apply()
-                }
-            )
-
-            HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
-
-            SettingSwitchTile(
-                title = "Resume on Headphone Plug",
-                subtitle = "Resume when wired headphones connect",
-                icon = TablerIcons.DeviceMobile,
-                checked = hpAutoResume,
-                onCheckedChange = {
-                    hpAutoResume = it
-                    prefs.edit().putBoolean("HpAutoResume", it).apply()
-                }
-            )
-        }
-
-        SettingSectionCard(
-            title = "ACCOUNTS",
-            icon = TablerIcons.UserPlus
-        ) {
-            SettingTile(
-                title = "Save Current Account",
-                subtitle = "Store the current session as a profile",
-                icon = TablerIcons.UserPlus,
-                onClick = {
-                    val cookies = ProfileManager.captureSession(context)
-                    if (cookies == null) {
-                        Toast.makeText(context, "Log in to Spotify first", Toast.LENGTH_SHORT).show()
-                    } else {
-                        pendingCookies = cookies
-                        accountNameInput = prefs.getString("CurrentAccountName", "") ?: ""
-                        showSaveAccountDialog = true
+            SettingsTab.entries.forEach { tab ->
+                Tab(
+                    selected = tab == settingsTab,
+                    onClick = { settingsTab = tab },
+                    text = {
+                        Text(
+                            text = tab.label,
+                            style = MaterialTheme.typography.labelLarge,
+                            maxLines = 1
+                        )
                     }
-                }
-            )
-            if (profiles.isNotEmpty()) {
-                HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
-                profiles.forEachIndexed { index, profile ->
-                    ProfileRow(
-                        name = profile.name,
-                        subtitle = "Saved " + SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
-                            .format(Date(profile.savedAt)),
-                        onLoad = { onLoadProfile(profile.cookies) },
-                        onDelete = {
-                            onDeleteProfile(profile.name)
-                            profiles = ProfileManager.getProfiles(context)
+                )
+            }
+        }
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .verticalScroll(scrollState)
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            if (settingsTab == SettingsTab.Appearance) {
+                SettingSectionCard(
+                    title = "APPEARANCE",
+                    icon = TablerIcons.Palette
+                ) {
+                    val guiLabel = when (guiMode) {
+                        "csshack" -> "Mobile CSS + JS"
+                        "bigwindow" -> "Wide Window"
+                        "none" -> "None"
+                        else -> "Mobile CSS + JS"
+                    }
+                    SettingTile(
+                        title = "GUI Hack Mode",
+                        subtitle = guiLabel,
+                        icon = TablerIcons.Palette,
+                        onClick = { showGuiModeDialog = true }
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+
+                    SettingTile(
+                        title = "Custom CSS",
+                        subtitle = if (customCss.isBlank()) "None configured" else customCss,
+                        icon = TablerIcons.Code,
+                        onClick = { showCustomCssDialog = true }
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+
+                    SettingSwitchTile(
+                        title = "Material You Theme",
+                        subtitle = "Use Android system dynamic colors",
+                        icon = TablerIcons.ColorSwatch,
+                        checked = materialYou,
+                        onCheckedChange = { enabled ->
+                            onMaterialYouChange(enabled)
+                            prefs.edit().putBoolean("MaterialYou", enabled).apply()
                         }
                     )
-                    if (index < profiles.lastIndex) {
+
+                    HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+
+                    val accentLabel = when {
+                        materialYou -> "Dynamic (system colors)"
+                        paletteSeed.isNullOrBlank() -> "Default"
+                        else -> "Custom $paletteSeed"
+                    }
+                    SettingTile(
+                        title = "Accent Color",
+                        subtitle = accentLabel,
+                        icon = TablerIcons.ColorSwatch,
+                        onClick = { showPaletteDialog = true }
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+
+                    SettingSwitchTile(
+                        title = "AMOLED Theme",
+                        subtitle = "Pure black background to save battery",
+                        icon = TablerIcons.Moon,
+                        checked = amoledTheme,
+                        onCheckedChange = { enabled ->
+                            amoledTheme = enabled
+                            onAmoledThemeChange(enabled)
+                            prefs.edit().putBoolean("AmoledTheme", enabled).apply()
+                        }
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+
+                    SettingSwitchTile(
+                        title = "Hide Top Bar",
+                        subtitle = "Swipe down from the top to show it",
+                        icon = TablerIcons.EyeOff,
+                        checked = hideTopBar,
+                        onCheckedChange = { enabled ->
+                            onHideTopBarChange(enabled)
+                            prefs.edit().putBoolean("HideTopBar", enabled).apply()
+                        }
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+
+                    SettingSwitchTile(
+                        title = "Landscape Mode",
+                        subtitle = "Allow rotating to landscape",
+                        icon = TablerIcons.RotateClockwise2,
+                        checked = landscapeMode,
+                        onCheckedChange = { enabled ->
+                            onLandscapeModeChange(enabled)
+                            prefs.edit().putBoolean("LandscapeMode", enabled).apply()
+                        }
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+
+                    SettingSwitchTile(
+                        title = "Keep Screen On",
+                        subtitle = "Prevent the screen from turning off",
+                        icon = TablerIcons.BrightnessUp,
+                        checked = keepScreenOn,
+                        onCheckedChange = { enabled ->
+                            onKeepScreenOnChange(enabled)
+                            prefs.edit().putBoolean("KeepScreenOn", enabled).apply()
+                        }
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+
+                    SettingSwitchTile(
+                        title = "Playlist Scrollbar",
+                        subtitle = "Draggable scrollbar on playlists and lists",
+                        icon = TablerIcons.ArrowsUpDown,
+                        checked = showScrollbar,
+                        onCheckedChange = { enabled ->
+                            showScrollbar = enabled
+                            prefs.edit().putBoolean("ShowScrollbar", enabled).apply()
+                            MediaNotificationService.webView?.evaluateJavascript(
+                                "if(window.splScrollbar){window.splScrollbar($enabled)}else{window.__splShowScrollbar=$enabled}",
+                                null
+                            )
+                        }
+                    )
+                }
+            }
+
+            if (settingsTab == SettingsTab.Playback) {
+                SettingSectionCard(
+                    title = "PLAYER",
+                    icon = TablerIcons.PlayerPlay
+                ) {
+                    val autoplayLabel = when (autoplayMode) {
+                        "disabled" -> "Disabled"
+                        "onetime" -> "One time at start"
+                        "permanent" -> "Permanent"
+                        else -> "One time at start"
+                    }
+                    SettingTile(
+                        title = "AutoPlay Mode",
+                        subtitle = autoplayLabel,
+                        icon = TablerIcons.PlayerPlay,
+                        onClick = { showAutoPlayDialog = true }
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+
+                    val playerModeLabel = when (playerMode) {
+                        "spotilol" -> "Spotilol Player"
+                        "original" -> "Spotify Original"
+                        else -> "Spotilol Player"
+                    }
+                    SettingTile(
+                        title = "Player Mode",
+                        subtitle = playerModeLabel,
+                        icon = TablerIcons.PlayerPlay,
+                        onClick = { showPlayerModeDialog = true }
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+
+                    SettingSwitchTile(
+                        title = "Hide Empty Mini Player",
+                        subtitle = "Hide the mini player until a track is loaded",
+                        icon = TablerIcons.EyeOff,
+                        checked = hideEmptyPlayer,
+                        onCheckedChange = {
+                            hideEmptyPlayer = it
+                            prefs.edit().putBoolean("HideEmptyPlayer", it).apply()
+                        }
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+
+                    SettingSwitchTile(
+                        title = "Sort Playlists by Column",
+                        subtitle = "Tap a playlist column header to sort alphabetically",
+                        icon = TablerIcons.ArrowsSort,
+                        checked = playlistSortEnabled,
+                        onCheckedChange = {
+                            playlistSortEnabled = it
+                            prefs.edit().putBoolean("PlaylistSortEnabled", it).apply()
+                        }
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+
+                    val lyricsStyleLabel = LyricsTheme.STYLE_OPTIONS
+                        .firstOrNull { it.first == lyricsStyle }?.second ?: "Fullscreen (Album Colors)"
+                    SettingTile(
+                        title = "Lyrics Style",
+                        subtitle = lyricsStyleLabel,
+                        icon = TablerIcons.Playlist,
+                        onClick = { showLyricsStyleDialog = true }
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+
+                    SettingSwitchTile(
+                        title = "Take Player Control",
+                        subtitle = "Auto accept the Take Control prompt",
+                        icon = TablerIcons.Click,
+                        checked = takeControl,
+                        onCheckedChange = {
+                            takeControl = it
+                            prefs.edit().putBoolean("TakeControl", it).apply()
+                        }
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+
+                    SettingSwitchTile(
+                        title = "Android Auto Controls",
+                        subtitle = "Media metadata for notifications",
+                        icon = TablerIcons.Car,
+                        checked = andAuto,
+                        onCheckedChange = {
+                            andAuto = it
+                            prefs.edit().putBoolean("AndAuto", it).apply()
+                        }
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+
+                    SettingSwitchTile(
+                        title = "Always Close Now Playing",
+                        subtitle = "Auto-close the Now Playing panel",
+                        icon = TablerIcons.ArrowsMinimize,
+                        checked = closeNowPlay,
+                        onCheckedChange = {
+                            closeNowPlay = it
+                            prefs.edit().putBoolean("CloseNowPlay", it).apply()
+                        }
+                    )
+                }
+
+                SettingSectionCard(
+                    title = "BLUETOOTH",
+                    icon = TablerIcons.DeviceMobile
+                ) {
+                    SettingSwitchTile(
+                        title = "Pause on Disconnect",
+                        subtitle = "Pause when BT or wired audio disconnects",
+                        icon = TablerIcons.DeviceMobile,
+                        checked = btAutoPause,
+                        onCheckedChange = {
+                            btAutoPause = it
+                            prefs.edit().putBoolean("BtAutoPause", it).apply()
+                        }
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+
+                    SettingSwitchTile(
+                        title = "Resume on Connect",
+                        subtitle = "Resume when BT device connects",
+                        icon = TablerIcons.DeviceMobile,
+                        checked = btAutoResume,
+                        onCheckedChange = {
+                            btAutoResume = it
+                            prefs.edit().putBoolean("BtAutoResume", it).apply()
+                        }
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+
+                    SettingSwitchTile(
+                        title = "Resume on Headphone Plug",
+                        subtitle = "Resume when wired headphones connect",
+                        icon = TablerIcons.DeviceMobile,
+                        checked = hpAutoResume,
+                        onCheckedChange = {
+                            hpAutoResume = it
+                            prefs.edit().putBoolean("HpAutoResume", it).apply()
+                        }
+                    )
+                }
+            }
+
+            if (settingsTab == SettingsTab.Content) {
+                SettingSectionCard(
+                    title = "OFFLINE",
+                    icon = TablerIcons.CloudOff
+                ) {
+                    SettingSwitchTile(
+                        title = "Offline Mode",
+                        subtitle = if (offlineMode) {
+                            "On, playing downloaded songs only"
+                        } else {
+                            "Play only downloaded songs, restarts the app"
+                        },
+                        icon = TablerIcons.CloudOff,
+                        checked = offlineMode,
+                        onCheckedChange = { enabled ->
+                            offlineMode = enabled
+                            onOfflineModeChange(enabled)
+                        }
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+
+                    SettingSwitchTile(
+                        title = "Block Service Worker",
+                        subtitle = "Prevent service workers from intercepting requests",
+                        icon = TablerIcons.Shield,
+                        checked = blockSW,
+                        onCheckedChange = { enabled ->
+                            blockSW = enabled
+                            onBlockServiceWorkerChange(enabled)
+                        }
+                    )
+                }
+
+                SettingSectionCard(
+                    title = "DOWNLOADS",
+                    icon = TablerIcons.Download
+                ) {
+                    SettingTile(
+                        title = "Audio Format",
+                        subtitle = if (dlFormat == DownloadFormat.MP3) "MP3 converted at 320 kbps" else "M4A original AAC",
+                        icon = TablerIcons.WaveSine,
+                        onClick = { showFormatDialog = true }
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+
+                    SettingTile(
+                        title = "Download Folder",
+                        subtitle = "Saves to $dlFolderLabel",
+                        icon = TablerIcons.Folder,
+                        onClick = { showFolderDialog = true }
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+
+                    SettingSwitchTile(
+                        title = "Write Tags and Cover Art",
+                        subtitle = "Embed metadata and cover art into the file",
+                        icon = TablerIcons.Playlist,
+                        checked = dlTags,
+                        onCheckedChange = { enabled ->
+                            dlTags = enabled
+                            DownloadPrefs.setWriteTags(context, enabled)
+                        }
+                    )
+                }
+
+                SettingSectionCard(
+                    title = "ACCOUNTS",
+                    icon = TablerIcons.UserPlus
+                ) {
+                    SettingTile(
+                        title = "Save Current Account",
+                        subtitle = "Store the current session as a profile",
+                        icon = TablerIcons.UserPlus,
+                        onClick = {
+                            val cookies = ProfileManager.captureSession(context)
+                            if (cookies == null) {
+                                Toast.makeText(context, "Log in to Spotify first", Toast.LENGTH_SHORT).show()
+                            } else {
+                                pendingCookies = cookies
+                                accountNameInput = prefs.getString("CurrentAccountName", "") ?: ""
+                                showSaveAccountDialog = true
+                            }
+                        }
+                    )
+                    if (profiles.isNotEmpty()) {
                         HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+                        profiles.forEachIndexed { index, profile ->
+                            ProfileRow(
+                                name = profile.name,
+                                subtitle = "Saved " + SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
+                                    .format(Date(profile.savedAt)),
+                                onLoad = { onLoadProfile(profile.cookies) },
+                                onDelete = {
+                                    onDeleteProfile(profile.name)
+                                    profiles = ProfileManager.getProfiles(context)
+                                }
+                            )
+                            if (index < profiles.lastIndex) {
+                                HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+                            }
+                        }
                     }
                 }
             }
-        }
 
-        SettingSectionCard(
-            title = "CONNECTION MODE",
-            icon = TablerIcons.Shield
-        ) {
-            val modeLabel = if (connectionMode == "proxy") {
-                "MITM Proxy (Certificate)"
-            } else {
-                "Normal (No Certificate)"
-            }
-            SettingTile(
-                title = "MITM Proxy Mode",
-                subtitle = "$modeLabel, restarts the app",
-                icon = TablerIcons.Shield,
-                onClick = { showConnectionModeDialog = true }
-            )
-        }
-
-        SettingSectionCard(
-            title = "SYSTEM",
-            icon = TablerIcons.Power
-        ) {
-            SettingSwitchTile(
-                title = "Swipe to Stop Service",
-                subtitle = "Kill background service from recents",
-                icon = TablerIcons.Power,
-                checked = swipeStop,
-                onCheckedChange = {
-                    swipeStop = it
-                    prefs.edit().putBoolean("SwipeStop", it).apply()
-                }
-            )
-
-            HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
-
-            SettingTile(
-                title = "Empty Cache",
-                subtitle = "Useful if player navigation is slow",
-                icon = TablerIcons.Brush,
-                onClick = { showClearCacheDialog = true }
-            )
-
-            HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
-
-            SettingTile(
-                title = "Empty Cache and Login Data",
-                subtitle = "Clear everything and log out",
-                icon = TablerIcons.TrashOff,
-                onClick = { showClearDataDialog = true },
-                isDestructive = true
-            )
-
-            HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
-
-            SettingTile(
-                title = "Open Spotify Links",
-                subtitle = "Enable link handling to open shared links here",
-                icon = TablerIcons.Link,
-                onClick = {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                        val pkg = Uri.parse("package:${context.packageName}")
-                        val specific = Intent(Settings.ACTION_APP_OPEN_BY_DEFAULT_SETTINGS).setData(pkg)
-                        val generic = Intent(Settings.ACTION_APP_OPEN_BY_DEFAULT_SETTINGS)
-                        val appInfo = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).setData(pkg)
-                        val opened = listOf(specific, generic, appInfo).any { intent ->
-                            runCatching { context.startActivity(intent) }.isSuccess
-                        }
-                        if (!opened) {
-                            Toast.makeText(context, "Not supported on this device", Toast.LENGTH_SHORT).show()
-                        }
+            if (settingsTab == SettingsTab.Advanced) {
+                SettingSectionCard(
+                    title = "CONNECTION MODE",
+                    icon = TablerIcons.Shield
+                ) {
+                    val modeLabel = if (connectionMode == "proxy") {
+                        "MITM Proxy (Certificate)"
                     } else {
-                        Toast.makeText(context, "Use 'Always' when opening a Spotify link", Toast.LENGTH_LONG).show()
+                        "Normal (No Certificate)"
+                    }
+                    SettingTile(
+                        title = "MITM Proxy Mode",
+                        subtitle = "$modeLabel, restarts the app",
+                        icon = TablerIcons.Shield,
+                        onClick = { showConnectionModeDialog = true }
+                    )
+                }
+
+                SettingSectionCard(
+                    title = "SYSTEM",
+                    icon = TablerIcons.Power
+                ) {
+                    SettingSwitchTile(
+                        title = "Swipe to Stop Service",
+                        subtitle = "Kill background service from recents",
+                        icon = TablerIcons.Power,
+                        checked = swipeStop,
+                        onCheckedChange = {
+                            swipeStop = it
+                            prefs.edit().putBoolean("SwipeStop", it).apply()
+                        }
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+
+                    SettingTile(
+                        title = "Empty Cache",
+                        subtitle = "Useful if player navigation is slow",
+                        icon = TablerIcons.Brush,
+                        onClick = { showClearCacheDialog = true }
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+
+                    SettingTile(
+                        title = "Empty Cache and Login Data",
+                        subtitle = "Clear everything and log out",
+                        icon = TablerIcons.TrashOff,
+                        onClick = { showClearDataDialog = true },
+                        isDestructive = true
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+
+                    SettingTile(
+                        title = "Open Spotify Links",
+                        subtitle = "Enable link handling to open shared links here",
+                        icon = TablerIcons.Link,
+                        onClick = {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                val pkg = Uri.parse("package:${context.packageName}")
+                                val specific = Intent(Settings.ACTION_APP_OPEN_BY_DEFAULT_SETTINGS).setData(pkg)
+                                val generic = Intent(Settings.ACTION_APP_OPEN_BY_DEFAULT_SETTINGS)
+                                val appInfo = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).setData(pkg)
+                                val opened = listOf(specific, generic, appInfo).any { intent ->
+                                    runCatching { context.startActivity(intent) }.isSuccess
+                                }
+                                if (!opened) {
+                                    Toast.makeText(context, "Not supported on this device", Toast.LENGTH_SHORT).show()
+                                }
+                            } else {
+                                Toast.makeText(context, "Use 'Always' when opening a Spotify link", Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    )
+                }
+
+                if (connectionMode == "proxy") {
+                    SettingSectionCard(
+                        title = "SECURITY AND NETWORK",
+                        icon = TablerIcons.Shield
+                    ) {
+                        SettingTile(
+                            title = "CA Certificate",
+                            subtitle = "Re-export proxy certificate to Downloads",
+                            icon = TablerIcons.Shield,
+                            onClick = {
+                                val path = LocalProxyManager.exportCACert(context)
+                                Toast.makeText(context, "Exported to $path", Toast.LENGTH_LONG).show()
+                            }
+                        )
                     }
                 }
-            )
-        }
-
-        if (connectionMode == "proxy") {
-            SettingSectionCard(
-                title = "SECURITY AND NETWORK",
-                icon = TablerIcons.Shield
-            ) {
-                SettingTile(
-                    title = "CA Certificate",
-                    subtitle = "Re-export proxy certificate to Downloads",
-                    icon = TablerIcons.Shield,
-                    onClick = {
-                        val path = LocalProxyManager.exportCACert(context)
-                        Toast.makeText(context, "Exported to $path", Toast.LENGTH_LONG).show()
-                    }
-                )
             }
-        }
 
-        val pkg = remember { WebViewCompat.getCurrentWebViewPackage(context) }
-        val packageInfo = remember {
-            runCatching {
-                context.packageManager.getPackageInfo(context.packageName, 0)
-            }.getOrNull()
-        }
-        val appVersionName = packageInfo?.versionName ?: "1.0.0"
+            if (settingsTab == SettingsTab.About) {
+                SettingSectionCard(
+                    title = "ABOUT",
+                    icon = TablerIcons.InfoCircle
+                ) {
+                    SettingTile(
+                        title = "GitHub Repository",
+                        subtitle = "github.com/lyssadev/Spotilol",
+                        painter = painterResource(id = R.drawable.ic_github),
+                        onClick = {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/lyssadev/Spotilol"))
+                            context.startActivity(intent)
+                        }
+                    )
 
-        SettingSectionCard(
-            title = "ABOUT",
-            icon = TablerIcons.InfoCircle
-        ) {
-            SettingTile(
-                title = "GitHub Repository",
-                subtitle = "github.com/lyssadev/Spotilol",
-                painter = painterResource(id = R.drawable.ic_github),
-                onClick = {
-                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/lyssadev/Spotilol"))
-                    context.startActivity(intent)
+                    HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+
+                    SettingTile(
+                        title = "Spotilol Version",
+                        subtitle = "v$appVersionName",
+                        icon = TablerIcons.DeviceMobile,
+                        onClick = { showChangelogDialog = true }
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+
+                    SettingTile(
+                        title = "WebView Engine",
+                        subtitle = pkg?.versionName ?: "System WebView",
+                        icon = TablerIcons.Language,
+                        onClick = { onDebugSecretTap() },
+                        onLongClick = { onDebugSecretHold() }
+                    )
                 }
-            )
 
-            HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+                if (debugUnlocked) {
+                    SettingSectionCard(
+                        title = "DEBUG",
+                        icon = TablerIcons.Flask,
+                        badge = "BETA",
+                        info = DEBUG_INFO_TEXT
+                    ) {
+                        SettingSwitchTile(
+                            title = "Collect Debug",
+                            subtitle = "Collect debug events thrown by JS",
+                            icon = TablerIcons.Bug,
+                            checked = dbgOverlay,
+                            onCheckedChange = { enabled ->
+                                dbgOverlay = enabled
+                                prefs.edit().putBoolean("DebugOverlay", enabled).apply()
+                                onDebugToggle(enabled)
+                            }
+                        )
 
-            SettingTile(
-                title = "Spotilol Version",
-                subtitle = "v$appVersionName",
-                icon = TablerIcons.DeviceMobile,
-                onClick = { showChangelogDialog = true }
-            )
+                        HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
-            HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
-
-            SettingTile(
-                title = "WebView Engine",
-                subtitle = pkg?.versionName ?: "System WebView",
-                icon = TablerIcons.Language,
-                onClick = { onDebugSecretTap() },
-                onLongClick = { onDebugSecretHold() }
-            )
-        }
-
-        if (debugUnlocked) {
-            SettingSectionCard(
-                title = "DEBUG",
-                icon = TablerIcons.Flask,
-                badge = "BETA",
-                info = DEBUG_INFO_TEXT
-            ) {
-                SettingSwitchTile(
-                    title = "Collect Debug",
-                    subtitle = "Collect debug events thrown by JS",
-                    icon = TablerIcons.Bug,
-                    checked = dbgOverlay,
-                    onCheckedChange = { enabled ->
-                        dbgOverlay = enabled
-                        prefs.edit().putBoolean("DebugOverlay", enabled).apply()
-                        onDebugToggle(enabled)
+                        SettingTile(
+                            title = "Open Devlog",
+                            subtitle = if (dbgOverlay) "Live JS and native events" else "Enable debug first",
+                            icon = TablerIcons.Code,
+                            onClick = { showDevlogDialog = true },
+                            enabled = dbgOverlay
+                        )
                     }
-                )
-
-                HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
-
-                SettingTile(
-                    title = "Open Devlog",
-                    subtitle = if (dbgOverlay) "Live JS and native events" else "Enable debug first",
-                    icon = TablerIcons.Code,
-                    onClick = { showDevlogDialog = true },
-                    enabled = dbgOverlay
-                )
+                }
             }
-        }
 
-        Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(8.dp))
+        }
     }
 
     if (showPaletteDialog) {

@@ -68,6 +68,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -80,6 +81,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -141,6 +144,8 @@ fun OfflineScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     var settingsDialogOpen by remember { mutableStateOf(false) }
     var showQuickMenu by remember { mutableStateOf(false) }
@@ -157,6 +162,7 @@ fun OfflineScreen(
 
     val mediaPlayer = remember { MediaPlayer() }
     var searchQuery by remember { mutableStateOf("") }
+    var searchFocused by remember { mutableStateOf(false) }
     var searchResults by remember { mutableStateOf<List<OfflineSong>?>(null) }
 
     val searchEngine = remember { GenericSearchEngine<OfflineSong>(maxResult = 100) }
@@ -262,9 +268,13 @@ fun OfflineScreen(
         }
     }
 
-    BackHandler(enabled = settingsDialogOpen || searchQuery.isNotBlank()) {
+    BackHandler(enabled = settingsDialogOpen || searchFocused || searchQuery.isNotBlank()) {
         when {
             settingsDialogOpen -> settingsDialogOpen = false
+            searchFocused -> {
+                focusManager.clearFocus()
+                keyboardController?.hide()
+            }
             else -> searchQuery = ""
         }
     }
@@ -430,7 +440,8 @@ fun OfflineScreen(
                             Spacer(Modifier.height(8.dp))
                             OfflineSearchField(
                                 value = searchQuery,
-                                onValueChange = { searchQuery = it }
+                                onValueChange = { searchQuery = it },
+                                onSearchFocusChange = { searchFocused = it }
                             )
                         }
                     }
@@ -752,7 +763,8 @@ private fun CompactIconButton(
 @Composable
 private fun OfflineSearchField(
     value: String,
-    onValueChange: (String) -> Unit
+    onValueChange: (String) -> Unit,
+    onSearchFocusChange: (Boolean) -> Unit
 ) {
     Surface(
         modifier = Modifier
@@ -775,7 +787,9 @@ private fun OfflineSearchField(
             BasicTextField(
                 value = value,
                 onValueChange = onValueChange,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .onFocusChanged { onSearchFocusChange(it.isFocused) },
                 singleLine = true,
                 textStyle = MaterialTheme.typography.bodyMedium.copy(
                     color = MaterialTheme.colorScheme.onSurface

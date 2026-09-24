@@ -81,10 +81,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -115,7 +111,7 @@ import com.project.lol.offline.DownloadManager
 import com.project.lol.profile.ProfileManager
 import com.project.lol.proxy.LocalProxyManager
 import com.project.lol.service.MediaNotificationService
-import com.project.lol.ui.components.SettingsDrawer
+import com.project.lol.ui.components.SettingsDialog
 import com.project.lol.ui.theme.SpotifyTheme
 import com.project.lol.util.UpdateChecker
 import com.project.lol.webview.SpotifyWebChromeClient
@@ -125,6 +121,9 @@ import com.project.lol.webview.helpers.LyricsTheme
 import com.project.lol.webview.helpers.buildAmoledJs
 import com.project.lol.webview.helpers.buildCustomCssJs
 import com.project.lol.webview.injections.LogoutCheck
+import compose.icons.TablerIcons
+import compose.icons.tablericons.Menu2
+import compose.icons.tablericons.Settings
 import java.lang.ref.WeakReference
 import java.net.HttpURLConnection
 import java.net.URL
@@ -258,7 +257,7 @@ class MainActivity : ComponentActivity() {
             val loadProgress = loadingProgress.intValue
             val blockServiceWorker = blockServiceWorkerState.value
 
-            var settingsDrawerOpen by remember { mutableStateOf(false) }
+            var settingsDialogOpen by remember { mutableStateOf(false) }
             var showMiniMenu by remember { mutableStateOf(false) }
             val versionName = remember {
                 runCatching { packageManager.getPackageInfo(packageName, 0).versionName }
@@ -271,18 +270,18 @@ class MainActivity : ComponentActivity() {
                 AccentTheme.resolveColor(this@MainActivity)
             }
 
-            BackHandler(enabled = settingsDrawerOpen || webView?.canGoBack() == true) {
-                if (settingsDrawerOpen) {
-                    settingsDrawerOpen = false
+            BackHandler(enabled = settingsDialogOpen || webView?.canGoBack() == true) {
+                if (settingsDialogOpen) {
+                    settingsDialogOpen = false
                 } else {
                     webView?.goBack()
                 }
             }
 
             SpotifyTheme(useDynamicColor = materialYou, amoled = amoled, seedColor = seedColor) {
-                SettingsDrawer(
-                    visible = settingsDrawerOpen,
-                    onClose = { settingsDrawerOpen = false },
+                SettingsDialog(
+                    visible = settingsDialogOpen,
+                    onClose = { settingsDialogOpen = false },
                     prefs = prefs,
                     materialYou = materialYou,
                     onMaterialYouChange = { enabled ->
@@ -361,12 +360,12 @@ class MainActivity : ComponentActivity() {
                                 navigationIcon = {
                                     IconButton(onClick = {
                                         analytics.logEvent("open_settings", Bundle().apply {
-                                            putString(FirebaseAnalytics.Param.SCREEN_NAME, "SettingsDrawer")
+                                            putString(FirebaseAnalytics.Param.SCREEN_NAME, "SettingsDialog")
                                         })
-                                        settingsDrawerOpen = true
+                                        settingsDialogOpen = true
                                     }) {
                                         Icon(
-                                            imageVector = Icons.Default.Menu,
+                                            imageVector = TablerIcons.Menu2,
                                             contentDescription = "Settings",
                                             tint = MaterialTheme.colorScheme.onSurface
                                         )
@@ -616,7 +615,7 @@ class MainActivity : ComponentActivity() {
                                 onToggleMenu = { showMiniMenu = !showMiniMenu },
                                 onOpenSettings = {
                                     showMiniMenu = false
-                                    settingsDrawerOpen = true
+                                    settingsDialogOpen = true
                                 },
                                 serviceEnabled = serviceEnabled,
                                 onServiceToggle = { newValue -> setServiceEnabled(newValue) },
@@ -957,7 +956,7 @@ class MainActivity : ComponentActivity() {
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Settings,
+                                    imageVector = TablerIcons.Settings,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onSurface
                                 )
@@ -969,7 +968,7 @@ class MainActivity : ComponentActivity() {
                                     modifier = Modifier.weight(1f)
                                 )
                                 Icon(
-                                    imageVector = Icons.Default.Menu,
+                                    imageVector = TablerIcons.Menu2,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                                 )

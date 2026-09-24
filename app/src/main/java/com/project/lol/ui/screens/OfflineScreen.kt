@@ -34,17 +34,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Logout
-import androidx.compose.material.icons.filled.CloudOff
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.SkipNext
-import androidx.compose.material.icons.filled.SkipPrevious
-import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -62,8 +51,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import com.project.lol.searchEngine.GenericSearchEngine
@@ -99,7 +86,20 @@ import com.project.lol.R
 import com.project.lol.offline.OfflineSong
 import com.project.lol.offline.OfflineStore
 import com.project.lol.service.OfflineMediaService
-import com.project.lol.ui.components.SettingsDrawer
+import com.project.lol.ui.components.SettingsDialog
+import compose.icons.TablerIcons
+import compose.icons.tablericons.CloudOff
+import compose.icons.tablericons.Logout
+import compose.icons.tablericons.Menu2
+import compose.icons.tablericons.Music
+import compose.icons.tablericons.PlayerPause
+import compose.icons.tablericons.PlayerPlay
+import compose.icons.tablericons.PlayerSkipBack
+import compose.icons.tablericons.PlayerSkipForward
+import compose.icons.tablericons.Search
+import compose.icons.tablericons.Settings
+import compose.icons.tablericons.Trash
+import compose.icons.tablericons.X
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -135,7 +135,7 @@ fun OfflineScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    var settingsDrawerOpen by remember { mutableStateOf(false) }
+    var settingsDialogOpen by remember { mutableStateOf(false) }
     var showQuickMenu by remember { mutableStateOf(false) }
 
     var songs by remember { mutableStateOf<List<OfflineSong>>(emptyList()) }
@@ -255,9 +255,9 @@ fun OfflineScreen(
         }
     }
 
-    BackHandler(enabled = settingsDrawerOpen || searchQuery.isNotBlank()) {
+    BackHandler(enabled = settingsDialogOpen || searchQuery.isNotBlank()) {
         when {
-            settingsDrawerOpen -> settingsDrawerOpen = false
+            settingsDialogOpen -> settingsDialogOpen = false
             else -> searchQuery = ""
         }
     }
@@ -309,9 +309,9 @@ fun OfflineScreen(
         }
     }
 
-    SettingsDrawer(
-        visible = settingsDrawerOpen,
-        onClose = { settingsDrawerOpen = false },
+    SettingsDialog(
+        visible = settingsDialogOpen,
+        onClose = { settingsDialogOpen = false },
         prefs = prefs,
         materialYou = materialYou,
         onMaterialYouChange = onMaterialYouChange,
@@ -360,9 +360,9 @@ fun OfflineScreen(
                             }
                         },
                         navigationIcon = {
-                            IconButton(onClick = { settingsDrawerOpen = true }) {
+                            IconButton(onClick = { settingsDialogOpen = true }) {
                                 Icon(
-                                    imageVector = Icons.Default.Menu,
+                                    imageVector = TablerIcons.Menu2,
                                     contentDescription = "Settings",
                                     tint = MaterialTheme.colorScheme.onSurface
                                 )
@@ -371,7 +371,7 @@ fun OfflineScreen(
                         actions = {
                             IconButton(onClick = onExit) {
                                 Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.Logout,
+                                    imageVector = TablerIcons.Logout,
                                     contentDescription = "Exit offline mode",
                                     tint = MaterialTheme.colorScheme.onSurface
                                 )
@@ -425,7 +425,7 @@ fun OfflineScreen(
                             placeholder = { Text("Search your downloads") },
                             leadingIcon = {
                                 Icon(
-                                    imageVector = Icons.Default.Search,
+                                    imageVector = TablerIcons.Search,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -434,7 +434,7 @@ fun OfflineScreen(
                                 if (searchQuery.isNotEmpty()) {
                                     IconButton(onClick = { searchQuery = "" }) {
                                         Icon(
-                                            imageVector = Icons.Default.Close,
+                                            imageVector = TablerIcons.X,
                                             contentDescription = "Clear search",
                                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -474,7 +474,7 @@ fun OfflineScreen(
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Icon(
-                                    imageVector = Icons.Default.Search,
+                                    imageVector = TablerIcons.Search,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
                                     modifier = Modifier.size(56.dp)
@@ -502,7 +502,7 @@ fun OfflineScreen(
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Icon(
-                                    imageVector = Icons.Default.CloudOff,
+                                    imageVector = TablerIcons.CloudOff,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
                                     modifier = Modifier.size(56.dp)
@@ -619,13 +619,13 @@ fun OfflineScreen(
                                                 .fillMaxWidth()
                                                 .clickable {
                                                     showQuickMenu = false
-                                                    settingsDrawerOpen = true
+                                                    settingsDialogOpen = true
                                                 }
                                                 .padding(horizontal = 16.dp, vertical = 12.dp),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Icon(
-                                                imageVector = Icons.Default.Settings,
+                                                imageVector = TablerIcons.Settings,
                                                 contentDescription = null,
                                                 tint = MaterialTheme.colorScheme.onSurface
                                             )
@@ -637,7 +637,7 @@ fun OfflineScreen(
                                                 modifier = Modifier.weight(1f)
                                             )
                                             Icon(
-                                                imageVector = Icons.Default.Menu,
+                                                imageVector = TablerIcons.Menu2,
                                                 contentDescription = null,
                                                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                                             )
@@ -656,7 +656,7 @@ fun OfflineScreen(
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Icon(
-                                                imageVector = Icons.AutoMirrored.Filled.Logout,
+                                                imageVector = TablerIcons.Logout,
                                                 contentDescription = null,
                                                 tint = MaterialTheme.colorScheme.onSurface
                                             )
@@ -808,7 +808,7 @@ private fun OfflineSongRow(
         }
         IconButton(onClick = onDelete) {
             Icon(
-                imageVector = Icons.Outlined.Delete,
+                imageVector = TablerIcons.Trash,
                 contentDescription = "Delete",
                 tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
             )
@@ -842,7 +842,7 @@ private fun SongCover(song: OfflineSong, size: Dp, corner: Dp) {
             )
         } else {
             Icon(
-                imageVector = Icons.Default.MusicNote,
+                imageVector = TablerIcons.Music,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
                 modifier = Modifier.size(size / 2)
@@ -919,14 +919,14 @@ private fun NowPlayingBar(
                 }
                 IconButton(onClick = onPrev) {
                     Icon(
-                        imageVector = Icons.Default.SkipPrevious,
+                        imageVector = TablerIcons.PlayerSkipBack,
                         contentDescription = "Previous",
                         tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
                 IconButton(onClick = onTogglePlay) {
                     Icon(
-                        imageVector = if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        imageVector = if (playing) TablerIcons.PlayerPause else TablerIcons.PlayerPlay,
                         contentDescription = if (playing) "Pause" else "Play",
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(32.dp)
@@ -934,7 +934,7 @@ private fun NowPlayingBar(
                 }
                 IconButton(onClick = onNext) {
                     Icon(
-                        imageVector = Icons.Default.SkipNext,
+                        imageVector = TablerIcons.PlayerSkipForward,
                         contentDescription = "Next",
                         tint = MaterialTheme.colorScheme.onSurface
                     )

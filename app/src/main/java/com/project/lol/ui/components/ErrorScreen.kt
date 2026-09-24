@@ -19,9 +19,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CloudOff
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -37,6 +34,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import compose.icons.TablerIcons
+import compose.icons.tablericons.CloudOff
+import compose.icons.tablericons.Refresh
 
 enum class WebViewErrorType(val title: String, val message: String) {
     NO_INTERNET("You're Offline", "No internet connection detected.\nCheck your network and try again."),
@@ -100,7 +100,7 @@ fun ErrorScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.CloudOff,
+                    imageVector = TablerIcons.CloudOff,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(44.dp)
@@ -141,7 +141,7 @@ fun ErrorScreen(
                 )
             ) {
                 Icon(
-                    imageVector = Icons.Default.Refresh,
+                    imageVector = TablerIcons.Refresh,
                     contentDescription = null,
                     modifier = Modifier.size(20.dp)
                 )

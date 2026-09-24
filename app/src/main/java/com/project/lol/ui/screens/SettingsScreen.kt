@@ -17,6 +17,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,44 +37,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.QueueMusic
-import androidx.compose.material.icons.automirrored.filled.Sort
-import androidx.compose.material.icons.filled.BrightnessHigh
-import androidx.compose.material.icons.filled.BugReport
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.CleaningServices
-import androidx.compose.material.icons.filled.CloseFullscreen
-import androidx.compose.material.icons.filled.CloudOff
-import androidx.compose.material.icons.filled.Code
-import androidx.compose.material.icons.filled.ColorLens
-import androidx.compose.material.icons.filled.DarkMode
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.DeleteForever
-import androidx.compose.material.icons.filled.DirectionsCar
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.GraphicEq
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Language
-import androidx.compose.material.icons.filled.LibraryMusic
-import androidx.compose.material.icons.filled.Link
-import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.PersonAdd
-import androidx.compose.material.icons.filled.PlayCircle
-import androidx.compose.material.icons.filled.PowerSettingsNew
-import androidx.compose.material.icons.filled.ScreenRotation
-import androidx.compose.material.icons.filled.Science
-import androidx.compose.material.icons.filled.Shield
-import androidx.compose.material.icons.filled.Smartphone
-import androidx.compose.material.icons.filled.SwapVert
-import androidx.compose.material.icons.filled.TouchApp
-import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -82,6 +46,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Slider
@@ -91,6 +56,10 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TooltipAnchorPosition
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -133,6 +102,40 @@ import com.project.lol.util.GitHubApi
 import com.project.lol.util.GitHubRelease
 import com.project.lol.util.MarkdownText
 import com.project.lol.webview.helpers.LyricsTheme
+import compose.icons.TablerIcons
+import compose.icons.tablericons.ArrowsMinimize
+import compose.icons.tablericons.ArrowsSort
+import compose.icons.tablericons.ArrowsUpDown
+import compose.icons.tablericons.BrightnessUp
+import compose.icons.tablericons.Brush
+import compose.icons.tablericons.Bug
+import compose.icons.tablericons.Car
+import compose.icons.tablericons.Check
+import compose.icons.tablericons.ChevronRight
+import compose.icons.tablericons.Click
+import compose.icons.tablericons.CloudOff
+import compose.icons.tablericons.Code
+import compose.icons.tablericons.ColorSwatch
+import compose.icons.tablericons.DeviceMobile
+import compose.icons.tablericons.Download
+import compose.icons.tablericons.EyeOff
+import compose.icons.tablericons.Flask
+import compose.icons.tablericons.Folder
+import compose.icons.tablericons.InfoCircle
+import compose.icons.tablericons.Language
+import compose.icons.tablericons.Link
+import compose.icons.tablericons.Moon
+import compose.icons.tablericons.Palette
+import compose.icons.tablericons.PlayerPlay
+import compose.icons.tablericons.Playlist
+import compose.icons.tablericons.Power
+import compose.icons.tablericons.RotateClockwise2
+import compose.icons.tablericons.Shield
+import compose.icons.tablericons.Trash
+import compose.icons.tablericons.TrashOff
+import compose.icons.tablericons.User
+import compose.icons.tablericons.UserPlus
+import compose.icons.tablericons.WaveSine
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -164,6 +167,12 @@ private fun formatHex(color: Color): String {
     val b = (color.blue * 255f).roundToInt()
     return "#" + String.format(Locale.US, "%02X%02X%02X", r, g, b)
 }
+private const val DEBUG_UNLOCK_TAPS = 5
+
+private const val DEBUG_INFO_TEXT =
+    "Experimental. Debug tools can behave differently between devices and may change or be removed in future builds. Events are kept in a rolling in-memory buffer, and a logcat-style capture and export may be added later."
+
+
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -230,6 +239,8 @@ fun SettingsContent(
     var showChangelogDialog by remember { mutableStateOf(false) }
     var dbgOverlay by remember { mutableStateOf(prefs.getBoolean("DebugOverlay", false)) }
     var showDevlogDialog by remember { mutableStateOf(false) }
+    var debugUnlocked by remember { mutableStateOf(prefs.getBoolean("DebugUnlocked", false)) }
+    var debugTapCount by remember { mutableStateOf(0) }
     var showLyricsStyleDialog by remember { mutableStateOf(false) }
     var showFormatDialog by remember { mutableStateOf(false) }
     var showFolderDialog by remember { mutableStateOf(false) }
@@ -259,15 +270,45 @@ fun SettingsContent(
     }
     var dlTags by remember { mutableStateOf(DownloadPrefs.writeTags(context)) }
 
+    fun onDebugSecretTap() {
+        if (debugUnlocked) return
+        debugTapCount++
+        val remaining = DEBUG_UNLOCK_TAPS - debugTapCount
+        if (remaining <= 0) {
+            debugTapCount = 0
+            debugUnlocked = true
+            prefs.edit().putBoolean("DebugUnlocked", true).apply()
+            Toast.makeText(context, "Debug tools unlocked", Toast.LENGTH_SHORT).show()
+        } else {
+            val message = if (remaining == 1) {
+                "1 tap left to unlock Debug"
+            } else {
+                "$remaining taps left to unlock Debug"
+            }
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun onDebugSecretHold() {
+        debugTapCount = 0
+        if (debugUnlocked) {
+            debugUnlocked = false
+            prefs.edit().putBoolean("DebugUnlocked", false).apply()
+            Toast.makeText(context, "Debug tools hidden", Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(context, "Debug is hidden", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     Column(
         modifier = modifier
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         SettingSectionCard(
             title = "APPEARANCE",
-            icon = Icons.Default.Palette
+            icon = TablerIcons.Palette
         ) {
             val guiLabel = when (guiMode) {
                 "csshack" -> "Mobile CSS + JS"
@@ -278,25 +319,25 @@ fun SettingsContent(
             SettingTile(
                 title = "GUI Hack Mode",
                 subtitle = guiLabel,
-                icon = Icons.Default.Palette,
+                icon = TablerIcons.Palette,
                 onClick = { showGuiModeDialog = true }
             )
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+            HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
             SettingTile(
                 title = "Custom CSS",
                 subtitle = if (customCss.isBlank()) "None configured" else customCss,
-                icon = Icons.Default.Code,
+                icon = TablerIcons.Code,
                 onClick = { showCustomCssDialog = true }
             )
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+            HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
             SettingSwitchTile(
                 title = "Material You Theme",
                 subtitle = "Use Android system dynamic colors",
-                icon = Icons.Default.ColorLens,
+                icon = TablerIcons.ColorSwatch,
                 checked = materialYou,
                 onCheckedChange = { enabled ->
                     onMaterialYouChange(enabled)
@@ -304,7 +345,7 @@ fun SettingsContent(
                 }
             )
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+            HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
             val accentLabel = when {
                 materialYou -> "Dynamic (system colors)"
@@ -314,16 +355,16 @@ fun SettingsContent(
             SettingTile(
                 title = "Accent Color",
                 subtitle = accentLabel,
-                icon = Icons.Default.ColorLens,
+                icon = TablerIcons.ColorSwatch,
                 onClick = { showPaletteDialog = true }
             )
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+            HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
             SettingSwitchTile(
                 title = "AMOLED Theme",
                 subtitle = "Pure black background to save battery",
-                icon = Icons.Default.DarkMode,
+                icon = TablerIcons.Moon,
                 checked = amoledTheme,
                 onCheckedChange = { enabled ->
                     amoledTheme = enabled
@@ -332,12 +373,12 @@ fun SettingsContent(
                 }
             )
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+            HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
             SettingSwitchTile(
                 title = "Hide Top Bar",
                 subtitle = "Swipe down from the top to show it",
-                icon = Icons.Default.VisibilityOff,
+                icon = TablerIcons.EyeOff,
                 checked = hideTopBar,
                 onCheckedChange = { enabled ->
                     onHideTopBarChange(enabled)
@@ -345,12 +386,12 @@ fun SettingsContent(
                 }
             )
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+            HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
             SettingSwitchTile(
                 title = "Landscape Mode",
                 subtitle = "Allow rotating to landscape",
-                icon = Icons.Default.ScreenRotation,
+                icon = TablerIcons.RotateClockwise2,
                 checked = landscapeMode,
                 onCheckedChange = { enabled ->
                     onLandscapeModeChange(enabled)
@@ -358,12 +399,12 @@ fun SettingsContent(
                 }
             )
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+            HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
             SettingSwitchTile(
                 title = "Keep Screen On",
                 subtitle = "Prevent the screen from turning off",
-                icon = Icons.Default.BrightnessHigh,
+                icon = TablerIcons.BrightnessUp,
                 checked = keepScreenOn,
                 onCheckedChange = { enabled ->
                     onKeepScreenOnChange(enabled)
@@ -371,12 +412,12 @@ fun SettingsContent(
                 }
             )
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+            HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
             SettingSwitchTile(
                 title = "Playlist Scrollbar",
                 subtitle = "Draggable scrollbar on playlists and lists",
-                icon = Icons.Default.SwapVert,
+                icon = TablerIcons.ArrowsUpDown,
                 checked = showScrollbar,
                 onCheckedChange = { enabled ->
                     showScrollbar = enabled
@@ -391,7 +432,7 @@ fun SettingsContent(
 
         SettingSectionCard(
             title = "PLAYER",
-            icon = Icons.Default.PlayCircle
+            icon = TablerIcons.PlayerPlay
         ) {
             val autoplayLabel = when (autoplayMode) {
                 "disabled" -> "Disabled"
@@ -402,11 +443,11 @@ fun SettingsContent(
             SettingTile(
                 title = "AutoPlay Mode",
                 subtitle = autoplayLabel,
-                icon = Icons.Default.PlayCircle,
+                icon = TablerIcons.PlayerPlay,
                 onClick = { showAutoPlayDialog = true }
             )
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+            HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
             val playerModeLabel = when (playerMode) {
                 "spotilol" -> "Spotilol Player"
@@ -416,16 +457,16 @@ fun SettingsContent(
             SettingTile(
                 title = "Player Mode",
                 subtitle = playerModeLabel,
-                icon = Icons.Default.PlayCircle,
+                icon = TablerIcons.PlayerPlay,
                 onClick = { showPlayerModeDialog = true }
             )
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+            HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
             SettingSwitchTile(
                 title = "Hide Empty Mini Player",
                 subtitle = "Hide the mini player until a track is loaded",
-                icon = Icons.Default.VisibilityOff,
+                icon = TablerIcons.EyeOff,
                 checked = hideEmptyPlayer,
                 onCheckedChange = {
                     hideEmptyPlayer = it
@@ -433,12 +474,12 @@ fun SettingsContent(
                 }
             )
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+            HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
             SettingSwitchTile(
                 title = "Sort Playlists by Column",
                 subtitle = "Tap a playlist column header to sort alphabetically",
-                icon = Icons.AutoMirrored.Filled.Sort,
+                icon = TablerIcons.ArrowsSort,
                 checked = playlistSortEnabled,
                 onCheckedChange = {
                     playlistSortEnabled = it
@@ -446,23 +487,23 @@ fun SettingsContent(
                 }
             )
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+            HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
             val lyricsStyleLabel = LyricsTheme.STYLE_OPTIONS
                 .firstOrNull { it.first == lyricsStyle }?.second ?: "Fullscreen (Album Colors)"
             SettingTile(
                 title = "Lyrics Style",
                 subtitle = lyricsStyleLabel,
-                icon = Icons.AutoMirrored.Filled.QueueMusic,
+                icon = TablerIcons.Playlist,
                 onClick = { showLyricsStyleDialog = true }
             )
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+            HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
             SettingSwitchTile(
                 title = "Take Player Control",
                 subtitle = "Auto accept the Take Control prompt",
-                icon = Icons.Default.TouchApp,
+                icon = TablerIcons.Click,
                 checked = takeControl,
                 onCheckedChange = {
                     takeControl = it
@@ -470,12 +511,12 @@ fun SettingsContent(
                 }
             )
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+            HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
             SettingSwitchTile(
                 title = "Android Auto Controls",
                 subtitle = "Media metadata for notifications",
-                icon = Icons.Default.DirectionsCar,
+                icon = TablerIcons.Car,
                 checked = andAuto,
                 onCheckedChange = {
                     andAuto = it
@@ -483,12 +524,12 @@ fun SettingsContent(
                 }
             )
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+            HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
             SettingSwitchTile(
                 title = "Always Close Now Playing",
                 subtitle = "Auto-close the Now Playing panel",
-                icon = Icons.Default.CloseFullscreen,
+                icon = TablerIcons.ArrowsMinimize,
                 checked = closeNowPlay,
                 onCheckedChange = {
                     closeNowPlay = it
@@ -499,7 +540,7 @@ fun SettingsContent(
 
         SettingSectionCard(
             title = "OFFLINE",
-            icon = Icons.Default.CloudOff
+            icon = TablerIcons.CloudOff
         ) {
             SettingSwitchTile(
                 title = "Offline Mode",
@@ -508,7 +549,7 @@ fun SettingsContent(
                 } else {
                     "Play only downloaded songs, restarts the app"
                 },
-                icon = Icons.Default.CloudOff,
+                icon = TablerIcons.CloudOff,
                 checked = offlineMode,
                 onCheckedChange = { enabled ->
                     offlineMode = enabled
@@ -516,12 +557,12 @@ fun SettingsContent(
                 }
             )
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+            HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
             SettingSwitchTile(
                 title = "Block Service Worker",
                 subtitle = "Prevent service workers from intercepting requests",
-                icon = Icons.Default.Shield,
+                icon = TablerIcons.Shield,
                 checked = blockSW,
                 onCheckedChange = { enabled ->
                     blockSW = enabled
@@ -532,30 +573,30 @@ fun SettingsContent(
 
         SettingSectionCard(
             title = "DOWNLOADS",
-            icon = Icons.Default.Download
+            icon = TablerIcons.Download
         ) {
             SettingTile(
                 title = "Audio Format",
                 subtitle = if (dlFormat == DownloadFormat.MP3) "MP3 converted at 320 kbps" else "M4A original AAC",
-                icon = Icons.Default.GraphicEq,
+                icon = TablerIcons.WaveSine,
                 onClick = { showFormatDialog = true }
             )
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+            HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
             SettingTile(
                 title = "Download Folder",
                 subtitle = "Saves to $dlFolderLabel",
-                icon = Icons.Default.Folder,
+                icon = TablerIcons.Folder,
                 onClick = { showFolderDialog = true }
             )
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+            HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
             SettingSwitchTile(
                 title = "Write Tags and Cover Art",
                 subtitle = "Embed metadata and cover art into the file",
-                icon = Icons.Default.LibraryMusic,
+                icon = TablerIcons.Playlist,
                 checked = dlTags,
                 onCheckedChange = { enabled ->
                     dlTags = enabled
@@ -566,12 +607,12 @@ fun SettingsContent(
 
         SettingSectionCard(
             title = "BLUETOOTH",
-            icon = Icons.Default.Smartphone
+            icon = TablerIcons.DeviceMobile
         ) {
             SettingSwitchTile(
                 title = "Pause on Disconnect",
                 subtitle = "Pause when BT or wired audio disconnects",
-                icon = Icons.Default.Smartphone,
+                icon = TablerIcons.DeviceMobile,
                 checked = btAutoPause,
                 onCheckedChange = {
                     btAutoPause = it
@@ -579,12 +620,12 @@ fun SettingsContent(
                 }
             )
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+            HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
             SettingSwitchTile(
                 title = "Resume on Connect",
                 subtitle = "Resume when BT device connects",
-                icon = Icons.Default.Smartphone,
+                icon = TablerIcons.DeviceMobile,
                 checked = btAutoResume,
                 onCheckedChange = {
                     btAutoResume = it
@@ -592,12 +633,12 @@ fun SettingsContent(
                 }
             )
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+            HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
             SettingSwitchTile(
                 title = "Resume on Headphone Plug",
                 subtitle = "Resume when wired headphones connect",
-                icon = Icons.Default.Smartphone,
+                icon = TablerIcons.DeviceMobile,
                 checked = hpAutoResume,
                 onCheckedChange = {
                     hpAutoResume = it
@@ -608,12 +649,12 @@ fun SettingsContent(
 
         SettingSectionCard(
             title = "ACCOUNTS",
-            icon = Icons.Default.PersonAdd
+            icon = TablerIcons.UserPlus
         ) {
             SettingTile(
                 title = "Save Current Account",
                 subtitle = "Store the current session as a profile",
-                icon = Icons.Default.PersonAdd,
+                icon = TablerIcons.UserPlus,
                 onClick = {
                     val cookies = ProfileManager.captureSession(context)
                     if (cookies == null) {
@@ -626,7 +667,7 @@ fun SettingsContent(
                 }
             )
             if (profiles.isNotEmpty()) {
-                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+                HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
                 profiles.forEachIndexed { index, profile ->
                     ProfileRow(
                         name = profile.name,
@@ -639,7 +680,7 @@ fun SettingsContent(
                         }
                     )
                     if (index < profiles.lastIndex) {
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+                        HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
                     }
                 }
             }
@@ -647,7 +688,7 @@ fun SettingsContent(
 
         SettingSectionCard(
             title = "CONNECTION MODE",
-            icon = Icons.Default.Shield
+            icon = TablerIcons.Shield
         ) {
             val modeLabel = if (connectionMode == "proxy") {
                 "MITM Proxy (Certificate)"
@@ -657,19 +698,19 @@ fun SettingsContent(
             SettingTile(
                 title = "MITM Proxy Mode",
                 subtitle = "$modeLabel, restarts the app",
-                icon = Icons.Default.Shield,
+                icon = TablerIcons.Shield,
                 onClick = { showConnectionModeDialog = true }
             )
         }
 
         SettingSectionCard(
             title = "SYSTEM",
-            icon = Icons.Default.PowerSettingsNew
+            icon = TablerIcons.Power
         ) {
             SettingSwitchTile(
                 title = "Swipe to Stop Service",
                 subtitle = "Kill background service from recents",
-                icon = Icons.Default.PowerSettingsNew,
+                icon = TablerIcons.Power,
                 checked = swipeStop,
                 onCheckedChange = {
                     swipeStop = it
@@ -677,31 +718,31 @@ fun SettingsContent(
                 }
             )
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+            HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
             SettingTile(
                 title = "Empty Cache",
                 subtitle = "Useful if player navigation is slow",
-                icon = Icons.Default.CleaningServices,
+                icon = TablerIcons.Brush,
                 onClick = { showClearCacheDialog = true }
             )
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+            HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
             SettingTile(
                 title = "Empty Cache and Login Data",
                 subtitle = "Clear everything and log out",
-                icon = Icons.Default.DeleteForever,
+                icon = TablerIcons.TrashOff,
                 onClick = { showClearDataDialog = true },
                 isDestructive = true
             )
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+            HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
             SettingTile(
                 title = "Open Spotify Links",
                 subtitle = "Enable link handling to open shared links here",
-                icon = Icons.Default.Link,
+                icon = TablerIcons.Link,
                 onClick = {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                         val pkg = Uri.parse("package:${context.packageName}")
@@ -724,12 +765,12 @@ fun SettingsContent(
         if (connectionMode == "proxy") {
             SettingSectionCard(
                 title = "SECURITY AND NETWORK",
-                icon = Icons.Default.Shield
+                icon = TablerIcons.Shield
             ) {
                 SettingTile(
                     title = "CA Certificate",
                     subtitle = "Re-export proxy certificate to Downloads",
-                    icon = Icons.Default.Shield,
+                    icon = TablerIcons.Shield,
                     onClick = {
                         val path = LocalProxyManager.exportCACert(context)
                         Toast.makeText(context, "Exported to $path", Toast.LENGTH_LONG).show()
@@ -748,7 +789,7 @@ fun SettingsContent(
 
         SettingSectionCard(
             title = "ABOUT",
-            icon = Icons.Default.Info
+            icon = TablerIcons.InfoCircle
         ) {
             SettingTile(
                 title = "GitHub Repository",
@@ -760,50 +801,55 @@ fun SettingsContent(
                 }
             )
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+            HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
             SettingTile(
                 title = "Spotilol Version",
                 subtitle = "v$appVersionName",
-                icon = Icons.Default.Smartphone,
+                icon = TablerIcons.DeviceMobile,
                 onClick = { showChangelogDialog = true }
             )
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+            HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
             SettingTile(
                 title = "WebView Engine",
                 subtitle = pkg?.versionName ?: "System WebView",
-                icon = Icons.Default.Language,
-                onClick = {}
+                icon = TablerIcons.Language,
+                onClick = { onDebugSecretTap() },
+                onLongClick = { onDebugSecretHold() }
             )
         }
 
-        SettingSectionCard(
-            title = "DEBUG",
-            icon = Icons.Default.Science
-        ) {
-            SettingSwitchTile(
-                title = "Collect Debug",
-                subtitle = "Collect debug events thrown by JS",
-                icon = Icons.Default.BugReport,
-                checked = dbgOverlay,
-                onCheckedChange = { enabled ->
-                    dbgOverlay = enabled
-                    prefs.edit().putBoolean("DebugOverlay", enabled).apply()
-                    onDebugToggle(enabled)
-                }
-            )
+        if (debugUnlocked) {
+            SettingSectionCard(
+                title = "DEBUG",
+                icon = TablerIcons.Flask,
+                badge = "BETA",
+                info = DEBUG_INFO_TEXT
+            ) {
+                SettingSwitchTile(
+                    title = "Collect Debug",
+                    subtitle = "Collect debug events thrown by JS",
+                    icon = TablerIcons.Bug,
+                    checked = dbgOverlay,
+                    onCheckedChange = { enabled ->
+                        dbgOverlay = enabled
+                        prefs.edit().putBoolean("DebugOverlay", enabled).apply()
+                        onDebugToggle(enabled)
+                    }
+                )
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+                HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
-            SettingTile(
-                title = "Open Devlog",
-                subtitle = if (dbgOverlay) "Live JS and native events" else "Enable debug first",
-                icon = Icons.Default.Code,
-                onClick = { showDevlogDialog = true },
-                enabled = dbgOverlay
-            )
+                SettingTile(
+                    title = "Open Devlog",
+                    subtitle = if (dbgOverlay) "Live JS and native events" else "Enable debug first",
+                    icon = TablerIcons.Code,
+                    onClick = { showDevlogDialog = true },
+                    enabled = dbgOverlay
+                )
+            }
         }
 
         Spacer(Modifier.height(8.dp))
@@ -1076,7 +1122,7 @@ fun PaletteDialog(
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    imageVector = Icons.Default.ColorLens,
+                    imageVector = TablerIcons.ColorSwatch,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary
                 )
@@ -1151,7 +1197,7 @@ fun PaletteDialog(
                             ) {
                                 if (isSelected) {
                                     Icon(
-                                        imageVector = Icons.Default.Check,
+                                        imageVector = TablerIcons.Check,
                                         contentDescription = null,
                                         tint = if (color.luminance() > 0.5f) {
                                             Color(0xFF1A1A1A)
@@ -1269,7 +1315,7 @@ private fun ChangelogDialog(onDismiss: () -> Unit) {
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    imageVector = Icons.Default.Info,
+                    imageVector = TablerIcons.InfoCircle,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary
                 )
@@ -1351,40 +1397,106 @@ private fun ChangelogDialog(onDismiss: () -> Unit) {
 fun SettingSectionCard(
     title: String,
     icon: ImageVector,
+    badge: String? = null,
+    info: String? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
     Column {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 4.dp, end = 4.dp, bottom = 6.dp)
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(16.dp)
+                modifier = Modifier.size(14.dp)
             )
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(6.dp))
             Text(
                 text = title,
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Bold,
-                letterSpacing = 1.sp
+                letterSpacing = 0.8.sp
             )
+            if (badge != null) {
+                Spacer(Modifier.width(6.dp))
+                Surface(
+                    shape = RoundedCornerShape(4.dp),
+                    color = Color.Transparent,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.tertiary.copy(alpha = 0.7f))
+                ) {
+                    Text(
+                        text = badge,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.tertiary,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.6.sp,
+                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                    )
+                }
+            }
+            if (info != null) {
+                Spacer(Modifier.width(6.dp))
+                InfoTooltip(text = info)
+            }
         }
-        Card(
+        Surface(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-            ),
-            border = BorderStroke(
-                1.dp,
-                MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
-            )
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerLow
         ) {
             Column(content = content)
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun InfoTooltip(text: String) {
+    val tooltipState = rememberTooltipState(isPersistent = true)
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(tooltipState.isVisible) {
+        if (tooltipState.isVisible) {
+            delay(4000)
+            tooltipState.dismiss()
+        }
+    }
+
+    TooltipBox(
+        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
+        state = tooltipState,
+        onDismissRequest = { tooltipState.dismiss() },
+        tooltip = {
+            PlainTooltip(
+                maxWidth = 240.dp,
+                containerColor = MaterialTheme.colorScheme.inverseSurface.copy(alpha = 0.85f),
+                contentColor = MaterialTheme.colorScheme.inverseOnSurface
+            ) {
+                Text(
+                    text = text,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+    ) {
+        Box(
+            modifier = Modifier
+                .size(18.dp)
+                .clip(CircleShape)
+                .clickable { scope.launch { tooltipState.show() } },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = TablerIcons.InfoCircle,
+                contentDescription = "About debug tools",
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(13.dp)
+            )
         }
     }
 }
@@ -1396,6 +1508,7 @@ fun SettingTile(
     icon: ImageVector? = null,
     painter: Painter? = null,
     onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
     isDestructive: Boolean = false,
     enabled: Boolean = true
 ) {
@@ -1403,50 +1516,47 @@ fun SettingTile(
         modifier = Modifier
             .fillMaxWidth()
             .then(if (enabled) Modifier else Modifier.alpha(0.38f))
-            .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .combinedClickable(
+                enabled = enabled,
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
+            .padding(horizontal = 14.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .background(
-                    color = if (isDestructive) {
-                        MaterialTheme.colorScheme.error.copy(alpha = 0.15f)
-                    } else {
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-                    },
-                    shape = RoundedCornerShape(12.dp)
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            val tint = if (isDestructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-            if (painter != null) {
-                Icon(
-                    painter = painter,
-                    contentDescription = null,
-                    tint = tint,
-                    modifier = Modifier.size(20.dp)
-                )
-            } else if (icon != null) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = tint,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
+        val iconTint = if (isDestructive) {
+            MaterialTheme.colorScheme.error
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
         }
-        Spacer(Modifier.width(14.dp))
+        if (painter != null) {
+            Icon(
+                painter = painter,
+                contentDescription = null,
+                tint = iconTint,
+                modifier = Modifier.size(18.dp)
+            )
+        } else if (icon != null) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = iconTint,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+        if (painter != null || icon != null) Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
-                color = if (isDestructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                color = if (isDestructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
             Text(
                 text = subtitle,
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -1454,10 +1564,10 @@ fun SettingTile(
         }
         Spacer(Modifier.width(8.dp))
         Icon(
-            imageVector = Icons.Default.ChevronRight,
+            imageVector = TablerIcons.ChevronRight,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-            modifier = Modifier.size(20.dp)
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+            modifier = Modifier.size(16.dp)
         )
     }
 }
@@ -1474,36 +1584,31 @@ fun SettingSwitchTile(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onCheckedChange(!checked) }
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 14.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .background(
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                    shape = RoundedCornerShape(12.dp)
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(20.dp)
-            )
-        }
-        Spacer(Modifier.width(14.dp))
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(18.dp)
+        )
+        Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
-                color = MaterialTheme.colorScheme.onSurface
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
             Text(
                 text = subtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
         Spacer(Modifier.width(8.dp))
@@ -1531,43 +1636,39 @@ fun ProfileRow(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onLoad)
-            .padding(start = 16.dp, top = 8.dp, bottom = 8.dp, end = 4.dp),
+            .padding(start = 14.dp, top = 4.dp, bottom = 4.dp, end = 2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .background(
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                    shape = RoundedCornerShape(12.dp)
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.Person,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(20.dp)
-            )
-        }
-        Spacer(Modifier.width(14.dp))
+        Icon(
+            imageVector = TablerIcons.User,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(18.dp)
+        )
+        Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = name,
-                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
-                color = MaterialTheme.colorScheme.onSurface
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
             Text(
                 text = subtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
         IconButton(onClick = onDelete) {
             Icon(
-                imageVector = Icons.Default.Delete,
+                imageVector = TablerIcons.Trash,
                 contentDescription = "Delete",
-                tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f)
+                tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
+                modifier = Modifier.size(18.dp)
             )
         }
     }
@@ -1658,7 +1759,7 @@ fun CustomCssDialog(
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    imageVector = Icons.Default.Code,
+                    imageVector = TablerIcons.Code,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary
                 )
@@ -1730,7 +1831,7 @@ fun DownloadFolderDialog(
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    imageVector = Icons.Default.Folder,
+                    imageVector = TablerIcons.Folder,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary
                 )

@@ -152,11 +152,8 @@ class MainActivity : ComponentActivity() {
     private var pipVideoView: View? = null
     private var pipVideoCallback: android.webkit.WebChromeClient.CustomViewCallback? = null
     private var pipVideoAspect: Rational? = null
-    private var pipVideoPending = false
     private var pipVideoRequested = false
-    private var pipVideoRetryCount = 0
-    private var pipVideoRetryWindow = 0L
-    private val pipVideoTimeout = Handler(Looper.getMainLooper())
+    private val pipVideoActive = mutableStateOf(false)
 
     private val serviceEnabledState = mutableStateOf(true)
     private val materialYouState = mutableStateOf(false)
@@ -259,6 +256,7 @@ class MainActivity : ComponentActivity() {
             val timerActive = sleepTimerActive.value
             val loadProgress = loadingProgress.intValue
             val blockServiceWorker = blockServiceWorkerState.value
+            val pipFilling = pipVideoActive.value
 
             var settingsDialogOpen by remember { mutableStateOf(false) }
             var showMiniMenu by remember { mutableStateOf(false) }
@@ -344,7 +342,7 @@ class MainActivity : ComponentActivity() {
                 ) {
                     Scaffold(
                         topBar = {
-                            if (!hideTopBar) {
+                            if (!hideTopBar && !pipFilling) {
                                 CenterAlignedTopAppBar(
                                 title = {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1012,13 +1010,18 @@ class MainActivity : ComponentActivity() {
 
     private fun enterPipMode(video: Boolean = false) {
         pipVideoRequested = video
+        pipVideoActive.value = video
         pipUsed = true
         if (lastPipCoverUrl.isNotEmpty() && pipCoverBitmap == null) {
             fetchPipCover(lastPipCoverUrl)
         }
-        showPipOverlay()
+        if (!video) showPipOverlay()
         val ok = enterPictureInPictureMode(buildPipParams())
-        if (!ok) hidePipOverlay()
+        if (!ok) {
+            hidePipOverlay()
+            pipVideoActive.value = false
+            if (video) setPipFillVideo(false)
+        }
     }
 
     private fun enterPipVideoMode(w: Int, h: Int) {
@@ -1027,14 +1030,16 @@ class MainActivity : ComponentActivity() {
             enterPipMode(video = true)
         } else {
             pipVideoRequested = true
-            pipVideoPending = true
-            pipVideoTimeout.removeCallbacksAndMessages(null)
-            pipVideoTimeout.postDelayed({
-                if (pipVideoView == null && pipVideoPending) {
-                    pipVideoPending = false
-                    enterPipMode()
+            val wv = webView
+            if (wv == null) {
+                enterPipMode(video = true)
+            } else {
+                wv.post {
+                    wv.evaluateJavascript(
+                        "window.__splPipFillVideo&&window.__splPipFillVideo(true)"
+                    ) { enterPipMode(video = true) }
                 }
-            }, 1200)
+            }
         }
     }
 
@@ -1045,49 +1050,28 @@ class MainActivity : ComponentActivity() {
         pipVideoView = view
         pipVideoCallback = callback
         showPipVideoOverlay()
-        if (pipVideoPending) {
-            pipVideoPending = false
-            pipVideoTimeout.removeCallbacksAndMessages(null)
-            if (isInPictureInPictureMode) updatePipParams() else enterPipMode(video = true)
-        }
+        if (isInPictureInPictureMode) updatePipParams()
     }
 
     private fun handleCustomViewHidden() {
-        pipVideoTimeout.removeCallbacksAndMessages(null)
         pipVideoView = null
         pipVideoCallback = null
         hidePipOverlay()
-        if (isInPictureInPictureMode && pipVideoRequested && acquirePipVideoRetrySlot()) {
-            pipVideoPending = true
-            pipVideoTimeout.postDelayed({
-                if (pipVideoView == null && pipVideoPending) {
-                    pipVideoPending = false
-                    pipVideoRequested = false
-                    fallbackPipToCover()
-                }
-            }, PIP_VIDEO_RETRY_TIMEOUT)
-            requestPipVideoFullscreen()
+        if (isInPictureInPictureMode && pipVideoRequested) {
+            setPipFillVideo(true)
+            updatePipParams()
             return
         }
-        pipVideoPending = false
         pipVideoRequested = false
+        pipVideoActive.value = false
         if (isInPictureInPictureMode) fallbackPipToCover()
     }
 
-    private fun requestPipVideoFullscreen() {
-        val wv = webView ?: return
-        wv.post {
-            wv.evaluateJavascript(
-                "window.__splPipRefullscreen&&window.__splPipRefullscreen()"
-            ) { result ->
-                if (result != null && result.contains("false") && pipVideoView == null) {
-                    pipVideoTimeout.removeCallbacksAndMessages(null)
-                    pipVideoPending = false
-                    pipVideoRequested = false
-                    fallbackPipToCover()
-                }
-            }
-        }
+    private fun setPipFillVideo(on: Boolean) {
+        webView?.evaluateJavascript(
+            "window.__splPipFillVideo&&window.__splPipFillVideo($on)",
+            null
+        )
     }
 
     private fun fallbackPipToCover() {
@@ -1098,17 +1082,6 @@ class MainActivity : ComponentActivity() {
         }
         showPipOverlay()
         updatePipParams()
-    }
-
-    private fun acquirePipVideoRetrySlot(): Boolean {
-        val now = System.currentTimeMillis()
-        if (now - pipVideoRetryWindow > PIP_VIDEO_RETRY_WINDOW) {
-            pipVideoRetryWindow = now
-            pipVideoRetryCount = 0
-        }
-        if (pipVideoRetryCount >= PIP_VIDEO_MAX_RETRIES) return false
-        pipVideoRetryCount++
-        return true
     }
 
     override fun onPictureInPictureModeChanged(
@@ -1122,10 +1095,10 @@ class MainActivity : ComponentActivity() {
         } else {
             hidePipOverlay()
             pipVideoView = null
-            pipVideoPending = false
             pipVideoAspect = null
             pipVideoRequested = false
-            pipVideoRetryCount = 0
+            pipVideoActive.value = false
+            setPipFillVideo(false)
             pipVideoCallback?.onCustomViewHidden()
             pipVideoCallback = null
         }
@@ -1308,10 +1281,9 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun destroyWebView() {
-        pipVideoTimeout.removeCallbacksAndMessages(null)
         pipVideoView = null
         pipVideoCallback = null
-        pipVideoPending = false
+        pipVideoActive.value = false
         hidePipOverlay()
         webView?.let {
             it.stopLoading()
@@ -1523,10 +1495,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         cancelSleepTimer()
-        pipVideoTimeout.removeCallbacksAndMessages(null)
         pipVideoView = null
         pipVideoCallback = null
-        pipVideoPending = false
+        pipVideoActive.value = false
         hidePipOverlay()
         webView?.let {
             it.stopLoading()
@@ -1544,8 +1515,4 @@ class MainActivity : ComponentActivity() {
         super.onDestroy()
     }
 }
-
-private const val PIP_VIDEO_RETRY_TIMEOUT = 1500L
-private const val PIP_VIDEO_RETRY_WINDOW = 10_000L
-private const val PIP_VIDEO_MAX_RETRIES = 3
 

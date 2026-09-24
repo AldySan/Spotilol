@@ -171,14 +171,36 @@ object SpotilolPlayer {
                         AndBridge.enterPip();
                     }
                 };
-                window.__splPipRefullscreen=function(){
+                window.__splPipFillVideo=function(on){
                     try{
-                        if(document.fullscreenElement) return true;
-                        var pv=document.querySelector('.VideoPlayer__container video');
-                        if(!pv||pv.paused||pv.ended) return false;
-                        if(!pv.videoWidth||!pv.videoHeight) return false;
-                        var p=pv.requestFullscreen();
-                        if(p&&p.catch)p.catch(function(){});
+                        var c=document.querySelector('.VideoPlayer__container');
+                        var v=c?c.querySelector('video'):null;
+                        if(!c||!v) return false;
+                        var ctl=document.getElementById('spotilolPlayerControls');
+                        if(on){
+                            if(!window.__splFillOn){
+                                window.__splFillSave={c:c.getAttribute('style'),v:v.getAttribute('style'),ctl:ctl?ctl.getAttribute('style'):null};
+                                window.__splFillOn=true;
+                            }
+                            c.style.setProperty('position','fixed','important');
+                            c.style.setProperty('top','0','important');
+                            c.style.setProperty('left','0','important');
+                            c.style.setProperty('width','100vw','important');
+                            c.style.setProperty('height','100vh','important');
+                            c.style.setProperty('z-index','2147483646','important');
+                            c.style.setProperty('background','#000','important');
+                            v.style.setProperty('width','100%','important');
+                            v.style.setProperty('height','100%','important');
+                            v.style.setProperty('object-fit','contain','important');
+                            if(ctl) ctl.style.setProperty('display','none','important');
+                        }else{
+                            if(!window.__splFillOn) return true;
+                            var sv=window.__splFillSave||{};
+                            if(sv.c==null) c.removeAttribute('style'); else c.setAttribute('style',sv.c);
+                            if(sv.v==null) v.removeAttribute('style'); else v.setAttribute('style',sv.v);
+                            if(ctl){ if(sv.ctl==null) ctl.removeAttribute('style'); else ctl.setAttribute('style',sv.ctl); }
+                            window.__splFillOn=false;
+                        }
                         return true;
                     }catch(e){}
                     return false;

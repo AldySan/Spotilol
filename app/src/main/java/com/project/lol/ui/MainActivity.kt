@@ -1026,20 +1026,16 @@ class MainActivity : ComponentActivity() {
 
     private fun enterPipVideoMode(w: Int, h: Int) {
         pipVideoAspect = if (w > 0 && h > 0) Rational(w, h) else Rational(9, 16)
-        if (pipVideoView != null) {
+        pipVideoRequested = true
+        val wv = webView
+        if (wv == null) {
             enterPipMode(video = true)
-        } else {
-            pipVideoRequested = true
-            val wv = webView
-            if (wv == null) {
-                enterPipMode(video = true)
-            } else {
-                wv.post {
-                    wv.evaluateJavascript(
-                        "window.__splPipFillVideo&&window.__splPipFillVideo(true)"
-                    ) { enterPipMode(video = true) }
-                }
-            }
+            return
+        }
+        wv.post {
+            wv.evaluateJavascript(
+                "window.__splPipFillVideo&&window.__splPipFillVideo(true)"
+            ) { enterPipMode(video = true) }
         }
     }
 

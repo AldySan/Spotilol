@@ -68,7 +68,7 @@ class OfflineMediaService : Service() {
     private var coverBitmap: Bitmap? = null
     private var currentTitle = ""
     private var currentArtist = ""
-    private var currentAlbum = "Spotilol"
+    private var currentAlbum = ""
     private var currentPosition: Long = 0L
     private var currentDuration: Long = 0L
 
@@ -136,7 +136,7 @@ class OfflineMediaService : Service() {
         if (intent?.hasExtra("title") == true) {
             currentTitle = intent.getStringExtra("title") ?: ""
             currentArtist = intent.getStringExtra("artist") ?: ""
-            currentAlbum = intent.getStringExtra("album")?.ifBlank { "Spotilol" } ?: "Spotilol"
+            currentAlbum = intent.getStringExtra("album") ?: ""
             currentDuration = intent.getLongExtra("duration", 0L)
             isPlaying = intent.getBooleanExtra("playing", false)
             currentPosition = intent.getLongExtra("position", 0L)
@@ -250,7 +250,7 @@ class OfflineMediaService : Service() {
     fun updateTrack(title: String, artist: String, album: String, coverFile: File?, duration: Long) {
         currentTitle = title
         currentArtist = artist
-        currentAlbum = album.ifBlank { "Spotilol" }
+        currentAlbum = album
         currentDuration = duration
         coverBitmap = null
         coverFile?.let { loadCoverArt(it) }

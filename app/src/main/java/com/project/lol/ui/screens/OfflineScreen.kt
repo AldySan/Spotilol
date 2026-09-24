@@ -185,7 +185,7 @@ fun OfflineScreen(
                 Intent(context, OfflineMediaService::class.java).apply {
                     putExtra("title", song.title)
                     putExtra("artist", song.artist)
-                    putExtra("album", song.album.ifBlank { "Spotilol" })
+                    putExtra("album", song.album)
                     putExtra("duration", durationMs.toLong())
                     putExtra("playing", isPlaying)
                     putExtra("position", positionMs.toLong())

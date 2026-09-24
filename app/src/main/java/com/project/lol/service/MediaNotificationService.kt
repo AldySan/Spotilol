@@ -185,6 +185,7 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
     private var coverBitmap: Bitmap? = null
     private var currentTitle = ""
     private var currentArtist = ""
+    private var currentAlbum = ""
     private var currentPosition: Long = 0L
     private var currentDuration: Long = 0L
     private var lastCoverUrl = ""
@@ -611,6 +612,7 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
             val obj = org.json.JSONObject(json)
             currentTitle = obj.optString("track", "")
             currentArtist = obj.optString("artist", "")
+            currentAlbum = obj.optString("album", "")
             val coverUrl = obj.optString("cover", "")
 
             if (coverUrl.isNotEmpty() && coverUrl != "null" && coverUrl != lastCoverUrl) {
@@ -696,7 +698,7 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
         val builder = MediaMetadataCompat.Builder()
             .putString(MediaMetadataCompat.METADATA_KEY_TITLE, currentTitle)
             .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, currentArtist)
-            .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, "Spotilol")
+            .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, currentAlbum)
             .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, currentDuration)
         coverBitmap?.let { bmp ->
             builder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, bmp)

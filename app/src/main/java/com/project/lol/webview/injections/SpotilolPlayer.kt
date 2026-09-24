@@ -171,6 +171,18 @@ object SpotilolPlayer {
                         AndBridge.enterPip();
                     }
                 };
+                window.__splPipRefullscreen=function(){
+                    try{
+                        if(document.fullscreenElement) return true;
+                        var pv=document.querySelector('.VideoPlayer__container video');
+                        if(!pv||pv.paused||pv.ended) return false;
+                        if(!pv.videoWidth||!pv.videoHeight) return false;
+                        var p=pv.requestFullscreen();
+                        if(p&&p.catch)p.catch(function(){});
+                        return true;
+                    }catch(e){}
+                    return false;
+                };
                 document.getElementById('spl-liked').onclick=function(){actAddToFav()};
                 document.getElementById('spl-download').onclick=function(){splDoDownload()};
                 document.getElementById('spl-dl-cancel').onclick=function(){ try{ AndBridge.cancelDownload(); }catch(e){} };

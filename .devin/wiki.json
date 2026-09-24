@@ -80,7 +80,7 @@
     },
     {
       "title": "UI Layer",
-      "purpose": "Documentation of ui/: MainActivity (Jetpack Compose host for the WebView, custom player overlay, PiP handling, service start/stop), SplashActivity (animated splash), OfflineActivity (downloaded tracks UI), screens/SettingsScreen (all preferences: AndAuto/Android Auto, APlayMode, ConnectionMode normal/proxy, AmoledTheme, CustomCss, BtAutoPause/Resume, sleep timer, PlayerMode spotilol/original, profiles), and theme/ (Saira font family, AMOLED dark theme)",
+      "purpose": "Documentation of ui/: MainActivity (Jetpack Compose host for the WebView, custom player overlay, PiP handling, service start/stop), SplashActivity (animated splash), OfflineActivity (downloaded tracks UI), screens/SettingsScreen (all preferences: AndAuto/Android Auto, APlayMode, ConnectionMode normal/proxy, AmoledTheme, CustomCss, BtAutoPause/Resume, sleep timer, PlayerMode spotilol/original, profiles), and theme/ (Raleway font family, AMOLED dark theme)",
       "parent": "Architecture Overview"
     },
     {

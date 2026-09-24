@@ -1311,6 +1311,14 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        if (isInPictureInPictureMode && pipVideoRequested) {
+            setPipFillVideo(true)
+            updatePipParams()
+        }
+    }
+
     private fun applyKeepScreenOn() {
         if (keepScreenOnState.value) {
             window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)

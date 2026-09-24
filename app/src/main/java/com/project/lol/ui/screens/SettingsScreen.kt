@@ -597,11 +597,12 @@ fun SettingsContent(
 
                 SettingSectionCard(
                     title = "BLUETOOTH",
-                    icon = TablerIcons.DeviceMobile
+                    icon = TablerIcons.DeviceMobile,
+                    info = "Pause and resume follow the phone's active audio route, so they trigger for Bluetooth, USB and wired outputs even when the Bluetooth permission is denied. Android only delivers Bluetooth disconnect broadcasts to apps that hold that permission, which is why some devices rely on the route instead."
                 ) {
                     SettingSwitchTile(
                         title = "Pause on Disconnect",
-                        subtitle = "Pause when BT or wired audio disconnects",
+                        subtitle = "Pause when BT, USB or wired audio disconnects",
                         icon = TablerIcons.DeviceMobile,
                         checked = btAutoPause,
                         onCheckedChange = {

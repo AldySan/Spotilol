@@ -15,6 +15,8 @@ import android.content.pm.ServiceInfo
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
+import android.media.AudioDeviceCallback
+import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.net.Uri
 import android.os.Build
@@ -211,7 +213,7 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
         override fun onReceive(context: Context, intent: Intent) {
             if (intent.action == AudioManager.ACTION_AUDIO_BECOMING_NOISY) {
                 val prefs = getSharedPreferences("spotilol_prefs", MODE_PRIVATE)
-                if (prefs.getBoolean("BtAutoPause", false)) pausePlayback()
+                if (prefs.getBoolean("BtAutoPause", false)) autoPauseOnce("audio becoming noisy")
             }
         }
     }
@@ -221,13 +223,79 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
             val prefs = getSharedPreferences("spotilol_prefs", MODE_PRIVATE)
             when (intent.action) {
                 BluetoothDevice.ACTION_ACL_DISCONNECTED -> {
-                    if (prefs.getBoolean("BtAutoPause", false)) pausePlayback()
+                    if (prefs.getBoolean("BtAutoPause", false)) autoPauseOnce("acl disconnected")
                 }
                 BluetoothDevice.ACTION_ACL_CONNECTED -> {
-                    if (prefs.getBoolean("BtAutoResume", false)) resumePlayback()
+                    if (prefs.getBoolean("BtAutoResume", false)) autoResumeOnce("acl connected")
                 }
             }
         }
+    }
+
+    private val remoteOutputTypes = intArrayOf(
+        AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
+        AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
+        AudioDeviceInfo.TYPE_BLE_HEADSET,
+        AudioDeviceInfo.TYPE_BLE_SPEAKER,
+        AudioDeviceInfo.TYPE_HEARING_AID,
+        AudioDeviceInfo.TYPE_WIRED_HEADSET,
+        AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
+        AudioDeviceInfo.TYPE_USB_HEADSET,
+        AudioDeviceInfo.TYPE_USB_DEVICE,
+        AudioDeviceInfo.TYPE_USB_ACCESSORY
+    )
+
+    private val knownRouteIds = mutableSetOf<Int>()
+    private var lastAutoPauseAt = 0L
+    private var lastAutoResumeAt = 0L
+
+    private val audioRouteCallback = object : AudioDeviceCallback() {
+        override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>) {
+            val fresh = addedDevices.filter { knownRouteIds.add(it.id) }
+            if (fresh.isEmpty()) return
+            val prefs = getSharedPreferences("spotilol_prefs", MODE_PRIVATE)
+            if (!prefs.getBoolean("BtAutoResume", false)) return
+            if (fresh.none { isRemoteOutput(it.type) }) return
+            autoResumeOnce("route added: " + fresh.joinToString("/") { it.type.toString() })
+        }
+
+        override fun onAudioDevicesRemoved(removedDevices: Array<out AudioDeviceInfo>) {
+            knownRouteIds.removeAll(removedDevices.map { it.id }.toSet())
+            val prefs = getSharedPreferences("spotilol_prefs", MODE_PRIVATE)
+            if (!prefs.getBoolean("BtAutoPause", false)) return
+            if (removedDevices.none { isRemoteOutput(it.type) }) return
+            autoPauseOnce("route removed: " + removedDevices.joinToString("/") { it.type.toString() })
+        }
+    }
+
+    private fun isRemoteOutput(type: Int): Boolean = remoteOutputTypes.contains(type)
+
+    private fun btLog(msg: String) {
+        if (!getSharedPreferences("spotilol_prefs", MODE_PRIVATE)
+                .getBoolean("DebugOverlay", false)) return
+        com.project.lol.util.DebugLogStore.log("bt", msg)
+    }
+
+    private fun autoPauseOnce(source: String) {
+        val now = System.currentTimeMillis()
+        if (now - lastAutoPauseAt < 1500L) {
+            btLog("pause skipped, duplicate trigger ($source)")
+            return
+        }
+        lastAutoPauseAt = now
+        btLog("pause trigger: $source (webView=${if (webView != null) "bound" else "null"})")
+        pausePlayback()
+    }
+
+    private fun autoResumeOnce(source: String) {
+        val now = System.currentTimeMillis()
+        if (now - lastAutoResumeAt < 1500L) {
+            btLog("resume skipped, duplicate trigger ($source)")
+            return
+        }
+        lastAutoResumeAt = now
+        btLog("resume trigger: $source")
+        resumePlayback()
     }
 
     private var lastMediaStatusJson: String? = null
@@ -260,7 +328,7 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
                 }
                 if (state == 1) {
                     val prefs = getSharedPreferences("spotilol_prefs", MODE_PRIVATE)
-                    if (prefs.getBoolean("HpAutoResume", false)) resumePlayback()
+                    if (prefs.getBoolean("HpAutoResume", false)) autoResumeOnce("headset plugged")
                 }
             }
         }
@@ -450,6 +518,7 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
         try { unregisterReceiver(bluetoothReceiver) } catch (_: Exception) {}
         try { unregisterReceiver(audioBecomingNoisyReceiver) } catch (_: Exception) {}
         try { unregisterReceiver(headsetReceiver) } catch (_: Exception) {}
+        try { getSystemService(AudioManager::class.java).unregisterAudioDeviceCallback(audioRouteCallback) } catch (_: Exception) {}
         getSharedPreferences("spotilol_prefs", MODE_PRIVATE)
             .unregisterOnSharedPreferenceChangeListener(prefsListener)
         if (::mediaSession.isInitialized) {
@@ -580,6 +649,15 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
 
         val hsFilter = IntentFilter(Intent.ACTION_HEADSET_PLUG)
         ContextCompat.registerReceiver(this, headsetReceiver, hsFilter, ContextCompat.RECEIVER_EXPORTED)
+
+        try {
+            val am = getSystemService(AudioManager::class.java)
+            knownRouteIds.clear()
+            knownRouteIds.addAll(am.getDevices(AudioManager.GET_DEVICES_OUTPUTS).map { it.id })
+            am.registerAudioDeviceCallback(audioRouteCallback, mainHandler)
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "Failed to register audio route callback", e)
+        }
     }
 
     private fun pausePlayback() {
@@ -591,7 +669,7 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
                 mediaSession.controller.transportControls.pause()
             } catch (_: Exception) {}
         }
-        webView?.evaluateJavascript("actPlayPause(false)", null)
+        wakeAndRun("actPlayPause(false)")
     }
 
     private fun resumePlayback() {
@@ -603,7 +681,7 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
                 mediaSession.controller.transportControls.play()
             } catch (_: Exception) {}
         }
-        webView?.evaluateJavascript("actPlayPause(true)", null)
+        wakeAndRun("actPlayPause(true)")
     }
 
     fun updateFromMediaStatus(json: String) {

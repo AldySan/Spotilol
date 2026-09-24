@@ -68,6 +68,7 @@ import androidx.compose.material.icons.filled.ScreenRotation
 import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Smartphone
+import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
@@ -125,6 +126,7 @@ import com.project.lol.offline.DownloadFormat
 import com.project.lol.offline.DownloadPrefs
 import com.project.lol.profile.ProfileManager
 import com.project.lol.proxy.LocalProxyManager
+import com.project.lol.service.MediaNotificationService
 import com.project.lol.ui.theme.SpotifyTheme
 import com.project.lol.util.DebugLogStore
 import com.project.lol.util.GitHubApi
@@ -208,6 +210,7 @@ fun SettingsContent(
     var blockSW by remember { mutableStateOf(blockServiceWorker) }
     var hideEmptyPlayer by remember { mutableStateOf(prefs.getBoolean("HideEmptyPlayer", false)) }
     var playlistSortEnabled by remember { mutableStateOf(prefs.getBoolean("PlaylistSortEnabled", true)) }
+    var showScrollbar by remember { mutableStateOf(prefs.getBoolean("ShowScrollbar", true)) }
     var lyricsStyle by remember { mutableStateOf(prefs.getString("LyricsStyle", LyricsTheme.DEFAULT_STYLE) ?: LyricsTheme.DEFAULT_STYLE) }
 
     val context = LocalContext.current
@@ -365,6 +368,23 @@ fun SettingsContent(
                 onCheckedChange = { enabled ->
                     onKeepScreenOnChange(enabled)
                     prefs.edit().putBoolean("KeepScreenOn", enabled).apply()
+                }
+            )
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+
+            SettingSwitchTile(
+                title = "Playlist Scrollbar",
+                subtitle = "Draggable scrollbar on playlists and lists",
+                icon = Icons.Default.SwapVert,
+                checked = showScrollbar,
+                onCheckedChange = { enabled ->
+                    showScrollbar = enabled
+                    prefs.edit().putBoolean("ShowScrollbar", enabled).apply()
+                    MediaNotificationService.webView?.evaluateJavascript(
+                        "if(window.splScrollbar){window.splScrollbar($enabled)}else{window.__splShowScrollbar=$enabled}",
+                        null
+                    )
                 }
             )
         }

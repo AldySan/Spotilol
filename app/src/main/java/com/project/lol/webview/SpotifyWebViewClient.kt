@@ -78,7 +78,9 @@ class SpotifyWebViewClient(
         val blockSW = prefs?.getBoolean("BlockServiceWorker", true) ?: true
         val hideEmptyPlayer = prefs?.getBoolean("HideEmptyPlayer", false) ?: false
         val playlistSort = prefs?.getBoolean("PlaylistSortEnabled", true) ?: true
+        val showScrollbar = prefs?.getBoolean("ShowScrollbar", true) ?: true
 
+        view?.evaluateJavascript("window.__splShowScrollbar=$showScrollbar;", null)
         view?.evaluateJavascript("window.__spotilolUseProxy=$useProxy;", null)
         view?.evaluateJavascript("window.__splPowerSavePref=$powerSave;", null)
         view?.evaluateJavascript("window.__splHideEmpty=$hideEmptyPlayer;", null)
@@ -243,6 +245,7 @@ class SpotifyWebViewClient(
         val takeControl = prefs.getBoolean("TakeControl", true)
         val hideEmptyPlayer = prefs.getBoolean("HideEmptyPlayer", false)
         val playlistSortEnabled = prefs.getBoolean("PlaylistSortEnabled", true)
+        val showScrollbar = prefs.getBoolean("ShowScrollbar", true)
         val lyricsStyle = prefs.getString("LyricsStyle", LyricsTheme.DEFAULT_STYLE) ?: LyricsTheme.DEFAULT_STYLE
 
         val js = buildString {
@@ -252,6 +255,7 @@ class SpotifyWebViewClient(
             append("window.__splTakeControl=$takeControl;\n")
             append("window.__splHideEmpty=$hideEmptyPlayer;\n")
             append("window.__splPlaylistSortEnabled=$playlistSortEnabled;\n")
+            append("window.__splShowScrollbar=$showScrollbar;\n")
             if (debugOverlay) {
                 append(DevLogPrelude.js())
                 append("\n")

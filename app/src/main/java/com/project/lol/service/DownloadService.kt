@@ -40,7 +40,7 @@ class DownloadService : Service() {
                 return
             }
             updateNotification()
-            handler.postDelayed(this, 1000)
+            handler.postDelayed(this, 500)
         }
     }
 
@@ -103,20 +103,62 @@ class DownloadService : Service() {
     }
 
     private fun buildNotification(): Notification {
+        val st = DownloadManager.status
+        val queued = DownloadManager.queuedCount()
         val pct = DownloadManager.lastPct
-        val label = DownloadManager.lastLabel.ifBlank { "Preparing download..." }
+        val active = st.active || queued > 0
+        val indeterminate = st.active && !st.error && pct <= 0
+
+        val title = if (st.batch) {
+            st.collection.ifBlank { "Downloading playlist" }
+        } else {
+            st.title.ifBlank { "Spotilol Download" }
+        }
+
+        val performer = if (st.batch) {
+            listOf(st.artist, st.title).filter { it.isNotBlank() }.joinToString(" — ")
+        } else {
+            st.artist
+        }
+        val position = if (st.batch && st.total > 0) {
+            "Track ${st.index.coerceIn(1, st.total)} of ${st.total}"
+        } else {
+            ""
+        }
+
+        val lines = ArrayList<String>(4)
+        val head = listOf(position, performer).filter { it.isNotBlank() }.joinToString(" · ")
+        if (head.isNotBlank() && head != title) lines += head
+        val stage = st.stage.ifBlank { DownloadManager.lastLabel }
+        if (stage.isNotBlank()) {
+            lines += if (!st.error && pct > 0) "$stage · ${pct.coerceIn(0, 100)}%" else stage
+        }
+        val counts = listOfNotNull(
+            st.saved.takeIf { st.batch && it > 0 }?.let { "$it saved" },
+            st.failed.takeIf { st.batch && it > 0 }?.let { "$it failed" },
+            st.skipped.takeIf { st.batch && it > 0 }?.let { "$it skipped" },
+            queued.takeIf { it > 0 }?.let { "$it queued" },
+        ).joinToString(" · ")
+        if (counts.isNotBlank()) lines += counts
+        if (lines.isEmpty()) lines += "Preparing download..."
 
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Spotilol Download")
-            .setContentText(label)
+            .setContentTitle(title)
+            .setContentText(lines.first())
             .setSmallIcon(R.drawable.ic_notification)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setShowWhen(false)
             .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setProgress(100, pct.coerceIn(0, 100), pct < 0)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(lines.joinToString("\n")))
             .addAction(0, "Skip", actionPendingIntent(ACTION_SKIP))
             .addAction(0, "Cancel", actionPendingIntent(ACTION_CANCEL))
+
+        if (active) {
+            builder.setProgress(100, pct.coerceIn(0, 100), indeterminate)
+        } else {
+            builder.setProgress(0, 0, false)
+        }
 
         try {
             builder.color = com.project.lol.webview.helpers.AccentTheme

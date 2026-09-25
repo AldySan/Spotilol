@@ -125,19 +125,62 @@ object DownloadManager {
     var lastLabel: String = ""
 
     @Volatile
+    var status: DownloadStatus = DownloadStatus()
+        private set
+
+    @Volatile
     private var lastProgressAt = 0L
 
     private val pendingJobs = java.util.concurrent.atomic.AtomicInteger(0)
 
     fun isWorkPending(): Boolean = pendingJobs.get() > 0
 
-    private fun progress(pct: Int, label: String) {
+    fun queuedCount(): Int = pendingJobs.get()
+
+    private fun markStatus(
+        active: Boolean = status.active,
+        batch: Boolean = status.batch,
+        collection: String = status.collection,
+        title: String = status.title,
+        artist: String = status.artist,
+        stage: String = status.stage,
+        index: Int = status.index,
+        total: Int = status.total,
+        saved: Int = status.saved,
+        failed: Int = status.failed,
+        skipped: Int = status.skipped,
+        error: Boolean = status.error,
+    ) {
+        status = status.copy(
+            active = active,
+            batch = batch,
+            collection = collection,
+            title = title,
+            artist = artist,
+            stage = stage,
+            index = index,
+            total = total,
+            saved = saved,
+            failed = failed,
+            skipped = skipped,
+            error = error,
+        )
+    }
+
+    private fun progress(pct: Int, label: String, stage: String? = null) {
+        val nextStage = stage ?: label
         val now = System.currentTimeMillis()
         val terminal = pct <= 0 || pct >= 100
-        if (!terminal && now - lastProgressAt < PROGRESS_MIN_INTERVAL_MS) return
+        val staged = nextStage != status.stage
+        if (!terminal && !staged && now - lastProgressAt < PROGRESS_MIN_INTERVAL_MS) return
         lastProgressAt = now
         lastPct = pct
         lastLabel = label
+        status = status.copy(
+            percent = pct.coerceIn(0, 100),
+            stage = nextStage,
+            error = pct < 0,
+        )
         onProgress?.invoke(pct, label)
         onProgress2?.invoke(pct, label)
     }
@@ -201,7 +244,20 @@ object DownloadManager {
             album = parsed.optString("album"),
             cover = parsed.optString("cover").ifBlank { null },
         )
-        onProgress?.invoke(0, "Resolving audio...")
+        markStatus(
+            active = true,
+            batch = false,
+            collection = "",
+            title = track.title.ifBlank { track.trackId },
+            artist = track.artist,
+            index = 0,
+            total = 1,
+            saved = 0,
+            failed = 0,
+            skipped = 0,
+            error = false,
+        )
+        progress(0, "Resolving audio...")
         enqueue(appContext, DownloadJob.Single(track))
     }
 
@@ -244,7 +300,20 @@ object DownloadManager {
             tracks.map { if (it.cover == null) it.copy(cover = collectionCover) else it }
         } else tracks
         Log.i(TAG, "downloadCollection: '$name' type=${parsed.optString("type")} tracks=${batch.size}")
-        onProgress?.invoke(0, "Queued ${batch.size} tracks — $name")
+        markStatus(
+            active = true,
+            batch = true,
+            collection = name,
+            title = "",
+            artist = "",
+            index = 0,
+            total = batch.size,
+            saved = 0,
+            failed = 0,
+            skipped = 0,
+            error = false,
+        )
+        progress(0, "Queued ${batch.size} tracks — $name", "Queued")
         enqueue(appContext, DownloadJob.Collection(name, collectionCover, batch))
     }
 
@@ -273,15 +342,30 @@ object DownloadManager {
     }
 
     private suspend fun runSingle(appContext: Context, track: TrackMeta) {
+        val trackName = track.title.ifBlank { track.trackId }
         if (OfflineStore.isTrackSaved(appContext, track.trackId)) {
-            onProgress?.invoke(100, "Already saved")
+            markStatus(active = false, title = trackName, artist = track.artist, stage = "Already saved", error = false)
+            progress(100, "Already saved")
             withContext(Dispatchers.Main) { onStatus?.invoke("Already saved to ${DownloadPrefs.folderLabel(appContext)}") }
             return
         }
         activeTrackId = track.trackId
+        markStatus(
+            active = true,
+            batch = false,
+            title = trackName,
+            artist = track.artist,
+            stage = "Resolving audio",
+            index = 0,
+            total = 1,
+            saved = 0,
+            failed = 0,
+            skipped = 0,
+            error = false,
+        )
         try {
             val result = runCatching {
-                downloadToFile(appContext, track) { pct, label -> onProgress?.invoke(pct, label) }
+                downloadToFile(appContext, track) { pct, text -> progress(pct, text) }
             }.onFailure { Log.e(TAG, "runSingle: exception: ${it.message}", it) }
                 .getOrElse {
                     if (signal != null) TrackResult.Aborted
@@ -306,23 +390,24 @@ object DownloadManager {
                         explicit = result.yt?.explicit ?: false,
                         shareLink = result.yt?.shareLink,
                     )
-                    onProgress?.invoke(100, "Saved to ${DownloadPrefs.folderLabel(appContext)}")
+                    progress(100, "Saved to ${DownloadPrefs.folderLabel(appContext)}")
                     withContext(Dispatchers.Main) { onStatus?.invoke("Saved to ${DownloadPrefs.folderLabel(appContext)}") }
                 }
                 is TrackResult.Failed -> {
                     val msg = "Download failed: ${lastDownloadError ?: "unknown error"}"
-                    onProgress?.invoke(-1, msg)
+                    progress(-1, msg)
                     withContext(Dispatchers.Main) { onStatus?.invoke(msg) }
                 }
                 // Single track: skip and cancel both simply stop the download.
                 TrackResult.Aborted -> {
                     consumeSignal()
-                    onProgress?.invoke(-1, "Cancelled")
+                    progress(-1, "Cancelled")
                     withContext(Dispatchers.Main) { onStatus?.invoke("Download cancelled") }
                 }
             }
         } finally {
             activeTrackId = null
+            markStatus(active = false)
         }
     }
 
@@ -333,6 +418,20 @@ object DownloadManager {
         var skipped = 0
         var cancelled = false
         batchActive = true
+        markStatus(
+            active = true,
+            batch = true,
+            collection = job.name,
+            title = "",
+            artist = "",
+            stage = "Reading playlist",
+            index = 0,
+            total = total,
+            saved = 0,
+            failed = 0,
+            skipped = 0,
+            error = false,
+        )
         Log.i(TAG, "runCollection: start '${job.name}' total=$total")
 
         try {
@@ -347,8 +446,18 @@ object DownloadManager {
                 }
 
                 fun report(pct: Int, text: String) {
-                    onProgress?.invoke(overallPct(pct), "$n/$total · $shortTitle — $text")
+                    progress(overallPct(pct), "$n/$total · $shortTitle — $text", text)
                 }
+
+                markStatus(
+                    active = true,
+                    index = n,
+                    title = shortTitle,
+                    artist = track.artist,
+                    saved = saved,
+                    failed = failed,
+                    skipped = skipped,
+                )
 
                 // Skip/cancel tapped between tracks (e.g. during the
                 // inter-track delay): consume it before starting this one.
@@ -431,6 +540,7 @@ object DownloadManager {
             }
         } finally {
             batchActive = false
+            markStatus(active = false)
         }
 
         val processed = saved + failed + skipped
@@ -442,11 +552,21 @@ object DownloadManager {
             if (cancelled) append(" — cancelled at $processed/$total")
         }
         Log.i(TAG, "runCollection: done '${job.name}' saved=$saved failed=$failed skipped=$skipped cancelled=$cancelled")
+        markStatus(
+            batch = false,
+            index = processed,
+            title = "",
+            artist = "",
+            saved = saved,
+            failed = failed,
+            skipped = skipped,
+            stage = summary,
+        )
         withContext(Dispatchers.Main) { onStatus?.invoke(summary) }
         when {
-            cancelled -> onProgress?.invoke(-1, summary)
-            saved > 0 -> onProgress?.invoke(100, "$summary — ${DownloadPrefs.folderLabel(appContext)}")
-            failed > 0 -> onProgress?.invoke(-1, summary)
+            cancelled -> progress(-1, summary)
+            saved > 0 -> progress(100, "$summary — ${DownloadPrefs.folderLabel(appContext)}")
+            failed > 0 -> progress(-1, summary)
         }
     }
 

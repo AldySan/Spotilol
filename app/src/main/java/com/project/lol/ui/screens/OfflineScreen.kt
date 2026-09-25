@@ -155,6 +155,7 @@ fun OfflineScreen(
     var currentIndex by remember { mutableIntStateOf(-1) }
     var playerSong by remember { mutableStateOf<OfflineSong?>(null) }
     var pendingDelete by remember { mutableStateOf<OfflineSong?>(null) }
+    var confirmDeleteAll by remember { mutableStateOf(false) }
     var isPlaying by remember { mutableStateOf(false) }
     var positionMs by remember { mutableIntStateOf(0) }
     var durationMs by remember { mutableIntStateOf(0) }
@@ -264,6 +265,28 @@ fun OfflineScreen(
             songs = songs.filterNot { it.id == song.id && it.uri == song.uri }
             if (!ok) {
                 Toast.makeText(context, "Could not delete file", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    fun performDeleteAll() {
+        val all = songs
+        if (all.isEmpty()) return
+        stopAndClear()
+        searchQuery = ""
+        searchResults = null
+        songs = emptyList()
+        scope.launch {
+            val failed = withContext(Dispatchers.IO) {
+                all.count { song -> !OfflineStore.deleteSong(context, song) }
+            }
+            if (failed > 0) {
+                Toast.makeText(
+                    context,
+                    if (failed == 1) "Could not delete 1 file" else "Could not delete $failed files",
+                    Toast.LENGTH_SHORT
+                ).show()
+                songs = withContext(Dispatchers.IO) { OfflineStore.loadSongs(context) }
             }
         }
     }
@@ -438,11 +461,24 @@ fun OfflineScreen(
 
                         if (!loading && songs.isNotEmpty()) {
                             Spacer(Modifier.height(8.dp))
-                            OfflineSearchField(
-                                value = searchQuery,
-                                onValueChange = { searchQuery = it },
-                                onSearchFocusChange = { searchFocused = it }
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(modifier = Modifier.weight(1f)) {
+                                    OfflineSearchField(
+                                        value = searchQuery,
+                                        onValueChange = { searchQuery = it },
+                                        onSearchFocusChange = { searchFocused = it }
+                                    )
+                                }
+                                Spacer(Modifier.width(8.dp))
+                                CompactIconButton(
+                                    icon = TablerIcons.Trash,
+                                    contentDescription = "Delete all downloads",
+                                    tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
+                                    onClick = { confirmDeleteAll = true },
+                                    boxSize = 40.dp,
+                                    iconSize = 20.dp
+                                )
+                            }
                         }
                     }
 
@@ -697,6 +733,45 @@ fun OfflineScreen(
             },
             dismissButton = {
                 TextButton(onClick = { pendingDelete = null }) {
+                    Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        )
+    }
+
+    if (confirmDeleteAll) {
+        val total = songs.size
+        AlertDialog(
+            onDismissRequest = { confirmDeleteAll = false },
+            shape = RoundedCornerShape(28.dp),
+            title = {
+                Text(
+                    text = "Delete All Downloads?",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    text = "Remove ${if (total == 1) "the downloaded song" else "all $total downloaded songs"} from this device? This cannot be undone.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmDeleteAll = false
+                    performDeleteAll()
+                }) {
+                    Text(
+                        text = "Delete All",
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmDeleteAll = false }) {
                     Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }

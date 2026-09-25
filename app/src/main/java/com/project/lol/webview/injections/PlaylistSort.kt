@@ -46,6 +46,7 @@ object PlaylistSort {
             var SORT_FIELDS = [
                 ['TITLE_AND_ARTIST', '', 'Title'],
                 ['ALBUM', 'ALBUM', 'Album'],
+                ['ADDED_AT', 'ADDED_AT', 'Date added'],
                 ['RELEASE_DATE', 'RELEASE_DATE', 'Release date'],
                 ['DURATION', 'DURATION', 'Duration']
             ];
@@ -160,6 +161,7 @@ object PlaylistSort {
                 var wasSorted = !!held[uri] || !!state;
                 held[uri] = null;
                 if (!enabled() || !wasSorted) return false;
+                if (state && !fieldSupported(state.field)) return false;
                 var qc = findQueryClient();
                 if (!qc || typeof qc.getQueryCache !== 'function') return false;
                 var all = [];
@@ -291,6 +293,14 @@ object PlaylistSort {
                 }
                 return null;
             }
+            // date added is only real on the playlists that carry it. editorial ones
+            // ship a dummy 1970 stamp and hide the column, so the row would sort nothing
+            function fieldSupported(field){
+                if (field !== 'ADDED_AT') return true;
+                var ul = columnsMenu();
+                if (ul && ul.querySelector('button[role="menuitemcheckbox"][data-column="' + field + '"]')) return true;
+                return !!headerLabel(field);
+            }
             function dropMenuRows(ul){
                 var old = ul.querySelectorAll('[data-spl-opt]');
                 for (var i = 0; i < old.length; i++) {
@@ -319,6 +329,7 @@ object PlaylistSort {
                     }
                     for (var i = 0; i < SORT_FIELDS.length; i++) {
                         var field = SORT_FIELDS[i][0];
+                        if (!fieldSupported(field)) continue;
                         var label = columnLabel(ul, SORT_FIELDS[i][1], headerLabel(field) || SORT_FIELDS[i][2]);
                         var active = (state && state.field === field) ? state.order : '';
                         var li = row.cloneNode(true);
@@ -403,7 +414,8 @@ object PlaylistSort {
             window.fetch = function(input, init){
                 try {
                     var url = typeof input === 'string' ? input : (input && input.url) || '';
-                    if (!enabled() || !state || url.indexOf('api-partner.spotify.com/pathfinder') === -1
+                    if (!enabled() || !state || !fieldSupported(state.field)
+                        || url.indexOf('api-partner.spotify.com/pathfinder') === -1
                         || !init || !init.body) {
                         return prevFetch(input, init);
                     }

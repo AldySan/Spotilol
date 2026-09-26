@@ -13,11 +13,11 @@ import android.webkit.WebView
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,6 +33,9 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -40,6 +43,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -83,10 +88,13 @@ import androidx.compose.ui.platform.toClipEntry
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -99,9 +107,12 @@ import com.project.lol.profile.ProfileManager
 import com.project.lol.proxy.LocalProxyManager
 import com.project.lol.service.MediaNotificationService
 import com.project.lol.ui.theme.SpotifyTheme
-import com.project.lol.util.DebugLogStore
 import com.project.lol.util.GitHubApi
 import com.project.lol.util.GitHubRelease
+import com.project.lol.util.LogEntry
+import com.project.lol.util.LogFilter
+import com.project.lol.util.LogLevel
+import com.project.lol.util.Logger
 import com.project.lol.util.MarkdownText
 import com.project.lol.webview.helpers.LyricsTheme
 import compose.icons.TablerIcons
@@ -138,6 +149,7 @@ import compose.icons.tablericons.TrashOff
 import compose.icons.tablericons.User
 import compose.icons.tablericons.UserPlus
 import compose.icons.tablericons.WaveSine
+import compose.icons.tablericons.X
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -170,9 +182,6 @@ private fun formatHex(color: Color): String {
     return "#" + String.format(Locale.US, "%02X%02X%02X", r, g, b)
 }
 private const val DEBUG_UNLOCK_TAPS = 5
-
-private const val DEBUG_INFO_TEXT =
-    "Experimental. Debug tools can behave differently between devices and may change or be removed in future builds. Events are kept in a rolling in-memory buffer, and a logcat-style capture and export may be added later."
 
 private enum class SettingsTab(val label: String) {
     Appearance("Appearance"),
@@ -247,7 +256,7 @@ fun SettingsContent(
     var showCustomCssDialog by remember { mutableStateOf(false) }
     var showPaletteDialog by remember { mutableStateOf(false) }
     var showChangelogDialog by remember { mutableStateOf(false) }
-    var dbgOverlay by remember { mutableStateOf(prefs.getBoolean("DebugOverlay", false)) }
+    var loggingOn by remember { mutableStateOf(Logger.isEnabled()) }
     var showDevlogDialog by remember { mutableStateOf(false) }
     var debugUnlocked by remember { mutableStateOf(prefs.getBoolean("DebugUnlocked", false)) }
     var debugTapCount by remember { mutableStateOf(0) }
@@ -304,9 +313,9 @@ fun SettingsContent(
         if (debugUnlocked) {
             debugUnlocked = false
             prefs.edit().putBoolean("DebugUnlocked", false).apply()
-            if (dbgOverlay) {
-                dbgOverlay = false
-                prefs.edit().putBoolean("DebugOverlay", false).apply()
+            if (loggingOn) {
+                loggingOn = false
+                Logger.setEnabled(context, false)
                 onDebugToggle(false)
             }
             Toast.makeText(context, "Debug tools hidden", Toast.LENGTH_SHORT).show()
@@ -880,18 +889,16 @@ fun SettingsContent(
                 if (debugUnlocked) {
                     SettingSectionCard(
                         title = "DEBUG",
-                        icon = TablerIcons.Flask,
-                        badge = "BETA",
-                        info = DEBUG_INFO_TEXT
+                        icon = TablerIcons.Flask
                     ) {
                         SettingSwitchTile(
                             title = "Collect Debug",
-                            subtitle = "Collect debug events thrown by JS",
+                            subtitle = "Capture JS and native logs",
                             icon = TablerIcons.Bug,
-                            checked = dbgOverlay,
+                            checked = loggingOn,
                             onCheckedChange = { enabled ->
-                                dbgOverlay = enabled
-                                prefs.edit().putBoolean("DebugOverlay", enabled).apply()
+                                loggingOn = enabled
+                                Logger.setEnabled(context, enabled)
                                 onDebugToggle(enabled)
                             }
                         )
@@ -899,11 +906,11 @@ fun SettingsContent(
                         HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
                         SettingTile(
-                            title = "Open Devlog",
-                            subtitle = if (dbgOverlay) "Live JS and native events" else "Enable debug first",
+                            title = "Open Logger",
+                            subtitle = if (loggingOn) "Live verbose, debug, info, warn and error logs"
+                            else "Logging is off, only old entries are shown",
                             icon = TablerIcons.Code,
-                            onClick = { showDevlogDialog = true },
-                            enabled = dbgOverlay
+                            onClick = { showDevlogDialog = true }
                         )
                     }
                 }
@@ -1141,7 +1148,7 @@ fun SettingsContent(
     }
 
     if (showDevlogDialog) {
-        DevlogLiveDialog(onDismiss = { showDevlogDialog = false })
+        LoggerDialog(onDismiss = { showDevlogDialog = false })
     }
 }
 
@@ -1455,7 +1462,6 @@ private fun ChangelogDialog(onDismiss: () -> Unit) {
 fun SettingSectionCard(
     title: String,
     icon: ImageVector,
-    badge: String? = null,
     info: String? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
@@ -1480,23 +1486,6 @@ fun SettingSectionCard(
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 0.8.sp
             )
-            if (badge != null) {
-                Spacer(Modifier.width(6.dp))
-                Surface(
-                    shape = RoundedCornerShape(4.dp),
-                    color = Color.Transparent,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.tertiary.copy(alpha = 0.7f))
-                ) {
-                    Text(
-                        text = badge,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.tertiary,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.6.sp,
-                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
-                    )
-                }
-            }
             if (info != null) {
                 Spacer(Modifier.width(6.dp))
                 InfoTooltip(text = info)
@@ -2022,42 +2011,147 @@ fun SettingsContentPreview() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DevlogLiveDialog(onDismiss: () -> Unit) {
-    var lines by remember { mutableStateOf(DebugLogStore.snapshot()) }
-    LaunchedEffect(Unit) {
-        while (true) {
-            delay(400)
-            lines = DebugLogStore.snapshot()
-        }
-    }
+fun LoggerDialog(onDismiss: () -> Unit) {
+    var query by remember { mutableStateOf("") }
+    var levelFilter by remember { mutableStateOf<LogLevel?>(null) }
+    var entries by remember { mutableStateOf(Logger.entries()) }
+    var expanded by remember { mutableStateOf(emptySet<Long>()) }
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
+    val listState = rememberLazyListState()
+    val filtered = remember(entries, query, levelFilter) {
+        LogFilter.apply(entries, query, levelFilter ?: LogLevel.VERBOSE)
+    }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(350)
+            val next = Logger.entries()
+            val changed = next.size != entries.size || next.lastOrNull()?.id != entries.lastOrNull()?.id
+            if (changed) entries = next
+        }
+    }
+
+    LaunchedEffect(filtered.size, filtered.lastOrNull()?.id) {
+        if (filtered.isNotEmpty()) listState.scrollToItem(filtered.size - 1)
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(28.dp),
-        title = { Text("Devlog", fontWeight = FontWeight.Bold) },
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Logger", fontWeight = FontWeight.Bold)
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = "${filtered.size}/${entries.size}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        },
         text = {
             Column {
-                Text(
-                    text = if (lines.isEmpty()) "(empty - waiting for activity)"
-                    else lines.joinToString("\n"),
-                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                    modifier = Modifier.height(320.dp).verticalScroll(rememberScrollState())
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                    placeholder = {
+                        Text(
+                            text = "package:mine level:w tag:js -word",
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    },
+                    trailingIcon = {
+                        if (query.isNotEmpty()) {
+                            IconButton(onClick = { query = "" }) {
+                                Icon(
+                                    imageVector = TablerIcons.X,
+                                    contentDescription = "Clear filter",
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    }
                 )
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    FilterChip(
+                        selected = levelFilter == null,
+                        onClick = { levelFilter = null },
+                        label = { Text("ALL", fontSize = 11.sp) }
+                    )
+                    LogLevel.entries.forEach { level ->
+                        val color = logLevelColor(level)
+                        FilterChip(
+                            selected = levelFilter == level,
+                            onClick = { levelFilter = level },
+                            label = {
+                                Text(
+                                    text = level.letter.toString(),
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                labelColor = color,
+                                selectedContainerColor = color.copy(alpha = 0.22f),
+                                selectedLabelColor = color
+                            )
+                        )
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                Surface(
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 160.dp, max = 360.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.35f)
+                ) {
+                    LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+                        if (filtered.isEmpty()) {
+                            item {
+                                Text(
+                                    text = if (entries.isEmpty()) "(no entries, waiting for activity)"
+                                    else "(no entries match the filter)",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(12.dp)
+                                )
+                            }
+                        }
+                        items(filtered, key = { it.id }) { entry ->
+                            LogRow(
+                                entry = entry,
+                                expanded = expanded.contains(entry.id),
+                                onToggle = {
+                                    expanded = if (expanded.contains(entry.id)) expanded - entry.id
+                                    else expanded + entry.id
+                                }
+                            )
+                        }
+                    }
+                }
             }
         },
         confirmButton = {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TextButton(onClick = {
-                    DebugLogStore.clear()
-                    lines = emptyList()
+                    Logger.clear()
+                    entries = emptyList()
                 }) { Text("Clear") }
 
                 TextButton(onClick = {
-                    val text = lines.joinToString("\n")
+                    val text = LogFilter.text(filtered)
                     scope.launch {
                         clipboard.setClipEntry(
-                            ClipData.newPlainText("spotilol_devlog", text).toClipEntry()
+                            ClipData.newPlainText("spotilol_logger", text).toClipEntry()
                         )
                     }
                 }) { Text("Copy") }
@@ -2068,4 +2162,56 @@ fun DevlogLiveDialog(onDismiss: () -> Unit) {
             }
         }
     )
+}
+
+@Composable
+private fun LogRow(entry: LogEntry, expanded: Boolean, onToggle: () -> Unit) {
+    val color = logLevelColor(entry.level)
+    val dim = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onToggle() }
+            .padding(horizontal = 10.dp, vertical = 4.dp)
+    ) {
+        Text(
+            text = buildAnnotatedString {
+                withStyle(SpanStyle(color = dim)) {
+                    append(entry.time)
+                    append(' ')
+                }
+                withStyle(SpanStyle(color = color, fontWeight = FontWeight.Bold)) {
+                    append(entry.level.letter)
+                    append('/')
+                    append(entry.tag)
+                }
+                withStyle(SpanStyle(color = color)) {
+                    append(": ")
+                    append(entry.message)
+                }
+            },
+            fontFamily = FontFamily.Monospace,
+            fontSize = 10.sp,
+            lineHeight = 14.sp
+        )
+        if (expanded && entry.stack != null) {
+            Spacer(Modifier.height(3.dp))
+            Text(
+                text = entry.stack,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 9.sp,
+                lineHeight = 12.sp,
+                color = dim
+            )
+        }
+    }
+}
+
+private fun logLevelColor(level: LogLevel): Color = when (level) {
+    LogLevel.VERBOSE -> Color(0xFF9AA0A6)
+    LogLevel.DEBUG -> Color(0xFF64B5F6)
+    LogLevel.INFO -> Color(0xFF81C784)
+    LogLevel.SYS -> Color(0xFFBA68C8)
+    LogLevel.WARN -> Color(0xFFFFB74D)
+    LogLevel.ERROR -> Color(0xFFEF5350)
 }

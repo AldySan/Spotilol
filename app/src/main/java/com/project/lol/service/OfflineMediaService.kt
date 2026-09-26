@@ -25,6 +25,7 @@ import androidx.media.app.NotificationCompat.MediaStyle
 import androidx.media.session.MediaButtonReceiver
 import com.project.lol.R
 import com.project.lol.ui.OfflineActivity
+import com.project.lol.util.Logger
 import java.io.File
 import kotlin.math.min
 
@@ -100,22 +101,22 @@ class OfflineMediaService : Service() {
         try {
             createNotificationChannel()
         } catch (e: Exception) {
-            android.util.Log.e(TAG, "Failed to create notification channel", e)
+            Logger.e(TAG, "Failed to create notification channel", e)
         }
         try {
             setupMediaSession()
         } catch (e: Exception) {
-            android.util.Log.e(TAG, "Failed to setup media session", e)
+            Logger.e(TAG, "Failed to setup media session", e)
         }
         try {
             registerReceivers()
         } catch (e: Exception) {
-            android.util.Log.e(TAG, "Failed to register receivers", e)
+            Logger.e(TAG, "Failed to register receivers", e)
         }
         try {
             ServiceCompat.startForeground(this, NOTIFICATION_ID, buildNotificationSafe(), getStartForegroundServiceType())
         } catch (e: Throwable) {
-            android.util.Log.e(TAG, "Failed to start foreground", e)
+            Logger.e(TAG, "Failed to start foreground", e)
         }
     }
 
@@ -152,12 +153,12 @@ class OfflineMediaService : Service() {
         try {
             ServiceCompat.startForeground(this, NOTIFICATION_ID, buildNotificationSafe(), getStartForegroundServiceType())
         } catch (e: Throwable) {
-            android.util.Log.e(TAG, "Failed to re-assert foreground", e)
+            Logger.e(TAG, "Failed to re-assert foreground", e)
         }
         try {
             MediaButtonReceiver.handleIntent(mediaSession, intent)
         } catch (e: Exception) {
-            android.util.Log.e(TAG, "Failed to handle media button intent", e)
+            Logger.e(TAG, "Failed to handle media button intent", e)
         }
         return START_STICKY
     }
@@ -347,7 +348,7 @@ class OfflineMediaService : Service() {
         return try {
             buildNotification()
         } catch (e: Exception) {
-            android.util.Log.e(TAG, "Failed to build notification", e)
+            Logger.e(TAG, "Failed to build notification", e)
             NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle("Spotilol")
                 .setSmallIcon(R.drawable.ic_notification)

@@ -5,6 +5,7 @@ import android.view.View
 import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
 import android.widget.Toast
+import com.project.lol.R
 import com.project.lol.service.MediaNotificationService
 import com.project.lol.webview.helpers.AdIdStore
 import org.json.JSONArray
@@ -64,8 +65,8 @@ class SpotifyBridge(activityRef: WeakReference<Activity>) {
         val activity = activityRef.get() ?: return
         if (msg == "adblock") return
         val display = when (msg) {
-            "unlock" -> "Player unlocked"
-            "reload" -> "Reloading..."
+            "unlock" -> activity.getString(R.string.bridge_player_unlocked)
+            "reload" -> activity.getString(R.string.bridge_reloading)
             else -> msg
         }
         Logger.d(CALL, "deferMessage: $display")

@@ -94,6 +94,7 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
 
         var webView: WebView? = null
         var instance: MediaNotificationService? = null
+        private var appContext: Context? = null
 
         @Volatile
         private var taskRemoved = false
@@ -107,7 +108,7 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
                     val jsonArray = org.json.JSONArray(json)
                     for (i in 0 until jsonArray.length()) {
                         val obj = jsonArray.getJSONObject(i)
-                        val name = obj.optString("name", "Unknown")
+                        val name = obj.optString("name", appContext?.getString(R.string.notif_unknown_name) ?: "")
                         val id = obj.optString("id")
                         if (id.isEmpty()) continue
                         val image = obj.optString("image")
@@ -115,7 +116,8 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
                         val isBrowsable = obj.optBoolean("browsable", false)
                         var sub = ""
                         if (artists != null && artists.length() > 0) {
-                            sub = "by " + (0 until artists.length()).map { artists.getString(it) }.joinToString(", ")
+                            val artistNames = (0 until artists.length()).map { artists.getString(it) }.joinToString(", ")
+                            sub = appContext?.getString(R.string.notif_by_artist, artistNames) ?: artistNames
                         }
                         val desc = MediaDescriptionCompat.Builder()
                             .setMediaId(id)
@@ -144,7 +146,7 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
                     val jsonArray = org.json.JSONArray(json)
                     for (i in 0 until jsonArray.length()) {
                         val obj = jsonArray.getJSONObject(i)
-                        val name = obj.optString("name", "Unknown")
+                        val name = obj.optString("name", appContext?.getString(R.string.notif_unknown_name) ?: "")
                         val id = obj.optString("id")
                         if (id.isEmpty()) continue
                         val image = obj.optString("image")
@@ -156,7 +158,7 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
                         val sub = when {
                             type.isNotEmpty() && artistText.isNotEmpty() -> "$type • $artistText"
                             type.isNotEmpty() -> type
-                            artistText.isNotEmpty() -> "by $artistText"
+                            artistText.isNotEmpty() -> appContext?.getString(R.string.notif_by_artist, artistText) ?: artistText
                             else -> ""
                         }
                         val isBrowsable = obj.optBoolean("browsable", false)
@@ -358,6 +360,7 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
     override fun onCreate() {
         super.onCreate()
         instance = this
+        appContext = applicationContext
 
         try {
             createNotificationChannel()
@@ -538,10 +541,10 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "Media Playback",
+                getString(R.string.notif_channel_media_name),
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Spotilol media playback controls"
+                description = getString(R.string.notif_channel_media_description)
                 setShowBadge(false)
                 lockscreenVisibility = Notification.VISIBILITY_PUBLIC
             }
@@ -746,24 +749,24 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
             )
             .addCustomAction(
                 CUSTOM_ACTION_TOGGLE_FAV,
-                if (isFavorite) "Unlike" else "Like",
+                if (isFavorite) getString(R.string.notif_action_unlike) else getString(R.string.notif_action_like),
                 favIcon
             )
             .addCustomAction(
                 CUSTOM_ACTION_TOGGLE_SHUFFLE,
                 when {
-                    isSmartShuffle -> "Disable smart shuffle"
-                    isShuffle -> "Disable shuffle"
-                    else -> "Enable shuffle"
+                    isSmartShuffle -> getString(R.string.notif_shuffle_disable_smart)
+                    isShuffle -> getString(R.string.notif_shuffle_disable)
+                    else -> getString(R.string.notif_shuffle_enable)
                 },
                 shuffleIcon
             )
             .addCustomAction(
                 CUSTOM_ACTION_REPEAT,
                 when (isRepeat) {
-                    "true" -> "Disable repeat"
-                    "mixed" -> "Disable repeat one"
-                    else -> "Enable repeat"
+                    "true" -> getString(R.string.notif_repeat_disable)
+                    "mixed" -> getString(R.string.notif_repeat_disable_one)
+                    else -> getString(R.string.notif_repeat_enable)
                 },
                 repeatIcon
             )
@@ -826,7 +829,7 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
         } catch (e: Exception) {
             Logger.e(TAG, "Failed to build notification", e)
             NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle("Spotilol")
+                .setContentTitle(getString(R.string.app_name))
                 .setSmallIcon(R.drawable.ic_notification)
                 .setOngoing(true)
                 .build()
@@ -853,17 +856,17 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
         )
 
         val prevAction = NotificationCompat.Action.Builder(
-            tintedIcon(R.drawable.ic_skip_prev), "Previous", getActionPendingIntent(ACTION_PREV)
+            tintedIcon(R.drawable.ic_skip_prev), getString(R.string.notif_action_previous), getActionPendingIntent(ACTION_PREV)
         ).build()
 
         val playPauseAction = NotificationCompat.Action.Builder(
             tintedIcon(if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play),
-            if (isPlaying) "Pause" else "Play",
+            if (isPlaying) getString(R.string.notif_action_pause) else getString(R.string.notif_action_play),
             getActionPendingIntent(ACTION_PLAY_PAUSE)
         ).build()
 
         val nextAction = NotificationCompat.Action.Builder(
-            tintedIcon(R.drawable.ic_skip_next), "Next", getActionPendingIntent(ACTION_NEXT)
+            tintedIcon(R.drawable.ic_skip_next), getString(R.string.notif_action_next), getActionPendingIntent(ACTION_NEXT)
         ).build()
 
         val shuffleAction = NotificationCompat.Action.Builder(
@@ -875,16 +878,16 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
                 }
             ),
             when {
-                isSmartShuffle -> "Disable smart shuffle"
-                isShuffle -> "Disable shuffle"
-                else -> "Enable shuffle"
+                isSmartShuffle -> getString(R.string.notif_shuffle_disable_smart)
+                isShuffle -> getString(R.string.notif_shuffle_disable)
+                else -> getString(R.string.notif_shuffle_enable)
             },
             getActionPendingIntent(ACTION_SHUFFLE)
         ).build()
 
         val favAction = NotificationCompat.Action.Builder(
             tintedIcon(if (isFavorite) R.drawable.ic_favorite_filled else R.drawable.ic_favorite),
-            if (isFavorite) "Unlike" else "Like",
+            if (isFavorite) getString(R.string.notif_action_unlike) else getString(R.string.notif_action_like),
             getActionPendingIntent(ACTION_FAVORITE)
         ).build()
 
@@ -896,9 +899,9 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
         actions.add(favAction)
 
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle(currentTitle.ifEmpty { "Spotilol" })
+            .setContentTitle(currentTitle.ifEmpty { getString(R.string.app_name) })
             .setContentText(currentArtist)
-            .setSubText("Spotilol")
+            .setSubText(getString(R.string.app_name))
             .setSmallIcon(R.drawable.ic_notification)
             .setContentIntent(contentIntent)
             .setOngoing(true)

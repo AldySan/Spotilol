@@ -84,6 +84,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -264,7 +265,7 @@ fun OfflineScreen(
             val ok = withContext(Dispatchers.IO) { OfflineStore.deleteSong(context, song) }
             songs = songs.filterNot { it.id == song.id && it.uri == song.uri }
             if (!ok) {
-                Toast.makeText(context, "Could not delete file", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.offline_toast_could_not_delete_file), Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -283,7 +284,7 @@ fun OfflineScreen(
             if (failed > 0) {
                 Toast.makeText(
                     context,
-                    if (failed == 1) "Could not delete 1 file" else "Could not delete $failed files",
+                    if (failed == 1) context.getString(R.string.offline_toast_could_not_delete_one_file) else context.getString(R.string.offline_toast_could_not_delete_files, failed),
                     Toast.LENGTH_SHORT
                 ).show()
                 songs = withContext(Dispatchers.IO) { OfflineStore.loadSongs(context) }
@@ -388,12 +389,12 @@ fun OfflineScreen(
                         title = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    text = "Spotilol",
+                                    text = stringResource(R.string.offline_app_name),
                                     fontWeight = FontWeight.Bold
                                 )
                                 Spacer(Modifier.width(6.dp))
                                 Text(
-                                    text = "v$versionName",
+                                    text = stringResource(R.string.offline_version, versionName),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -403,7 +404,7 @@ fun OfflineScreen(
                             IconButton(onClick = { settingsDialogOpen = true }) {
                                 Icon(
                                     imageVector = TablerIcons.Menu2,
-                                    contentDescription = "Settings",
+                                    contentDescription = stringResource(R.string.offline_desc_settings),
                                     tint = MaterialTheme.colorScheme.onSurface
                                 )
                             }
@@ -412,7 +413,7 @@ fun OfflineScreen(
                             IconButton(onClick = onExit) {
                                 Icon(
                                     imageVector = TablerIcons.Logout,
-                                    contentDescription = "Exit offline mode",
+                                    contentDescription = stringResource(R.string.offline_desc_exit_offline_mode),
                                     tint = MaterialTheme.colorScheme.onSurface
                                 )
                             }
@@ -441,17 +442,20 @@ fun OfflineScreen(
                     ) {
                         Text(
                             text = when {
-                                loading -> "Loading…"
+                                loading -> stringResource(R.string.offline_status_loading)
                                 searchQuery.isNotBlank() -> {
                                     val n = visibleSongs.size
                                     if (n == 0) {
-                                        "No results for \"${searchQuery.trim()}\""
+                                        stringResource(R.string.offline_status_no_results_for, searchQuery.trim())
+                                    } else if (n == 1) {
+                                        stringResource(R.string.offline_status_one_result_for, searchQuery.trim())
                                     } else {
-                                        "$n result${if (n == 1) "" else "s"} for \"${searchQuery.trim()}\""
+                                        stringResource(R.string.offline_status_results_for, n, searchQuery.trim())
                                     }
                                 }
-                                songs.isEmpty() -> "No downloads yet"
-                                else -> "${songs.size} song${if (songs.size == 1) "" else "s"} available offline"
+                                songs.isEmpty() -> stringResource(R.string.offline_status_no_downloads_yet)
+                                songs.size == 1 -> stringResource(R.string.offline_status_one_song_available_offline)
+                                else -> stringResource(R.string.offline_status_songs_available_offline, songs.size)
                             },
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -472,7 +476,7 @@ fun OfflineScreen(
                                 Spacer(Modifier.width(8.dp))
                                 CompactIconButton(
                                     icon = TablerIcons.Trash,
-                                    contentDescription = "Delete all downloads",
+                                    contentDescription = stringResource(R.string.offline_desc_delete_all_downloads),
                                     tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
                                     onClick = { confirmDeleteAll = true },
                                     boxSize = 40.dp,
@@ -506,13 +510,13 @@ fun OfflineScreen(
                                 )
                                 Spacer(Modifier.height(10.dp))
                                 Text(
-                                    text = "No results",
+                                    text = stringResource(R.string.offline_empty_no_results),
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.SemiBold
                                 )
                                 Spacer(Modifier.height(4.dp))
                                 Text(
-                                    text = "Nothing in your downloads matches \"${searchQuery.trim()}\"",
+                                    text = stringResource(R.string.offline_empty_nothing_matches, searchQuery.trim()),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     textAlign = TextAlign.Center
@@ -534,13 +538,13 @@ fun OfflineScreen(
                                 )
                                 Spacer(Modifier.height(10.dp))
                                 Text(
-                                    text = "Nothing here yet",
+                                    text = stringResource(R.string.offline_empty_nothing_here_yet),
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.SemiBold
                                 )
                                 Spacer(Modifier.height(4.dp))
                                 Text(
-                                    text = "Download songs with the download button\nin the player, then come back",
+                                    text = stringResource(R.string.offline_empty_download_hint),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     textAlign = TextAlign.Center
@@ -617,7 +621,7 @@ fun OfflineScreen(
                         ) {
                             Icon(
                                 painter = painterResource(R.drawable.ic_launcher_playstore),
-                                contentDescription = "Quick actions",
+                                contentDescription = stringResource(R.string.offline_desc_quick_actions),
                                 tint = Color.Unspecified,
                                 modifier = Modifier.fillMaxSize()
                             )
@@ -657,7 +661,7 @@ fun OfflineScreen(
                                             )
                                             Spacer(Modifier.width(12.dp))
                                             Text(
-                                                text = "Settings",
+                                                text = stringResource(R.string.offline_menu_settings),
                                                 style = MaterialTheme.typography.bodyLarge,
                                                 fontWeight = FontWeight.SemiBold,
                                                 modifier = Modifier.weight(1f)
@@ -688,7 +692,7 @@ fun OfflineScreen(
                                             )
                                             Spacer(Modifier.width(12.dp))
                                             Text(
-                                text = "Exit Offline Mode",
+                                text = stringResource(R.string.offline_menu_exit_offline_mode),
                                 style = MaterialTheme.typography.bodyLarge,
                                 fontWeight = FontWeight.SemiBold
                             )
@@ -707,14 +711,14 @@ fun OfflineScreen(
             shape = RoundedCornerShape(28.dp),
             title = {
                 Text(
-                    text = "Delete Song?",
+                    text = stringResource(R.string.offline_dialog_delete_song_title),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
             },
             text = {
                 Text(
-                    text = "Remove \"${songToDelete.title}\" by ${songToDelete.artist.ifBlank { "Unknown artist" }} from your downloads?",
+                    text = stringResource(R.string.offline_dialog_delete_song_message, songToDelete.title, songToDelete.artist.ifBlank { stringResource(R.string.offline_unknown_artist) }),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -725,7 +729,7 @@ fun OfflineScreen(
                     performDelete(songToDelete)
                 }) {
                     Text(
-                        text = "Delete",
+                        text = stringResource(R.string.offline_dialog_delete),
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.error
                     )
@@ -733,7 +737,7 @@ fun OfflineScreen(
             },
             dismissButton = {
                 TextButton(onClick = { pendingDelete = null }) {
-                    Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.offline_dialog_cancel), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         )
@@ -746,14 +750,18 @@ fun OfflineScreen(
             shape = RoundedCornerShape(28.dp),
             title = {
                 Text(
-                    text = "Delete All Downloads?",
+                    text = stringResource(R.string.offline_dialog_delete_all_title),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
             },
             text = {
                 Text(
-                    text = "Remove ${if (total == 1) "the downloaded song" else "all $total downloaded songs"} from this device? This cannot be undone.",
+                    text = if (total == 1) {
+                        stringResource(R.string.offline_dialog_delete_all_message_one)
+                    } else {
+                        stringResource(R.string.offline_dialog_delete_all_message_many, total)
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -764,7 +772,7 @@ fun OfflineScreen(
                     performDeleteAll()
                 }) {
                     Text(
-                        text = "Delete All",
+                        text = stringResource(R.string.offline_dialog_delete_all),
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.error
                     )
@@ -772,7 +780,7 @@ fun OfflineScreen(
             },
             dismissButton = {
                 TextButton(onClick = { confirmDeleteAll = false }) {
-                    Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.offline_dialog_cancel), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         )
@@ -873,7 +881,7 @@ private fun OfflineSearchField(
                 decorationBox = { inner ->
                     if (value.isEmpty()) {
                         Text(
-                            text = "Search your downloads",
+                            text = stringResource(R.string.offline_search_placeholder),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -885,7 +893,7 @@ private fun OfflineSearchField(
                 Spacer(Modifier.width(6.dp))
                 CompactIconButton(
                     icon = TablerIcons.X,
-                    contentDescription = "Clear search",
+                    contentDescription = stringResource(R.string.offline_desc_clear_search),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     onClick = { onValueChange("") },
                     boxSize = 28.dp,
@@ -1001,11 +1009,13 @@ private fun OfflineSongRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+            val unknownArtist = stringResource(R.string.offline_unknown_artist)
+            val explicitLabel = stringResource(R.string.offline_label_explicit)
             val subtitle = buildString {
-                append(song.artist.ifBlank { "Unknown artist" })
+                append(song.artist.ifBlank { unknownArtist })
                 song.album.ifBlank { "" }.takeIf { it.isNotBlank() }?.let { append(" • $it") }
                 song.durationSec?.takeIf { it > 0 }?.let { append(" • ${formatSeconds(it)}") }
-                if (song.explicit) append(" • Explicit")
+                if (song.explicit) append(" • $explicitLabel")
             }
             Text(
                 text = subtitle,
@@ -1017,7 +1027,7 @@ private fun OfflineSongRow(
         }
         CompactIconButton(
             icon = TablerIcons.Trash,
-            contentDescription = "Delete",
+            contentDescription = stringResource(R.string.offline_desc_delete),
             tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
             onClick = onDelete,
             boxSize = 30.dp,
@@ -1124,7 +1134,7 @@ private fun NowPlayingBar(
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
-                        text = song.artist.ifBlank { "Unknown artist" },
+                        text = song.artist.ifBlank { stringResource(R.string.offline_unknown_artist) },
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
@@ -1133,14 +1143,14 @@ private fun NowPlayingBar(
                 }
                 CompactIconButton(
                     icon = TablerIcons.PlayerSkipBack,
-                    contentDescription = "Previous",
+                    contentDescription = stringResource(R.string.offline_desc_previous),
                     tint = MaterialTheme.colorScheme.onSurface,
                     onClick = onPrev,
                     iconSize = 17.dp
                 )
                 CompactIconButton(
                     icon = if (playing) TablerIcons.PlayerPause else TablerIcons.PlayerPlay,
-                    contentDescription = if (playing) "Pause" else "Play",
+                    contentDescription = if (playing) stringResource(R.string.offline_desc_pause) else stringResource(R.string.offline_desc_play),
                     tint = MaterialTheme.colorScheme.primary,
                     onClick = onTogglePlay,
                     boxSize = 36.dp,
@@ -1148,14 +1158,14 @@ private fun NowPlayingBar(
                 )
                 CompactIconButton(
                     icon = TablerIcons.PlayerSkipForward,
-                    contentDescription = "Next",
+                    contentDescription = stringResource(R.string.offline_desc_next),
                     tint = MaterialTheme.colorScheme.onSurface,
                     onClick = onNext,
                     iconSize = 17.dp
                 )
                 CompactIconButton(
                     icon = TablerIcons.X,
-                    contentDescription = "Close player",
+                    contentDescription = stringResource(R.string.offline_desc_close_player),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     onClick = onClose,
                     iconSize = 16.dp

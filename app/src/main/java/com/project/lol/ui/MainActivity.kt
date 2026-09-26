@@ -93,6 +93,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -223,7 +224,7 @@ class MainActivity : ComponentActivity() {
         requestBluetoothPermission()
         val uc = UpdateChecker(this)
         uc.autoCheck { url ->
-            Toast.makeText(this, "A new update is available", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.main_update_available), Toast.LENGTH_SHORT).show()
             Handler(Looper.getMainLooper()).postDelayed({
                 try {
                     startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
@@ -359,12 +360,12 @@ class MainActivity : ComponentActivity() {
                                 title = {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Text(
-                                            text = "Spotilol",
+                                            text = stringResource(R.string.app_name),
                                             fontWeight = FontWeight.Bold
                                         )
                                         Spacer(Modifier.width(6.dp))
                                         Text(
-                                            text = "v$versionName",
+                                            text = stringResource(R.string.main_version_label, versionName),
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -379,7 +380,7 @@ class MainActivity : ComponentActivity() {
                                     }) {
                                         Icon(
                                             imageVector = TablerIcons.Menu2,
-                                            contentDescription = "Settings",
+                                            contentDescription = stringResource(R.string.main_settings_content_description),
                                             tint = MaterialTheme.colorScheme.onSurface
                                         )
                                     }
@@ -621,7 +622,10 @@ class MainActivity : ComponentActivity() {
                                         .inflate(R.layout.service_disabled, null).apply {
                                             val tvVersion = findViewById<TextView>(R.id.tvWebViewVersion)
                                             val pkg = WebViewCompat.getCurrentWebViewPackage(context)
-                                            tvVersion.text = "Webview: ${pkg?.versionName ?: "N/A"}"
+                                            tvVersion.text = context.getString(
+                                                R.string.main_webview_version,
+                                                pkg?.versionName ?: context.getString(R.string.main_webview_version_unknown)
+                                            )
                                         }
                                 },
                                 modifier = Modifier.fillMaxSize()
@@ -701,14 +705,14 @@ class MainActivity : ComponentActivity() {
     private fun saveProfile(name: String, cookies: String) {
         Logger.i(TAG, "saving account profile: $name")
         ProfileManager.saveProfile(this, name, cookies)
-        Toast.makeText(this, "Account saved", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, getString(R.string.main_account_saved), Toast.LENGTH_SHORT).show()
     }
 
     private fun loadProfile(cookies: String) {
         Logger.i(TAG, "loading account profile (${cookies.length} chars)")
         if (!ProfileManager.applyProfile(this, cookies)) {
             Logger.w(TAG, "profile could not be applied")
-            Toast.makeText(this, "Profile could not be loaded", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.main_profile_load_failed), Toast.LENGTH_SHORT).show()
             return
         }
         val intent = Intent(this, SplashActivity::class.java).apply {
@@ -721,7 +725,7 @@ class MainActivity : ComponentActivity() {
     private fun deleteProfile(name: String) {
         Logger.i(TAG, "deleting account profile: $name")
         ProfileManager.deleteProfile(this, name)
-        Toast.makeText(this, "Profile deleted", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, getString(R.string.main_profile_deleted), Toast.LENGTH_SHORT).show()
     }
 
     private fun clearWebViewCache() {
@@ -730,7 +734,7 @@ class MainActivity : ComponentActivity() {
         wv.clearCache(true)
         wv.clearHistory()
         wv.destroy()
-        Toast.makeText(this, "Cache cleared successfully", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, getString(R.string.main_cache_cleared), Toast.LENGTH_SHORT).show()
     }
 
     private fun clearAllData() {
@@ -744,7 +748,7 @@ class MainActivity : ComponentActivity() {
         CookieManager.getInstance().removeAllCookies(null)
         CookieManager.getInstance().flush()
         prefs.edit().putBoolean("LoggedIn", false).apply()
-        Toast.makeText(this, "All data cleared, please login again", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, getString(R.string.main_all_data_cleared), Toast.LENGTH_SHORT).show()
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
@@ -816,7 +820,7 @@ class MainActivity : ComponentActivity() {
             val remainingSecs = timerRemainingMs / 1000
             val mins = remainingSecs / 60
             val secs = remainingSecs % 60
-            val timeStr = String.format("%d:%02d min remaining", mins, secs)
+            val timeStr = stringResource(R.string.main_timer_remaining, mins, secs)
 
             AlertDialog(
                 onDismissRequest = onDismiss,
@@ -826,7 +830,7 @@ class MainActivity : ComponentActivity() {
                 textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 title = {
                     Text(
-                        "Sleep Timer",
+                        stringResource(R.string.main_sleep_timer_title),
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.fillMaxWidth(),
                         textAlign = TextAlign.Center
@@ -838,12 +842,12 @@ class MainActivity : ComponentActivity() {
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = "⏰",
+                            text = stringResource(R.string.main_sleep_timer_emoji),
                             style = MaterialTheme.typography.displaySmall
                         )
                         Spacer(Modifier.height(8.dp))
                         Text(
-                            text = "Timer active",
+                            text = stringResource(R.string.main_timer_active),
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
@@ -859,7 +863,7 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Button(onClick = onDismiss) {
-                            Text("Close")
+                            Text(stringResource(R.string.main_close))
                         }
                         Spacer(Modifier.width(12.dp))
                         Button(
@@ -868,7 +872,7 @@ class MainActivity : ComponentActivity() {
                                 containerColor = MaterialTheme.colorScheme.error
                             )
                         ) {
-                            Text("Cancel Timer")
+                            Text(stringResource(R.string.main_cancel_timer))
                         }
                     }
                 },
@@ -883,7 +887,7 @@ class MainActivity : ComponentActivity() {
                 textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 title = {
                     Text(
-                        "Sleep Timer",
+                        stringResource(R.string.main_sleep_timer_title),
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.fillMaxWidth(),
                         textAlign = TextAlign.Center
@@ -895,7 +899,7 @@ class MainActivity : ComponentActivity() {
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = "Set minutes:",
+                            text = stringResource(R.string.main_set_minutes),
                             style = MaterialTheme.typography.bodyMedium
                         )
                         Spacer(Modifier.height(12.dp))
@@ -909,8 +913,8 @@ class MainActivity : ComponentActivity() {
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            placeholder = { Text("e.g. 25") },
-                            trailingIcon = { Text("min", style = MaterialTheme.typography.bodyMedium) }
+                            placeholder = { Text(stringResource(R.string.main_timer_minutes_hint)) },
+                            trailingIcon = { Text(stringResource(R.string.main_minutes_suffix), style = MaterialTheme.typography.bodyMedium) }
                         )
                     }
                 },
@@ -920,14 +924,14 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Button(onClick = onDismiss) {
-                            Text("Cancel")
+                            Text(stringResource(R.string.main_cancel))
                         }
                         Spacer(Modifier.width(12.dp))
                         Button(
                             onClick = { onSetTimer(minutes) },
                             enabled = minutes > 0
                         ) {
-                            Text("Set Timer")
+                            Text(stringResource(R.string.main_set_timer))
                         }
                     }
                 },
@@ -957,7 +961,7 @@ class MainActivity : ComponentActivity() {
             ) {
                 Icon(
                     painter = painterResource(R.drawable.ic_launcher_playstore),
-                    contentDescription = "Quick settings",
+                    contentDescription = stringResource(R.string.main_quick_settings),
                     tint = Color.Unspecified,
                     modifier = Modifier.fillMaxSize()
                 )
@@ -993,7 +997,7 @@ class MainActivity : ComponentActivity() {
                                 )
                                 Spacer(Modifier.width(12.dp))
                                 Text(
-                                    text = "Settings",
+                                    text = stringResource(R.string.main_settings),
                                     style = MaterialTheme.typography.bodyLarge,
                                     fontWeight = FontWeight.SemiBold,
                                     modifier = Modifier.weight(1f)
@@ -1015,7 +1019,7 @@ class MainActivity : ComponentActivity() {
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "Service",
+                                    text = stringResource(R.string.main_service),
                                     style = MaterialTheme.typography.bodyLarge,
                                     fontWeight = FontWeight.SemiBold,
                                     modifier = Modifier.weight(1f)
@@ -1142,7 +1146,7 @@ class MainActivity : ComponentActivity() {
     private fun buildPipActions(): List<RemoteAction> {
         val prev = RemoteAction(
             Icon.createWithResource(this, R.drawable.ic_skip_prev),
-            "Previous", "Previous",
+            getString(R.string.main_pip_previous), getString(R.string.main_pip_previous),
             pipActionIntent(MediaNotificationService.ACTION_PREV)
         )
         val playPause = RemoteAction(
@@ -1150,13 +1154,13 @@ class MainActivity : ComponentActivity() {
                 this,
                 if (pipPlaying) R.drawable.ic_pause else R.drawable.ic_play
             ),
-            if (pipPlaying) "Pause" else "Play",
-            if (pipPlaying) "Pause" else "Play",
+            if (pipPlaying) getString(R.string.main_pip_pause) else getString(R.string.main_pip_play),
+            if (pipPlaying) getString(R.string.main_pip_pause) else getString(R.string.main_pip_play),
             pipActionIntent(MediaNotificationService.ACTION_PLAY_PAUSE)
         )
         val next = RemoteAction(
             Icon.createWithResource(this, R.drawable.ic_skip_next),
-            "Next", "Next",
+            getString(R.string.main_pip_next), getString(R.string.main_pip_next),
             pipActionIntent(MediaNotificationService.ACTION_NEXT)
         )
         return listOf(prev, playPause, next)

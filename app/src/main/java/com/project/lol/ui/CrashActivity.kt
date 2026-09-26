@@ -41,12 +41,14 @@ import androidx.compose.ui.platform.Clipboard
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.toClipEntry
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
+import com.project.lol.R
 import com.project.lol.ui.theme.SpotifyTheme
 import com.project.lol.util.CrashHandler
 import com.project.lol.util.CrashStore
@@ -73,8 +75,8 @@ class CrashActivity : ComponentActivity() {
         val seed = parseSeed(prefs.getString("PaletteSeed", null))
         val summary = intent?.getStringExtra(CrashHandler.extraSummary())
             ?: CrashStore.summary(this)
-            ?: "Unknown crash"
-        val report = CrashStore.report(this) ?: "no crash report captured"
+            ?: getString(R.string.crash_unknown)
+        val report = CrashStore.report(this) ?: getString(R.string.crash_no_report)
 
         setContent {
             SpotifyTheme(useDynamicColor = materialYou, amoled = amoled, seedColor = seed) {
@@ -121,7 +123,7 @@ private fun CrashScreen(summary: String, report: String, onRestart: () -> Unit) 
             Spacer(Modifier.width(8.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Spotilol crashed",
+                    text = stringResource(R.string.crash_title),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
@@ -137,7 +139,7 @@ private fun CrashScreen(summary: String, report: String, onRestart: () -> Unit) 
             IconButton(onClick = { copyReport(context, scope, clipboard, report) }) {
                 Icon(
                     imageVector = TablerIcons.Copy,
-                    contentDescription = "Copy crash report",
+                    contentDescription = stringResource(R.string.crash_copy_description),
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(18.dp)
                 )
@@ -153,14 +155,14 @@ private fun CrashScreen(summary: String, report: String, onRestart: () -> Unit) 
             Column(modifier = Modifier.fillMaxSize().padding(10.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "Report",
+                        text = stringResource(R.string.crash_report_header),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(Modifier.width(6.dp))
                     Text(
-                        text = "$lineCount lines",
+                        text = stringResource(R.string.crash_report_lines, lineCount),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -195,7 +197,7 @@ private fun CrashScreen(summary: String, report: String, onRestart: () -> Unit) 
                 modifier = Modifier.size(20.dp)
             )
             Spacer(Modifier.width(8.dp))
-            Text("Restart", fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.crash_restart), fontWeight = FontWeight.SemiBold)
         }
     }
 }
@@ -203,7 +205,7 @@ private fun CrashScreen(summary: String, report: String, onRestart: () -> Unit) 
 private fun copyReport(context: Context, scope: CoroutineScope, clipboard: Clipboard, report: String) {
     scope.launch {
         clipboard.setClipEntry(ClipData.newPlainText("spotilol_crash", report).toClipEntry())
-        Toast.makeText(context, "Crash report copied", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, context.getString(R.string.crash_copied), Toast.LENGTH_SHORT).show()
     }
 }
 

@@ -30,6 +30,9 @@ class SpotifyBridge(activityRef: WeakReference<Activity>) {
             "sec-ch-ua-bitness",
             "sec-ch-ua-model"
         )
+
+        private const val TAG = "bridge"
+        private const val CALL = "bridge.call"
     }
 
     private val activityRef = activityRef
@@ -46,6 +49,7 @@ class SpotifyBridge(activityRef: WeakReference<Activity>) {
     @JavascriptInterface
     fun loginDetected() {
         val activity = activityRef.get() ?: return
+        Logger.i(TAG, "login detected")
         activity.getSharedPreferences("spotilol_prefs", Activity.MODE_PRIVATE)
             .edit()
             .putBoolean("LoggedIn", true)
@@ -64,6 +68,7 @@ class SpotifyBridge(activityRef: WeakReference<Activity>) {
             "reload" -> "Reloading..."
             else -> msg
         }
+        Logger.d(CALL, "deferMessage: $display")
         activity.runOnUiThread {
             Toast.makeText(activity, display, Toast.LENGTH_SHORT).show()
         }
@@ -72,19 +77,24 @@ class SpotifyBridge(activityRef: WeakReference<Activity>) {
     @JavascriptInterface
     fun isWoke(): Boolean {
         val activity = activityRef.get() ?: return false
-        return activity.window?.decorView?.visibility == View.VISIBLE
+        val visible = activity.window?.decorView?.visibility == View.VISIBLE
+        Logger.v(CALL, "isWoke -> $visible")
+        return visible
     }
 
     @JavascriptInterface
     fun wakeUp() {
+        Logger.v(CALL, "wakeUp")
     }
 
     @JavascriptInterface
     fun wakeOff() {
+        Logger.v(CALL, "wakeOff")
     }
 
     @JavascriptInterface
     fun cssInjected() {
+        Logger.v(CALL, "cssInjected")
     }
 
     @JavascriptInterface
@@ -96,6 +106,7 @@ class SpotifyBridge(activityRef: WeakReference<Activity>) {
     @JavascriptInterface
     fun clearDebugLog() {
         Logger.clear()
+        Logger.d(CALL, "logger buffer cleared from js")
     }
 
     @JavascriptInterface
@@ -107,12 +118,16 @@ class SpotifyBridge(activityRef: WeakReference<Activity>) {
             val v = arr.optString(i, "")
             if (v.isNotEmpty()) ids.add(v)
         }
-        if (ids.isNotEmpty()) AdIdStore.addAll(ids)
+        if (ids.isNotEmpty()) {
+            AdIdStore.addAll(ids)
+            Logger.d(CALL, "recAdContentIds: ${ids.size}")
+        }
     }
 
     @JavascriptInterface
     fun playLoaded() {
         val activity = activityRef.get() ?: return
+        Logger.i(TAG, "play loaded, web player ready")
         activity.runOnUiThread {
             onPlayLoaded?.invoke()
         }
@@ -120,6 +135,7 @@ class SpotifyBridge(activityRef: WeakReference<Activity>) {
 
     @JavascriptInterface
     fun recMediaPosition(position: Long) {
+        Logger.v(CALL, "position=$position")
         onMediaPosition?.invoke(position)
         MediaNotificationService.instance?.updatePlaybackPosition(position)
     }
@@ -127,6 +143,7 @@ class SpotifyBridge(activityRef: WeakReference<Activity>) {
     @JavascriptInterface
     fun recMediaStatus(json: String?) {
         json?.let {
+            Logger.d(CALL, "media status (${it.length} chars): ${it.take(180)}")
             onMediaStatus?.invoke(it)
             MediaNotificationService.instance?.updateFromMediaStatus(it)
         }
@@ -134,20 +151,24 @@ class SpotifyBridge(activityRef: WeakReference<Activity>) {
 
     @JavascriptInterface
     fun onMediaItemsLoaded(parentId: String?, json: String?) {
+        Logger.d(CALL, "media items parent=$parentId size=${json?.length ?: 0}")
         parentId?.let { MediaNotificationService.onMediaItemsLoaded(it, json ?: "[]") }
     }
 
     @JavascriptInterface
     fun onSearchCompleted(query: String?, json: String?) {
+        Logger.d(CALL, "search completed query=$query size=${json?.length ?: 0}")
         query?.let { MediaNotificationService.onSearchCompleted(it, json ?: "[]") }
     }
 
     @JavascriptInterface
     fun manageTShut(enabled: Boolean) {
+        Logger.v(CALL, "manageTShut=$enabled")
     }
 
     @JavascriptInterface
     fun manageTSleep(enabled: Boolean) {
+        Logger.v(CALL, "manageTSleep=$enabled")
     }
 
     @JavascriptInterface
@@ -155,6 +176,7 @@ class SpotifyBridge(activityRef: WeakReference<Activity>) {
         val activity = activityRef.get() ?: return
         val trimmed = name.trim()
         if (trimmed.isNotEmpty()) {
+            Logger.i(TAG, "account name: $trimmed")
             activity.getSharedPreferences("spotilol_prefs", Activity.MODE_PRIVATE)
                 .edit()
                 .putString("CurrentAccountName", trimmed)
@@ -165,6 +187,7 @@ class SpotifyBridge(activityRef: WeakReference<Activity>) {
     @JavascriptInterface
     fun openTimerDialog() {
         val activity = activityRef.get() ?: return
+        Logger.d(CALL, "openTimerDialog")
         activity.runOnUiThread {
             onTimerDialogRequest?.invoke()
         }
@@ -173,6 +196,7 @@ class SpotifyBridge(activityRef: WeakReference<Activity>) {
     @JavascriptInterface
     fun enterPip() {
         val activity = activityRef.get() ?: return
+        Logger.i(CALL, "enterPip")
         activity.runOnUiThread {
             onEnterPipRequest?.invoke()
         }
@@ -181,6 +205,7 @@ class SpotifyBridge(activityRef: WeakReference<Activity>) {
     @JavascriptInterface
     fun enterPipVideo(w: Int, h: Int) {
         val activity = activityRef.get() ?: return
+        Logger.i(CALL, "enterPipVideo ${w}x$h")
         activity.runOnUiThread {
             onEnterPipVideoRequest?.invoke(w, h)
         }
@@ -188,24 +213,28 @@ class SpotifyBridge(activityRef: WeakReference<Activity>) {
 
     @JavascriptInterface
     fun downloadTrack(json: String?) {
+        Logger.i(CALL, "downloadTrack (${json?.length ?: 0} chars)")
         json?.let { onDownloadTrack?.invoke(it) }
     }
 
     @Suppress("unused")
     @JavascriptInterface
     fun downloadCollection(json: String?) {
+        Logger.i(CALL, "downloadCollection (${json?.length ?: 0} chars)")
         json?.let { onDownloadCollection?.invoke(it) }
     }
 
     @Suppress("unused")
     @JavascriptInterface
     fun skipDownload() {
+        Logger.i(CALL, "skipDownload")
         DownloadManager.skipCurrent()
     }
 
     @Suppress("unused")
     @JavascriptInterface
     fun cancelDownload() {
+        Logger.i(CALL, "cancelDownload")
         DownloadManager.cancelAll()
     }
 
@@ -231,6 +260,8 @@ class SpotifyBridge(activityRef: WeakReference<Activity>) {
             val body = if (opts.has("body") && !opts.isNull("body")) opts.getString("body") else null
             val headersJson =
                 if (opts.has("headers") && !opts.isNull("headers")) opts.getJSONObject("headers") else JSONObject()
+
+            Logger.d(TAG, "nFetch $method ${url.take(140)} body=${body?.length ?: 0} headers=${headersJson.length()}")
 
             conn = URL(url).openConnection() as HttpURLConnection
             conn.apply {
@@ -271,6 +302,7 @@ class SpotifyBridge(activityRef: WeakReference<Activity>) {
 
             val stream = if (code >= 400) conn.errorStream else conn.inputStream
             val responseBody = stream?.use { it.readBytes().toString(Charsets.UTF_8) } ?: ""
+            Logger.d(TAG, "nFetch <- $code ${responseBody.length} bytes ${url.take(100)}")
 
             val responseHeaders = JSONObject()
             headerFields.forEach { (key, values) ->
@@ -282,6 +314,7 @@ class SpotifyBridge(activityRef: WeakReference<Activity>) {
                 put("headers", responseHeaders)
             }.toString()
         } catch (e: Exception) {
+            Logger.e(TAG, "nFetch failed ${url.take(140)}", e)
             errorResult(e)
         } finally {
             try { conn?.disconnect() } catch (_: Exception) {}

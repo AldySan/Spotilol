@@ -14,6 +14,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.util.Locale
 import com.project.lol.offline.DownloadManager
+import com.project.lol.util.Logger
 
 class SpotifyBridge(activityRef: WeakReference<Activity>) {
 
@@ -88,17 +89,13 @@ class SpotifyBridge(activityRef: WeakReference<Activity>) {
 
     @JavascriptInterface
     fun dbg(level: String?, msg: String?) {
-        val m = msg ?: return
-        val activity = activityRef.get() ?: return
-        if (!activity.getSharedPreferences("spotilol_prefs", Activity.MODE_PRIVATE)
-                .getBoolean("DebugOverlay", false)) return
-        val tag = when (level) {
-            "w" -> "js.warn"
-            "e" -> "js.err"
-            "s" -> "js.sys"
-            else -> "js"
-        }
-        com.project.lol.util.DebugLogStore.log(tag, m)
+        if (!Logger.isEnabled()) return
+        Logger.js(level, msg)
+    }
+
+    @JavascriptInterface
+    fun clearDebugLog() {
+        Logger.clear()
     }
 
     @JavascriptInterface

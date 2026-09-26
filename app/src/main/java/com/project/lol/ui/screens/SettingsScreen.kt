@@ -116,6 +116,7 @@ import com.project.lol.util.Logger
 import com.project.lol.util.MarkdownText
 import com.project.lol.webview.helpers.LyricsTheme
 import compose.icons.TablerIcons
+import compose.icons.tablericons.AlertTriangle
 import compose.icons.tablericons.ArrowsMinimize
 import compose.icons.tablericons.ArrowsSort
 import compose.icons.tablericons.ArrowsUpDown
@@ -888,7 +889,7 @@ fun SettingsContent(
 
                 if (debugUnlocked) {
                     SettingSectionCard(
-                        title = "DEBUG",
+                        title = "EXPERIMENTAL",
                         icon = TablerIcons.Flask
                     ) {
                         SettingSwitchTile(
@@ -911,6 +912,15 @@ fun SettingsContent(
                             else "Logging is off, only old entries are shown",
                             icon = TablerIcons.Code,
                             onClick = { showDevlogDialog = true }
+                        )
+
+                        HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+
+                        SettingTile(
+                            title = "Crash test",
+                            subtitle = "Throw a test exception and open the crash screen",
+                            icon = TablerIcons.AlertTriangle,
+                            onClick = { throw IllegalStateException("Spotilol crash test") }
                         )
                     }
                 }

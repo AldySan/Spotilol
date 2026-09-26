@@ -179,10 +179,10 @@ class OfflineMediaService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "Offline Playback",
+                getString(R.string.notif_channel_offline_name),
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Spotilol offline playback controls"
+                description = getString(R.string.notif_channel_offline_description)
                 setShowBadge(false)
                 lockscreenVisibility = Notification.VISIBILITY_PUBLIC
             }
@@ -350,7 +350,7 @@ class OfflineMediaService : Service() {
         } catch (e: Exception) {
             Logger.e(TAG, "Failed to build notification", e)
             NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle("Spotilol")
+                .setContentTitle(getString(R.string.app_name))
                 .setSmallIcon(R.drawable.ic_notification)
                 .setOngoing(true)
                 .build()
@@ -367,17 +367,17 @@ class OfflineMediaService : Service() {
         )
 
         val prevAction = NotificationCompat.Action.Builder(
-            R.drawable.ic_skip_prev, "Previous", getActionPendingIntent(ACTION_PREV)
+            R.drawable.ic_skip_prev, getString(R.string.notif_action_previous), getActionPendingIntent(ACTION_PREV)
         ).build()
 
         val playPauseAction = NotificationCompat.Action.Builder(
             if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play,
-            if (isPlaying) "Pause" else "Play",
+            if (isPlaying) getString(R.string.notif_action_pause) else getString(R.string.notif_action_play),
             getActionPendingIntent(ACTION_PLAY_PAUSE)
         ).build()
 
         val nextAction = NotificationCompat.Action.Builder(
-            R.drawable.ic_skip_next, "Next", getActionPendingIntent(ACTION_NEXT)
+            R.drawable.ic_skip_next, getString(R.string.notif_action_next), getActionPendingIntent(ACTION_NEXT)
         ).build()
 
         val style = MediaStyle()
@@ -389,9 +389,9 @@ class OfflineMediaService : Service() {
         }
 
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle(currentTitle.ifEmpty { "Spotilol" })
+            .setContentTitle(currentTitle.ifEmpty { getString(R.string.app_name) })
             .setContentText(currentArtist)
-            .setSubText("Offline Mode")
+            .setSubText(getString(R.string.notif_subtext_offline_mode))
             .setSmallIcon(R.drawable.ic_notification)
             .setContentIntent(contentIntent)
             .setOngoing(true)

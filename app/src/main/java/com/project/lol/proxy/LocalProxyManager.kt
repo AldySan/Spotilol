@@ -261,10 +261,12 @@ object LocalProxyManager {
     @Synchronized
     fun start() {
         if (acceptorFuture?.isDone == false) return
+        Logger.i(TAG, "starting local proxy (caLoaded=${caCert != null})")
         acceptorFuture = acceptorPool().submit {
             try {
                 val ss = ServerSocket(0, 128, java.net.InetAddress.getByName("127.0.0.1"))
                 serverSocket = ss
+                Logger.i(TAG, "proxy listening on 127.0.0.1:${ss.localPort}")
 
                 while (!ss.isClosed) {
                     val client = try {
@@ -282,6 +284,7 @@ object LocalProxyManager {
 
     @Synchronized
     fun stop() {
+        Logger.i(TAG, "stopping local proxy (running=${serverSocket != null})")
         try {
             serverSocket?.close()
         } catch (e: Exception) {

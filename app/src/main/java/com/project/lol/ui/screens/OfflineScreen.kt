@@ -98,6 +98,7 @@ import com.project.lol.offline.OfflineSong
 import com.project.lol.offline.OfflineStore
 import com.project.lol.service.OfflineMediaService
 import com.project.lol.ui.components.SettingsDialog
+import com.project.lol.util.BuildInfo
 import compose.icons.TablerIcons
 import compose.icons.tablericons.CloudOff
 import compose.icons.tablericons.Logout
@@ -394,7 +395,7 @@ fun OfflineScreen(
                                 )
                                 Spacer(Modifier.width(6.dp))
                                 Text(
-                                    text = stringResource(R.string.offline_version, versionName),
+                                    text = stringResource(R.string.offline_version, versionName, BuildInfo.id),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )

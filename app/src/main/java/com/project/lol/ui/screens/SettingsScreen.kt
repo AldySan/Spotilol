@@ -13,6 +13,7 @@ import android.webkit.WebView
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -88,6 +89,7 @@ import androidx.compose.ui.platform.toClipEntry
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
@@ -159,16 +161,16 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private val PalettePresets = listOf(
-    "Default" to null,
-    "Spotify Green" to "#1DB954",
-    "Purple" to "#BB86FC",
-    "Blue" to "#2196F3",
-    "Red" to "#E53935",
-    "Orange" to "#FB8C00",
-    "Pink" to "#EC407A",
-    "Teal" to "#26A69A",
-    "Yellow" to "#FDD835",
-    "Cyan" to "#00BCD4"
+    R.string.settings_palette_default to null,
+    R.string.settings_palette_spotify_green to "#1DB954",
+    R.string.settings_palette_purple to "#BB86FC",
+    R.string.settings_palette_blue to "#2196F3",
+    R.string.settings_palette_red to "#E53935",
+    R.string.settings_palette_orange to "#FB8C00",
+    R.string.settings_palette_pink to "#EC407A",
+    R.string.settings_palette_teal to "#26A69A",
+    R.string.settings_palette_yellow to "#FDD835",
+    R.string.settings_palette_cyan to "#00BCD4"
 )
 
 private fun parsePaletteColor(hex: String?): Color? {
@@ -184,12 +186,12 @@ private fun formatHex(color: Color): String {
 }
 private const val DEBUG_UNLOCK_TAPS = 5
 
-private enum class SettingsTab(val label: String) {
-    Appearance("Appearance"),
-    Playback("Playback"),
-    Content("Content"),
-    Advanced("Advanced"),
-    About("About")
+private enum class SettingsTab(@StringRes val labelRes: Int) {
+    Appearance(R.string.settings_tab_appearance),
+    Playback(R.string.settings_tab_playback),
+    Content(R.string.settings_tab_content),
+    Advanced(R.string.settings_tab_advanced),
+    About(R.string.settings_tab_about)
 }
 
 
@@ -285,7 +287,7 @@ fun SettingsContent(
             DownloadPrefs.setFolder(context, uri)
             refreshFolderState()
         } else {
-            Toast.makeText(context, "Could not keep access to that folder", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.settings_folder_access_error), Toast.LENGTH_SHORT).show()
         }
     }
     var dlTags by remember { mutableStateOf(DownloadPrefs.writeTags(context)) }
@@ -298,12 +300,12 @@ fun SettingsContent(
             debugTapCount = 0
             debugUnlocked = true
             prefs.edit().putBoolean("DebugUnlocked", true).apply()
-            Toast.makeText(context, "Debug tools unlocked", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.settings_debug_unlocked), Toast.LENGTH_SHORT).show()
         } else {
             val message = if (remaining == 1) {
-                "1 tap left to unlock Debug"
+                context.getString(R.string.settings_debug_tap_one_left)
             } else {
-                "$remaining taps left to unlock Debug"
+                context.getString(R.string.settings_debug_taps_left, remaining)
             }
             Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
         }
@@ -319,9 +321,9 @@ fun SettingsContent(
                 Logger.setEnabled(context, false)
                 onDebugToggle(false)
             }
-            Toast.makeText(context, "Debug tools hidden", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.settings_debug_hidden), Toast.LENGTH_SHORT).show()
         } else {
-            Toast.makeText(context, "Debug is hidden", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.settings_debug_is_hidden), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -354,7 +356,7 @@ fun SettingsContent(
                     onClick = { settingsTab = tab },
                     text = {
                         Text(
-                            text = tab.label,
+                            text = stringResource(tab.labelRes),
                             style = MaterialTheme.typography.labelLarge,
                             maxLines = 1
                         )
@@ -372,17 +374,17 @@ fun SettingsContent(
         ) {
             if (settingsTab == SettingsTab.Appearance) {
                 SettingSectionCard(
-                    title = "APPEARANCE",
+                    title = stringResource(R.string.settings_section_appearance),
                     icon = TablerIcons.Palette
                 ) {
                     val guiLabel = when (guiMode) {
-                        "csshack" -> "Mobile CSS + JS"
-                        "bigwindow" -> "Wide Window"
-                        "none" -> "None"
-                        else -> "Mobile CSS + JS"
+                        "csshack" -> stringResource(R.string.settings_gui_mode_css_js)
+                        "bigwindow" -> stringResource(R.string.settings_gui_mode_wide)
+                        "none" -> stringResource(R.string.settings_gui_mode_none)
+                        else -> stringResource(R.string.settings_gui_mode_css_js)
                     }
                     SettingTile(
-                        title = "GUI Hack Mode",
+                        title = stringResource(R.string.settings_gui_hack_mode),
                         subtitle = guiLabel,
                         icon = TablerIcons.Palette,
                         onClick = { showGuiModeDialog = true }
@@ -391,8 +393,8 @@ fun SettingsContent(
                     HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
                     SettingTile(
-                        title = "Custom CSS",
-                        subtitle = if (customCss.isBlank()) "None configured" else customCss,
+                        title = stringResource(R.string.settings_custom_css),
+                        subtitle = if (customCss.isBlank()) stringResource(R.string.settings_custom_css_none) else customCss,
                         icon = TablerIcons.Code,
                         onClick = { showCustomCssDialog = true }
                     )
@@ -400,8 +402,8 @@ fun SettingsContent(
                     HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
                     SettingSwitchTile(
-                        title = "Material You Theme",
-                        subtitle = "Use Android system dynamic colors",
+                        title = stringResource(R.string.settings_material_you),
+                        subtitle = stringResource(R.string.settings_material_you_subtitle),
                         icon = TablerIcons.ColorSwatch,
                         checked = materialYou,
                         onCheckedChange = { enabled ->
@@ -413,12 +415,12 @@ fun SettingsContent(
                     HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
                     val accentLabel = when {
-                        materialYou -> "Dynamic (system colors)"
-                        paletteSeed.isNullOrBlank() -> "Default"
-                        else -> "Custom $paletteSeed"
+                        materialYou -> stringResource(R.string.settings_accent_dynamic)
+                        paletteSeed.isNullOrBlank() -> stringResource(R.string.settings_accent_default)
+                        else -> stringResource(R.string.settings_accent_custom, paletteSeed)
                     }
                     SettingTile(
-                        title = "Accent Color",
+                        title = stringResource(R.string.settings_accent_color),
                         subtitle = accentLabel,
                         icon = TablerIcons.ColorSwatch,
                         onClick = { showPaletteDialog = true }
@@ -427,8 +429,8 @@ fun SettingsContent(
                     HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
                     SettingSwitchTile(
-                        title = "AMOLED Theme",
-                        subtitle = "Pure black background to save battery",
+                        title = stringResource(R.string.settings_amoled_theme),
+                        subtitle = stringResource(R.string.settings_amoled_theme_subtitle),
                         icon = TablerIcons.Moon,
                         checked = amoledTheme,
                         onCheckedChange = { enabled ->
@@ -441,8 +443,8 @@ fun SettingsContent(
                     HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
                     SettingSwitchTile(
-                        title = "Hide Top Bar",
-                        subtitle = "Swipe down from the top to show it",
+                        title = stringResource(R.string.settings_hide_top_bar),
+                        subtitle = stringResource(R.string.settings_hide_top_bar_subtitle),
                         icon = TablerIcons.EyeOff,
                         checked = hideTopBar,
                         onCheckedChange = { enabled ->
@@ -454,8 +456,8 @@ fun SettingsContent(
                     HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
                     SettingSwitchTile(
-                        title = "Landscape Mode",
-                        subtitle = "Allow rotating to landscape",
+                        title = stringResource(R.string.settings_landscape_mode),
+                        subtitle = stringResource(R.string.settings_landscape_mode_subtitle),
                         icon = TablerIcons.RotateClockwise2,
                         checked = landscapeMode,
                         onCheckedChange = { enabled ->
@@ -467,8 +469,8 @@ fun SettingsContent(
                     HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
                     SettingSwitchTile(
-                        title = "Keep Screen On",
-                        subtitle = "Prevent the screen from turning off",
+                        title = stringResource(R.string.settings_keep_screen_on),
+                        subtitle = stringResource(R.string.settings_keep_screen_on_subtitle),
                         icon = TablerIcons.BrightnessUp,
                         checked = keepScreenOn,
                         onCheckedChange = { enabled ->
@@ -480,8 +482,8 @@ fun SettingsContent(
                     HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
                     SettingSwitchTile(
-                        title = "Playlist Scrollbar",
-                        subtitle = "Draggable scrollbar on playlists and lists",
+                        title = stringResource(R.string.settings_playlist_scrollbar),
+                        subtitle = stringResource(R.string.settings_playlist_scrollbar_subtitle),
                         icon = TablerIcons.ArrowsUpDown,
                         checked = showScrollbar,
                         onCheckedChange = { enabled ->
@@ -498,17 +500,17 @@ fun SettingsContent(
 
             if (settingsTab == SettingsTab.Playback) {
                 SettingSectionCard(
-                    title = "PLAYER",
+                    title = stringResource(R.string.settings_section_player),
                     icon = TablerIcons.PlayerPlay
                 ) {
                     val autoplayLabel = when (autoplayMode) {
-                        "disabled" -> "Disabled"
-                        "onetime" -> "One time at start"
-                        "permanent" -> "Permanent"
-                        else -> "One time at start"
+                        "disabled" -> stringResource(R.string.settings_autoplay_disabled)
+                        "onetime" -> stringResource(R.string.settings_autoplay_onetime)
+                        "permanent" -> stringResource(R.string.settings_autoplay_permanent)
+                        else -> stringResource(R.string.settings_autoplay_onetime)
                     }
                     SettingTile(
-                        title = "AutoPlay Mode",
+                        title = stringResource(R.string.settings_autoplay_mode),
                         subtitle = autoplayLabel,
                         icon = TablerIcons.PlayerPlay,
                         onClick = { showAutoPlayDialog = true }
@@ -517,12 +519,12 @@ fun SettingsContent(
                     HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
                     val playerModeLabel = when (playerMode) {
-                        "spotilol" -> "Spotilol Player"
-                        "original" -> "Spotify Original"
-                        else -> "Spotilol Player"
+                        "spotilol" -> stringResource(R.string.settings_player_spotilol)
+                        "original" -> stringResource(R.string.settings_player_original)
+                        else -> stringResource(R.string.settings_player_spotilol)
                     }
                     SettingTile(
-                        title = "Player Mode",
+                        title = stringResource(R.string.settings_player_mode),
                         subtitle = playerModeLabel,
                         icon = TablerIcons.PlayerPlay,
                         onClick = { showPlayerModeDialog = true }
@@ -531,8 +533,8 @@ fun SettingsContent(
                     HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
                     SettingSwitchTile(
-                        title = "Hide Empty Mini Player",
-                        subtitle = "Hide the mini player until a track is loaded",
+                        title = stringResource(R.string.settings_hide_empty_player),
+                        subtitle = stringResource(R.string.settings_hide_empty_player_subtitle),
                         icon = TablerIcons.EyeOff,
                         checked = hideEmptyPlayer,
                         onCheckedChange = {
@@ -544,8 +546,8 @@ fun SettingsContent(
                     HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
                     SettingSwitchTile(
-                        title = "Sort Playlists by Column",
-                        subtitle = "Tap a playlist column header to sort alphabetically",
+                        title = stringResource(R.string.settings_playlist_sort),
+                        subtitle = stringResource(R.string.settings_playlist_sort_subtitle),
                         icon = TablerIcons.ArrowsSort,
                         checked = playlistSortEnabled,
                         onCheckedChange = {
@@ -556,10 +558,12 @@ fun SettingsContent(
 
                     HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
-                    val lyricsStyleLabel = LyricsTheme.STYLE_OPTIONS
-                        .firstOrNull { it.first == lyricsStyle }?.second ?: "Fullscreen (Album Colors)"
+                    val lyricsStyleLabel = stringResource(
+                        LyricsTheme.STYLE_OPTIONS.firstOrNull { it.first == lyricsStyle }?.second
+                            ?: R.string.settings_lyrics_style_fullscreen
+                    )
                     SettingTile(
-                        title = "Lyrics Style",
+                        title = stringResource(R.string.settings_lyrics_style),
                         subtitle = lyricsStyleLabel,
                         icon = TablerIcons.Playlist,
                         onClick = { showLyricsStyleDialog = true }
@@ -568,8 +572,8 @@ fun SettingsContent(
                     HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
                     SettingSwitchTile(
-                        title = "Take Player Control",
-                        subtitle = "Auto accept the Take Control prompt",
+                        title = stringResource(R.string.settings_take_control),
+                        subtitle = stringResource(R.string.settings_take_control_subtitle),
                         icon = TablerIcons.Click,
                         checked = takeControl,
                         onCheckedChange = {
@@ -581,8 +585,8 @@ fun SettingsContent(
                     HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
                     SettingSwitchTile(
-                        title = "Android Auto Controls",
-                        subtitle = "Media metadata for notifications",
+                        title = stringResource(R.string.settings_android_auto),
+                        subtitle = stringResource(R.string.settings_android_auto_subtitle),
                         icon = TablerIcons.Car,
                         checked = andAuto,
                         onCheckedChange = {
@@ -594,8 +598,8 @@ fun SettingsContent(
                     HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
                     SettingSwitchTile(
-                        title = "Always Close Now Playing",
-                        subtitle = "Auto-close the Now Playing panel",
+                        title = stringResource(R.string.settings_close_now_playing),
+                        subtitle = stringResource(R.string.settings_close_now_playing_subtitle),
                         icon = TablerIcons.ArrowsMinimize,
                         checked = closeNowPlay,
                         onCheckedChange = {
@@ -606,13 +610,13 @@ fun SettingsContent(
                 }
 
                 SettingSectionCard(
-                    title = "BLUETOOTH",
+                    title = stringResource(R.string.settings_section_bluetooth),
                     icon = TablerIcons.DeviceMobile,
-                    info = "Pause and resume follow the phone's active audio route, so they trigger for Bluetooth, USB and wired outputs even when the Bluetooth permission is denied. Android only delivers Bluetooth disconnect broadcasts to apps that hold that permission, which is why some devices rely on the route instead."
+                    info = stringResource(R.string.settings_bluetooth_info)
                 ) {
                     SettingSwitchTile(
-                        title = "Pause on Disconnect",
-                        subtitle = "Pause when BT, USB or wired audio disconnects",
+                        title = stringResource(R.string.settings_pause_on_disconnect),
+                        subtitle = stringResource(R.string.settings_pause_on_disconnect_subtitle),
                         icon = TablerIcons.DeviceMobile,
                         checked = btAutoPause,
                         onCheckedChange = {
@@ -624,8 +628,8 @@ fun SettingsContent(
                     HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
                     SettingSwitchTile(
-                        title = "Resume on Connect",
-                        subtitle = "Resume when BT device connects",
+                        title = stringResource(R.string.settings_resume_on_connect),
+                        subtitle = stringResource(R.string.settings_resume_on_connect_subtitle),
                         icon = TablerIcons.DeviceMobile,
                         checked = btAutoResume,
                         onCheckedChange = {
@@ -637,8 +641,8 @@ fun SettingsContent(
                     HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
                     SettingSwitchTile(
-                        title = "Resume on Headphone Plug",
-                        subtitle = "Resume when wired headphones connect",
+                        title = stringResource(R.string.settings_resume_on_headphone_plug),
+                        subtitle = stringResource(R.string.settings_resume_on_headphone_plug_subtitle),
                         icon = TablerIcons.DeviceMobile,
                         checked = hpAutoResume,
                         onCheckedChange = {
@@ -651,15 +655,15 @@ fun SettingsContent(
 
             if (settingsTab == SettingsTab.Content) {
                 SettingSectionCard(
-                    title = "OFFLINE",
+                    title = stringResource(R.string.settings_section_offline),
                     icon = TablerIcons.CloudOff
                 ) {
                     SettingSwitchTile(
-                        title = "Offline Mode",
+                        title = stringResource(R.string.settings_offline_mode),
                         subtitle = if (offlineMode) {
-                            "On, playing downloaded songs only"
+                            stringResource(R.string.settings_offline_on_subtitle)
                         } else {
-                            "Play only downloaded songs, restarts the app"
+                            stringResource(R.string.settings_offline_off_subtitle)
                         },
                         icon = TablerIcons.CloudOff,
                         checked = offlineMode,
@@ -672,8 +676,8 @@ fun SettingsContent(
                     HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
                     SettingSwitchTile(
-                        title = "Block Service Worker",
-                        subtitle = "Prevent service workers from intercepting requests",
+                        title = stringResource(R.string.settings_block_service_worker),
+                        subtitle = stringResource(R.string.settings_block_service_worker_subtitle),
                         icon = TablerIcons.Shield,
                         checked = blockSW,
                         onCheckedChange = { enabled ->
@@ -684,12 +688,12 @@ fun SettingsContent(
                 }
 
                 SettingSectionCard(
-                    title = "DOWNLOADS",
+                    title = stringResource(R.string.settings_section_downloads),
                     icon = TablerIcons.Download
                 ) {
                     SettingTile(
-                        title = "Audio Format",
-                        subtitle = if (dlFormat == DownloadFormat.MP3) "MP3 converted at 320 kbps" else "M4A original AAC",
+                        title = stringResource(R.string.settings_audio_format),
+                        subtitle = if (dlFormat == DownloadFormat.MP3) stringResource(R.string.settings_format_mp3) else stringResource(R.string.settings_format_m4a),
                         icon = TablerIcons.WaveSine,
                         onClick = { showFormatDialog = true }
                     )
@@ -697,8 +701,8 @@ fun SettingsContent(
                     HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
                     SettingTile(
-                        title = "Download Folder",
-                        subtitle = "Saves to $dlFolderLabel",
+                        title = stringResource(R.string.settings_download_folder),
+                        subtitle = stringResource(R.string.settings_download_folder_subtitle, dlFolderLabel),
                         icon = TablerIcons.Folder,
                         onClick = { showFolderDialog = true }
                     )
@@ -706,8 +710,8 @@ fun SettingsContent(
                     HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
                     SettingSwitchTile(
-                        title = "Write Tags and Cover Art",
-                        subtitle = "Embed metadata and cover art into the file",
+                        title = stringResource(R.string.settings_write_tags),
+                        subtitle = stringResource(R.string.settings_write_tags_subtitle),
                         icon = TablerIcons.Playlist,
                         checked = dlTags,
                         onCheckedChange = { enabled ->
@@ -718,17 +722,17 @@ fun SettingsContent(
                 }
 
                 SettingSectionCard(
-                    title = "ACCOUNTS",
+                    title = stringResource(R.string.settings_section_accounts),
                     icon = TablerIcons.UserPlus
                 ) {
                     SettingTile(
-                        title = "Save Current Account",
-                        subtitle = "Store the current session as a profile",
+                        title = stringResource(R.string.settings_save_account),
+                        subtitle = stringResource(R.string.settings_save_account_subtitle),
                         icon = TablerIcons.UserPlus,
                         onClick = {
                             val cookies = ProfileManager.captureSession(context)
                             if (cookies == null) {
-                                Toast.makeText(context, "Log in to Spotify first", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.settings_login_first), Toast.LENGTH_SHORT).show()
                             } else {
                                 pendingCookies = cookies
                                 accountNameInput = prefs.getString("CurrentAccountName", "") ?: ""
@@ -741,8 +745,7 @@ fun SettingsContent(
                         profiles.forEachIndexed { index, profile ->
                             ProfileRow(
                                 name = profile.name,
-                                subtitle = "Saved " + SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
-                                    .format(Date(profile.savedAt)),
+                                subtitle = stringResource(R.string.settings_profile_saved, SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date(profile.savedAt))),
                                 onLoad = { onLoadProfile(profile.cookies) },
                                 onDelete = {
                                     onDeleteProfile(profile.name)
@@ -759,29 +762,29 @@ fun SettingsContent(
 
             if (settingsTab == SettingsTab.Advanced) {
                 SettingSectionCard(
-                    title = "CONNECTION MODE",
+                    title = stringResource(R.string.settings_section_connection_mode),
                     icon = TablerIcons.Shield
                 ) {
                     val modeLabel = if (connectionMode == "proxy") {
-                        "MITM Proxy (Certificate)"
+                        stringResource(R.string.settings_connection_proxy)
                     } else {
-                        "Normal (No Certificate)"
+                        stringResource(R.string.settings_connection_normal)
                     }
                     SettingTile(
-                        title = "MITM Proxy Mode",
-                        subtitle = "$modeLabel, restarts the app",
+                        title = stringResource(R.string.settings_connection_mode),
+                        subtitle = stringResource(R.string.settings_connection_mode_subtitle, modeLabel),
                         icon = TablerIcons.Shield,
                         onClick = { showConnectionModeDialog = true }
                     )
                 }
 
                 SettingSectionCard(
-                    title = "SYSTEM",
+                    title = stringResource(R.string.settings_section_system),
                     icon = TablerIcons.Power
                 ) {
                     SettingSwitchTile(
-                        title = "Swipe to Stop Service",
-                        subtitle = "Kill background service from recents",
+                        title = stringResource(R.string.settings_swipe_to_stop),
+                        subtitle = stringResource(R.string.settings_swipe_to_stop_subtitle),
                         icon = TablerIcons.Power,
                         checked = swipeStop,
                         onCheckedChange = {
@@ -793,8 +796,8 @@ fun SettingsContent(
                     HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
                     SettingTile(
-                        title = "Empty Cache",
-                        subtitle = "Useful if player navigation is slow",
+                        title = stringResource(R.string.settings_empty_cache),
+                        subtitle = stringResource(R.string.settings_empty_cache_subtitle),
                         icon = TablerIcons.Brush,
                         onClick = { showClearCacheDialog = true }
                     )
@@ -802,8 +805,8 @@ fun SettingsContent(
                     HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
                     SettingTile(
-                        title = "Empty Cache and Login Data",
-                        subtitle = "Clear everything and log out",
+                        title = stringResource(R.string.settings_empty_cache_data),
+                        subtitle = stringResource(R.string.settings_empty_cache_data_subtitle),
                         icon = TablerIcons.TrashOff,
                         onClick = { showClearDataDialog = true },
                         isDestructive = true
@@ -812,8 +815,8 @@ fun SettingsContent(
                     HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
                     SettingTile(
-                        title = "Open Spotify Links",
-                        subtitle = "Enable link handling to open shared links here",
+                        title = stringResource(R.string.settings_open_links),
+                        subtitle = stringResource(R.string.settings_open_links_subtitle),
                         icon = TablerIcons.Link,
                         onClick = {
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -825,10 +828,10 @@ fun SettingsContent(
                                     runCatching { context.startActivity(intent) }.isSuccess
                                 }
                                 if (!opened) {
-                                    Toast.makeText(context, "Not supported on this device", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, context.getString(R.string.settings_open_links_unsupported), Toast.LENGTH_SHORT).show()
                                 }
                             } else {
-                                Toast.makeText(context, "Use 'Always' when opening a Spotify link", Toast.LENGTH_LONG).show()
+                                Toast.makeText(context, context.getString(R.string.settings_open_links_always_hint), Toast.LENGTH_LONG).show()
                             }
                         }
                     )
@@ -836,16 +839,16 @@ fun SettingsContent(
 
                 if (connectionMode == "proxy") {
                     SettingSectionCard(
-                        title = "SECURITY AND NETWORK",
+                        title = stringResource(R.string.settings_section_security_network),
                         icon = TablerIcons.Shield
                     ) {
                         SettingTile(
-                            title = "CA Certificate",
-                            subtitle = "Re-export proxy certificate to Downloads",
+                            title = stringResource(R.string.settings_ca_certificate),
+                            subtitle = stringResource(R.string.settings_ca_certificate_subtitle),
                             icon = TablerIcons.Shield,
                             onClick = {
                                 val path = LocalProxyManager.exportCACert(context)
-                                Toast.makeText(context, "Exported to $path", Toast.LENGTH_LONG).show()
+                                Toast.makeText(context, context.getString(R.string.settings_cert_exported, path), Toast.LENGTH_LONG).show()
                             }
                         )
                     }
@@ -854,12 +857,12 @@ fun SettingsContent(
 
             if (settingsTab == SettingsTab.About) {
                 SettingSectionCard(
-                    title = "ABOUT",
+                    title = stringResource(R.string.settings_section_about),
                     icon = TablerIcons.InfoCircle
                 ) {
                     SettingTile(
-                        title = "GitHub Repository",
-                        subtitle = "github.com/lyssadev/Spotilol",
+                        title = stringResource(R.string.settings_github_repository),
+                        subtitle = stringResource(R.string.settings_github_subtitle),
                         painter = painterResource(id = R.drawable.ic_github),
                         onClick = {
                             val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/lyssadev/Spotilol"))
@@ -870,8 +873,8 @@ fun SettingsContent(
                     HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
                     SettingTile(
-                        title = "Spotilol Version",
-                        subtitle = "v$appVersionName",
+                        title = stringResource(R.string.settings_version),
+                        subtitle = stringResource(R.string.settings_version_format, appVersionName),
                         icon = TablerIcons.DeviceMobile,
                         onClick = { showChangelogDialog = true }
                     )
@@ -879,8 +882,8 @@ fun SettingsContent(
                     HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
                     SettingTile(
-                        title = "WebView Engine",
-                        subtitle = pkg?.versionName ?: "System WebView",
+                        title = stringResource(R.string.settings_webview_engine),
+                        subtitle = pkg?.versionName ?: stringResource(R.string.settings_webview_system),
                         icon = TablerIcons.Language,
                         onClick = { onDebugSecretTap() },
                         onLongClick = { onDebugSecretHold() }
@@ -889,12 +892,12 @@ fun SettingsContent(
 
                 if (debugUnlocked) {
                     SettingSectionCard(
-                        title = "EXPERIMENTAL",
+                        title = stringResource(R.string.settings_section_experimental),
                         icon = TablerIcons.Flask
                     ) {
                         SettingSwitchTile(
-                            title = "Collect Debug",
-                            subtitle = "Capture JS and native logs",
+                            title = stringResource(R.string.settings_collect_debug),
+                            subtitle = stringResource(R.string.settings_collect_debug_subtitle),
                             icon = TablerIcons.Bug,
                             checked = loggingOn,
                             onCheckedChange = { enabled ->
@@ -907,9 +910,9 @@ fun SettingsContent(
                         HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
                         SettingTile(
-                            title = "Open Logger",
-                            subtitle = if (loggingOn) "Live verbose, debug, info, warn and error logs"
-                            else "Logging is off, only old entries are shown",
+                            title = stringResource(R.string.settings_open_logger),
+                            subtitle = if (loggingOn) stringResource(R.string.settings_open_logger_on)
+                            else stringResource(R.string.settings_open_logger_off),
                             icon = TablerIcons.Code,
                             onClick = { showDevlogDialog = true }
                         )
@@ -917,10 +920,10 @@ fun SettingsContent(
                         HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
                         SettingTile(
-                            title = "Crash test",
-                            subtitle = "Throw a test exception and open the crash screen",
+                            title = stringResource(R.string.settings_crash_test),
+                            subtitle = stringResource(R.string.settings_crash_test_subtitle),
                             icon = TablerIcons.AlertTriangle,
-                            onClick = { throw IllegalStateException("Spotilol crash test") }
+                            onClick = { throw IllegalStateException(context.getString(R.string.settings_crash_test_exception)) }
                         )
                     }
                 }
@@ -951,7 +954,7 @@ fun SettingsContent(
             shape = RoundedCornerShape(28.dp),
             title = {
                 Text(
-                    text = "Save Current Account",
+                    text = stringResource(R.string.settings_save_account),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
@@ -959,7 +962,7 @@ fun SettingsContent(
             text = {
                 Column {
                     Text(
-                        text = "The current Spotify session will be stored on this device.",
+                        text = stringResource(R.string.settings_save_account_message),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(bottom = 12.dp)
@@ -968,8 +971,8 @@ fun SettingsContent(
                         value = accountNameInput,
                         onValueChange = { accountNameInput = it },
                         modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Account name") },
-                        placeholder = { Text("e.g. Premium, Work") },
+                        label = { Text(stringResource(R.string.settings_account_name_label)) },
+                        placeholder = { Text(stringResource(R.string.settings_account_name_placeholder)) },
                         singleLine = true,
                         shape = RoundedCornerShape(16.dp),
                         colors = OutlinedTextFieldDefaults.colors(
@@ -994,12 +997,12 @@ fun SettingsContent(
                     },
                     enabled = accountNameInput.isNotBlank()
                 ) {
-                    Text("Save", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    Text(stringResource(R.string.settings_save), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showSaveAccountDialog = false }) {
-                    Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.settings_cancel), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         )
@@ -1007,10 +1010,10 @@ fun SettingsContent(
 
     if (showConnectionModeDialog) {
         SingleChoiceDialog(
-            title = "MITM Proxy Mode",
+            title = stringResource(R.string.settings_connection_mode),
             options = listOf(
-                "normal" to "Normal (No Certificate)",
-                "proxy" to "MITM Proxy (Certificate)"
+                "normal" to stringResource(R.string.settings_connection_normal),
+                "proxy" to stringResource(R.string.settings_connection_proxy)
             ),
             selected = connectionMode,
             onSelect = { value ->
@@ -1023,11 +1026,11 @@ fun SettingsContent(
 
     if (showAutoPlayDialog) {
         SingleChoiceDialog(
-            title = "AutoPlay Mode",
+            title = stringResource(R.string.settings_autoplay_mode),
             options = listOf(
-                "disabled" to "Disabled",
-                "onetime" to "One time at start",
-                "permanent" to "Permanent"
+                "disabled" to stringResource(R.string.settings_autoplay_disabled),
+                "onetime" to stringResource(R.string.settings_autoplay_onetime),
+                "permanent" to stringResource(R.string.settings_autoplay_permanent)
             ),
             selected = autoplayMode,
             onSelect = { value ->
@@ -1040,10 +1043,10 @@ fun SettingsContent(
 
     if (showPlayerModeDialog) {
         SingleChoiceDialog(
-            title = "Player Mode",
+            title = stringResource(R.string.settings_player_mode),
             options = listOf(
-                "spotilol" to "Spotilol Player",
-                "original" to "Spotify Original"
+                "spotilol" to stringResource(R.string.settings_player_spotilol),
+                "original" to stringResource(R.string.settings_player_original)
             ),
             selected = playerMode,
             onSelect = { value ->
@@ -1056,8 +1059,8 @@ fun SettingsContent(
 
     if (showLyricsStyleDialog) {
         SingleChoiceDialog(
-            title = "Lyrics Style",
-            options = LyricsTheme.STYLE_OPTIONS,
+            title = stringResource(R.string.settings_lyrics_style),
+            options = LyricsTheme.STYLE_OPTIONS.map { it.first to stringResource(it.second) },
             selected = lyricsStyle,
             onSelect = { value ->
                 lyricsStyle = value
@@ -1069,10 +1072,10 @@ fun SettingsContent(
 
     if (showFormatDialog) {
         SingleChoiceDialog(
-            title = "Audio Format",
+            title = stringResource(R.string.settings_audio_format),
             options = listOf(
-                DownloadFormat.M4A.name to "M4A original AAC",
-                DownloadFormat.MP3.name to "MP3 converted at 320 kbps"
+                DownloadFormat.M4A.name to stringResource(R.string.settings_format_m4a),
+                DownloadFormat.MP3.name to stringResource(R.string.settings_format_mp3)
             ),
             selected = dlFormat.name,
             onSelect = { value ->
@@ -1103,11 +1106,11 @@ fun SettingsContent(
 
     if (showGuiModeDialog) {
         SingleChoiceDialog(
-            title = "GUI Hack Mode",
+            title = stringResource(R.string.settings_gui_hack_mode),
             options = listOf(
-                "csshack" to "Mobile CSS + JS",
-                "bigwindow" to "Wide Window",
-                "none" to "None"
+                "csshack" to stringResource(R.string.settings_gui_mode_css_js),
+                "bigwindow" to stringResource(R.string.settings_gui_mode_wide),
+                "none" to stringResource(R.string.settings_gui_mode_none)
             ),
             selected = guiMode,
             onSelect = { value ->
@@ -1132,9 +1135,9 @@ fun SettingsContent(
 
     if (showClearCacheDialog) {
         ConfirmationDialog(
-            title = "Empty Cache",
-            message = "This will clear the WebView cache. Continue?",
-            confirmText = "Clear Cache",
+            title = stringResource(R.string.settings_empty_cache),
+            message = stringResource(R.string.settings_empty_cache_message),
+            confirmText = stringResource(R.string.settings_clear_cache),
             onConfirm = {
                 showClearCacheDialog = false
                 onClearCache()
@@ -1145,9 +1148,9 @@ fun SettingsContent(
 
     if (showClearDataDialog) {
         ConfirmationDialog(
-            title = "Empty Cache and Login Data",
-            message = "All cookies and login data will be deleted. On restart you will need to log in again. Continue?",
-            confirmText = "Clear All Data",
+            title = stringResource(R.string.settings_empty_cache_data),
+            message = stringResource(R.string.settings_empty_cache_data_message),
+            confirmText = stringResource(R.string.settings_clear_all_data),
             isDestructive = true,
             onConfirm = {
                 showClearDataDialog = false
@@ -1203,7 +1206,7 @@ fun PaletteDialog(
                 )
                 Spacer(Modifier.width(10.dp))
                 Text(
-                    text = "Accent Color",
+                    text = stringResource(R.string.settings_accent_color),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
@@ -1226,12 +1229,12 @@ fun PaletteDialog(
                     Spacer(Modifier.width(12.dp))
                     Column {
                         Text(
-                            text = "Custom accent color",
+                            text = stringResource(R.string.settings_custom_accent_color),
                             style = MaterialTheme.typography.bodyLarge,
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            text = if (useDefault) "Default scheme" else formatHex(preview),
+                            text = if (useDefault) stringResource(R.string.settings_default_scheme) else formatHex(preview),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -1285,7 +1288,7 @@ fun PaletteDialog(
                             }
                             Spacer(Modifier.height(4.dp))
                             Text(
-                                text = label,
+                                text = stringResource(label),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = if (isSelected) {
                                     MaterialTheme.colorScheme.onSurface
@@ -1301,21 +1304,21 @@ fun PaletteDialog(
 
                 HorizontalDivider()
 
-                ColorSlider("Red", red, { red = it; useDefault = false }, Color(0xFFF44336))
-                ColorSlider("Green", green, { green = it; useDefault = false }, Color(0xFF4CAF50))
-                ColorSlider("Blue", blue, { blue = it; useDefault = false }, Color(0xFF2196F3))
+                ColorSlider(stringResource(R.string.settings_color_red), red, { red = it; useDefault = false }, Color(0xFFF44336))
+                ColorSlider(stringResource(R.string.settings_color_green), green, { green = it; useDefault = false }, Color(0xFF4CAF50))
+                ColorSlider(stringResource(R.string.settings_color_blue), blue, { blue = it; useDefault = false }, Color(0xFF2196F3))
             }
         },
         confirmButton = {
             TextButton(onClick = {
                 onSave(if (useDefault) null else formatHex(preview))
             }) {
-                Text("Apply", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                Text(stringResource(R.string.settings_apply), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.settings_cancel), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     )
@@ -1397,14 +1400,14 @@ private fun ChangelogDialog(onDismiss: () -> Unit) {
                 Spacer(Modifier.width(10.dp))
                 Column {
                     Text(
-                        text = "Changelog",
+                        text = stringResource(R.string.settings_changelog_title),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
                     if (release != null) {
                         Text(
                             text = listOfNotNull(
-                                "v${release!!.tagName.removePrefix("v")}",
+                                stringResource(R.string.settings_version_format, release!!.tagName.removePrefix("v")),
                                 publishedLabel
                             ).joinToString(" · "),
                             style = MaterialTheme.typography.bodySmall,
@@ -1433,13 +1436,13 @@ private fun ChangelogDialog(onDismiss: () -> Unit) {
                         verticalArrangement = Arrangement.Center
                     ) {
                         Text(
-                            text = "Could not load release notes",
+                            text = stringResource(R.string.settings_changelog_error),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(Modifier.height(8.dp))
                         TextButton(onClick = { fetch() }) {
-                            Text("Retry", fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.settings_retry), fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -1462,7 +1465,7 @@ private fun ChangelogDialog(onDismiss: () -> Unit) {
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Close", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                Text(stringResource(R.string.settings_close), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             }
         }
     )
@@ -1550,7 +1553,7 @@ private fun InfoTooltip(text: String) {
         ) {
             Icon(
                 imageVector = TablerIcons.InfoCircle,
-                contentDescription = "About debug tools",
+                contentDescription = stringResource(R.string.settings_about_debug_tools),
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(13.dp)
             )
@@ -1723,7 +1726,7 @@ fun ProfileRow(
         IconButton(onClick = onDelete) {
             Icon(
                 imageVector = TablerIcons.Trash,
-                contentDescription = "Delete",
+                contentDescription = stringResource(R.string.settings_delete),
                 tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
                 modifier = Modifier.size(18.dp)
             )
@@ -1797,7 +1800,7 @@ fun SingleChoiceDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = MaterialTheme.colorScheme.primary)
+                Text(stringResource(R.string.settings_cancel), color = MaterialTheme.colorScheme.primary)
             }
         }
     )
@@ -1822,7 +1825,7 @@ fun CustomCssDialog(
                 )
                 Spacer(Modifier.width(10.dp))
                 Text(
-                    text = "Custom CSS",
+                    text = stringResource(R.string.settings_custom_css),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
@@ -1831,7 +1834,7 @@ fun CustomCssDialog(
         text = {
             Column {
                 Text(
-                    text = "Injected custom CSS rules into Spotify webview",
+                    text = stringResource(R.string.settings_custom_css_hint),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 12.dp)
@@ -1844,7 +1847,7 @@ fun CustomCssDialog(
                         .height(180.dp),
                     placeholder = {
                         Text(
-                            "/* Write your CSS overrides here (use !important if needed) */\naside[data-testid=now-playing-bar] { display: none !important; }",
+                            stringResource(R.string.settings_custom_css_placeholder),
                             style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace)
                         )
                     },
@@ -1864,12 +1867,12 @@ fun CustomCssDialog(
             TextButton(
                 onClick = { onSave(tempCss) }
             ) {
-                Text("Save", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                Text(stringResource(R.string.settings_save), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.settings_cancel), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     )
@@ -1894,7 +1897,7 @@ fun DownloadFolderDialog(
                 )
                 Spacer(Modifier.width(10.dp))
                 Text(
-                    text = "Download Folder",
+                    text = stringResource(R.string.settings_download_folder),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
@@ -1908,14 +1911,13 @@ fun DownloadFolderDialog(
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = "Pick any folder you can write to, an SD card included. " +
-                        "Tracks already saved stay in the library.",
+                    text = stringResource(R.string.settings_download_folder_hint),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 6.dp)
                 )
                 Text(
-                    text = "Use default (Music/${DownloadPrefs.DEFAULT_SUBFOLDER})",
+                    text = stringResource(R.string.settings_download_folder_default, DownloadPrefs.DEFAULT_SUBFOLDER),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier
@@ -1928,7 +1930,7 @@ fun DownloadFolderDialog(
         confirmButton = {
             TextButton(onClick = onPick) {
                 Text(
-                    "Choose folder",
+                    stringResource(R.string.settings_choose_folder),
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -1936,7 +1938,7 @@ fun DownloadFolderDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.settings_cancel), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     )
@@ -1979,7 +1981,7 @@ fun ConfirmationDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.settings_cancel), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     )
@@ -2051,10 +2053,10 @@ fun LoggerDialog(onDismiss: () -> Unit) {
         shape = RoundedCornerShape(28.dp),
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Logger", fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.logger_title), fontWeight = FontWeight.Bold)
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    text = "${filtered.size}/${entries.size}",
+                    text = stringResource(R.string.logger_line_count, filtered.size, entries.size),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -2070,7 +2072,7 @@ fun LoggerDialog(onDismiss: () -> Unit) {
                     textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
                     placeholder = {
                         Text(
-                            text = "package:mine level:w tag:js -word",
+                            text = stringResource(R.string.logger_search_placeholder),
                             style = MaterialTheme.typography.bodySmall,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -2081,7 +2083,7 @@ fun LoggerDialog(onDismiss: () -> Unit) {
                             IconButton(onClick = { query = "" }) {
                                 Icon(
                                     imageVector = TablerIcons.X,
-                                    contentDescription = "Clear filter",
+                                    contentDescription = stringResource(R.string.logger_clear_filter),
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
@@ -2096,7 +2098,7 @@ fun LoggerDialog(onDismiss: () -> Unit) {
                     FilterChip(
                         selected = levelFilter == null,
                         onClick = { levelFilter = null },
-                        label = { Text("ALL", fontSize = 11.sp) }
+                        label = { Text(stringResource(R.string.logger_level_all), fontSize = 11.sp) }
                     )
                     LogLevel.entries.forEach { level ->
                         val color = logLevelColor(level)
@@ -2128,8 +2130,8 @@ fun LoggerDialog(onDismiss: () -> Unit) {
                         if (filtered.isEmpty()) {
                             item {
                                 Text(
-                                    text = if (entries.isEmpty()) "(no entries, waiting for activity)"
-                                    else "(no entries match the filter)",
+                                    text = if (entries.isEmpty()) stringResource(R.string.logger_empty_waiting)
+                                    else stringResource(R.string.logger_empty_no_match),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.padding(12.dp)
@@ -2155,7 +2157,7 @@ fun LoggerDialog(onDismiss: () -> Unit) {
                 TextButton(onClick = {
                     Logger.clear()
                     entries = emptyList()
-                }) { Text("Clear") }
+                }) { Text(stringResource(R.string.logger_clear)) }
 
                 TextButton(onClick = {
                     val text = LogFilter.text(filtered)
@@ -2164,10 +2166,10 @@ fun LoggerDialog(onDismiss: () -> Unit) {
                             ClipData.newPlainText("spotilol_logger", text).toClipEntry()
                         )
                     }
-                }) { Text("Copy") }
+                }) { Text(stringResource(R.string.logger_copy)) }
 
                 TextButton(onClick = onDismiss) {
-                    Text("Close", fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.logger_close), fontWeight = FontWeight.Bold)
                 }
             }
         }

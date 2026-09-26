@@ -88,10 +88,10 @@ class DownloadService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "Downloads",
+                getString(R.string.notif_channel_downloads_name),
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Spotilol track downloads"
+                description = getString(R.string.notif_channel_downloads_description)
                 setShowBadge(false)
                 lockscreenVisibility = Notification.VISIBILITY_PUBLIC
             }
@@ -111,9 +111,9 @@ class DownloadService : Service() {
         val indeterminate = st.active && !st.error && pct <= 0
 
         val title = if (st.batch) {
-            st.collection.ifBlank { "Downloading playlist" }
+            st.collection.ifBlank { getString(R.string.dl_notif_downloading_playlist) }
         } else {
-            st.title.ifBlank { "Spotilol Download" }
+            st.title.ifBlank { getString(R.string.dl_notif_downloading_title) }
         }
 
         val performer = if (st.batch) {
@@ -122,7 +122,7 @@ class DownloadService : Service() {
             st.artist
         }
         val position = if (st.batch && st.total > 0) {
-            "Track ${st.index.coerceIn(1, st.total)} of ${st.total}"
+            getString(R.string.dl_notif_track_of, st.index.coerceIn(1, st.total), st.total)
         } else {
             ""
         }
@@ -132,16 +132,16 @@ class DownloadService : Service() {
         if (head.isNotBlank() && head != title) lines += head
         val stage = st.stage.ifBlank { DownloadManager.lastLabel }
         if (stage.isNotBlank()) {
-            lines += if (!st.error && pct > 0) "$stage · ${pct.coerceIn(0, 100)}%" else stage
+            lines += if (!st.error && pct > 0) getString(R.string.dl_notif_stage_percent, stage, pct.coerceIn(0, 100)) else stage
         }
         val counts = listOfNotNull(
-            st.saved.takeIf { st.batch && it > 0 }?.let { "$it saved" },
-            st.failed.takeIf { st.batch && it > 0 }?.let { "$it failed" },
-            st.skipped.takeIf { st.batch && it > 0 }?.let { "$it skipped" },
-            queued.takeIf { it > 0 }?.let { "$it queued" },
+            st.saved.takeIf { st.batch && it > 0 }?.let { getString(R.string.dl_notif_saved, it) },
+            st.failed.takeIf { st.batch && it > 0 }?.let { getString(R.string.dl_notif_failed, it) },
+            st.skipped.takeIf { st.batch && it > 0 }?.let { getString(R.string.dl_notif_skipped, it) },
+            queued.takeIf { it > 0 }?.let { getString(R.string.dl_notif_queued, it) },
         ).joinToString(" · ")
         if (counts.isNotBlank()) lines += counts
-        if (lines.isEmpty()) lines += "Preparing download..."
+        if (lines.isEmpty()) lines += getString(R.string.dl_notif_preparing)
 
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(title)
@@ -152,8 +152,8 @@ class DownloadService : Service() {
             .setShowWhen(false)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setStyle(NotificationCompat.BigTextStyle().bigText(lines.joinToString("\n")))
-            .addAction(0, "Skip", actionPendingIntent(ACTION_SKIP))
-            .addAction(0, "Cancel", actionPendingIntent(ACTION_CANCEL))
+            .addAction(0, getString(R.string.dl_notif_action_skip), actionPendingIntent(ACTION_SKIP))
+            .addAction(0, getString(R.string.dl_notif_action_cancel), actionPendingIntent(ACTION_CANCEL))
 
         if (active) {
             builder.setProgress(100, pct.coerceIn(0, 100), indeterminate)

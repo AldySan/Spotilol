@@ -10,7 +10,6 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -28,7 +27,6 @@ import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.material3.MaterialTheme
@@ -47,7 +45,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -57,9 +54,11 @@ import androidx.core.view.WindowCompat
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.google.firebase.perf.FirebasePerformance
+import com.project.lol.BuildConfig
 import com.project.lol.R
 import com.project.lol.proxy.LocalProxyManager
 import com.project.lol.ui.theme.SpotifyTheme
+import com.project.lol.util.BuildInfo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -213,66 +212,41 @@ class SplashActivity : ComponentActivity() {
 
 @Composable
 private fun LoadingScreen() {
-    val trackColor = Color.White.copy(alpha = 0.15f)
-    val barColor = Color.White
-    val totalDuration = 2000
-    val holdDuration = 150
-    val slideDuration = totalDuration - holdDuration * 2
-
-    val infiniteTransition = rememberInfiniteTransition(label = "slide")
-    val progress by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 0f,
+    val infiniteTransition = rememberInfiniteTransition(label = "title")
+    val titleAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.2f,
+        targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = keyframes {
-                durationMillis = totalDuration
-                0f at 0
-                0f at holdDuration
-                1f at holdDuration + slideDuration using LinearEasing
-                1f at totalDuration
-            },
-            repeatMode = RepeatMode.Restart
+            animation = tween(1200, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
         ),
-        label = "progress"
+        label = "titleAlpha"
     )
-
-    val context = LocalContext.current
-    val versionName = remember {
-        context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: ""
-    }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
-        contentAlignment = Alignment.Center
+            .background(MaterialTheme.colorScheme.background)
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Box(
-                modifier = Modifier
-                    .width(100.dp)
-                    .height(4.dp)
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(trackColor)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth(0.25f)
-                        .matchParentSize()
-                        .graphicsLayer {
-                            translationX = size.width * 4f * progress - size.width
-                        }
-                        .background(barColor)
-                        .clip(RoundedCornerShape(2.dp))
-                )
-            }
-            Spacer(Modifier.height(12.dp))
-            Text(
-                text = stringResource(R.string.splash_version_label, versionName),
-                color = Color.White.copy(alpha = 0.35f),
-                style = MaterialTheme.typography.labelSmall
-            )
-        }
+        Text(
+            text = stringResource(R.string.splash_title),
+            modifier = Modifier
+                .align(Alignment.Center)
+                .graphicsLayer { alpha = titleAlpha },
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = Color.White
+        )
+
+        Text(
+            text = stringResource(R.string.splash_version_label, BuildConfig.VERSION_NAME, BuildInfo.id),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .systemBarsPadding()
+                .padding(bottom = 28.dp),
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color.White.copy(alpha = 0.35f)
+        )
     }
 }
 

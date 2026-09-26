@@ -48,6 +48,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -56,6 +57,7 @@ import androidx.core.view.WindowCompat
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.google.firebase.perf.FirebasePerformance
+import com.project.lol.R
 import com.project.lol.proxy.LocalProxyManager
 import com.project.lol.ui.theme.SpotifyTheme
 import kotlinx.coroutines.Dispatchers
@@ -195,7 +197,7 @@ class SplashActivity : ComponentActivity() {
                                         }
                                         Toast.makeText(
                                             this@SplashActivity,
-                                            "Exported to: $path",
+                                            this@SplashActivity.getString(R.string.splash_exported_to, path),
                                             Toast.LENGTH_LONG
                                         ).show()
                                     }
@@ -236,7 +238,7 @@ private fun LoadingScreen() {
 
     val context = LocalContext.current
     val versionName = remember {
-        context.packageManager.getPackageInfo(context.packageName, 0).versionName
+        context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: ""
     }
 
     Box(
@@ -266,7 +268,7 @@ private fun LoadingScreen() {
             }
             Spacer(Modifier.height(12.dp))
             Text(
-                text = "v$versionName",
+                text = stringResource(R.string.splash_version_label, versionName),
                 color = Color.White.copy(alpha = 0.35f),
                 style = MaterialTheme.typography.labelSmall
             )
@@ -289,7 +291,7 @@ private fun CACertScreen(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "Certificate Required",
+            text = stringResource(R.string.splash_cert_title),
             style = MaterialTheme.typography.titleLarge,
             color = Color.White,
             fontWeight = FontWeight.SemiBold
@@ -298,7 +300,7 @@ private fun CACertScreen(
         Spacer(Modifier.height(12.dp))
 
         Text(
-            text = "Install the Spotilol CA certificate to continue.",
+            text = stringResource(R.string.splash_cert_subtitle),
             style = MaterialTheme.typography.bodyMedium,
             color = Color.White.copy(alpha = 0.5f),
             textAlign = TextAlign.Center
@@ -312,13 +314,13 @@ private fun CACertScreen(
             color = Color.White.copy(alpha = 0.06f)
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
-                Step(1, "Export the .pem certificate below")
+                Step(1, stringResource(R.string.splash_cert_step_1))
                 Spacer(Modifier.height(16.dp))
-                Step(2, "Settings > Security > Install a certificate > CA certificate")
+                Step(2, stringResource(R.string.splash_cert_step_2))
                 Spacer(Modifier.height(16.dp))
-                Step(3, "Select the exported file and tap \"Install anyway\"")
+                Step(3, stringResource(R.string.splash_cert_step_3))
                 Spacer(Modifier.height(16.dp))
-                Step(4, "Return here and tap \"Check\"")
+                Step(4, stringResource(R.string.splash_cert_step_4))
             }
         }
 
@@ -338,7 +340,7 @@ private fun CACertScreen(
                     modifier = Modifier.padding(vertical = 14.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("Export", color = Color.White.copy(alpha = 0.7f))
+                    Text(stringResource(R.string.splash_cert_export_button), color = Color.White.copy(alpha = 0.7f))
                 }
             }
 
@@ -352,7 +354,7 @@ private fun CACertScreen(
                     modifier = Modifier.padding(vertical = 14.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("Check", color = Color.White, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.splash_cert_check_button), color = Color.White, fontWeight = FontWeight.SemiBold)
                 }
             }
         }
@@ -369,7 +371,7 @@ private fun CACertScreen(
                 modifier = Modifier.padding(vertical = 14.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Text("Switch to Normal", color = Color.White.copy(alpha = 0.7f))
+                Text(stringResource(R.string.splash_cert_switch_normal), color = Color.White.copy(alpha = 0.7f))
             }
         }
     }

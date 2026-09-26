@@ -1,7 +1,7 @@
 package com.project.lol.webview
 
 import android.graphics.Bitmap
-import android.util.Log
+import com.project.lol.util.Logger
 import android.webkit.CookieManager
 import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebResourceError
@@ -104,7 +104,7 @@ class SpotifyWebViewClient(
     }
 
     override fun onRenderProcessGone(view: WebView?, detail: RenderProcessGoneDetail?): Boolean {
-        Log.w(TAG, "Renderer process gone: crashed=${detail?.didCrash()}")
+        Logger.w(TAG, "Renderer process gone: crashed=${detail?.didCrash()}")
         view?.let {
             it.stopLoading()
             it.destroy()
@@ -241,7 +241,7 @@ class SpotifyWebViewClient(
         val customCss = prefs.getString("CustomCss", "") ?: ""
         val playerMode = prefs.getString("PlayerMode", "spotilol") ?: "spotilol"
         val useProxy = prefs.getString("ConnectionMode", "normal") == "proxy"
-        val debugOverlay = prefs.getBoolean("DebugOverlay", false)
+        val debugOverlay = Logger.isEnabled()
         val takeControl = prefs.getBoolean("TakeControl", true)
         val hideEmptyPlayer = prefs.getBoolean("HideEmptyPlayer", false)
         val playlistSortEnabled = prefs.getBoolean("PlaylistSortEnabled", true)

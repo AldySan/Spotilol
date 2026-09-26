@@ -1,6 +1,5 @@
 package com.project.lol.ui
 
-import android.Manifest
 import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.app.PictureInPictureParams
@@ -9,7 +8,6 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.ActivityInfo
 import android.content.pm.ApplicationInfo
-import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -36,7 +34,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -181,14 +178,6 @@ class MainActivity : ComponentActivity() {
     private val webViewError = mutableStateOf<Pair<Int, String>?>(null)
     private var pendingLink: String? = null
 
-    private val notifPermLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { _ -> }
-
-    private val btPermLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { _ -> requestNotificationPermission() }
-
     private lateinit var prefs: SharedPreferences
 
     private val analytics: FirebaseAnalytics by lazy { FirebaseAnalytics.getInstance(this) }
@@ -222,7 +211,6 @@ class MainActivity : ComponentActivity() {
             WebView.setWebContentsDebuggingEnabled(true)
         }
 
-        requestBluetoothPermission()
         val uc = UpdateChecker(this)
         uc.autoCheck { url ->
             Toast.makeText(this, getString(R.string.main_update_available), Toast.LENGTH_SHORT).show()
@@ -1382,30 +1370,6 @@ class MainActivity : ComponentActivity() {
             startForegroundService(intent)
         } else {
             startService(intent)
-        }
-    }
-
-    private fun requestNotificationPermission() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
-                != PackageManager.PERMISSION_GRANTED
-            ) {
-                notifPermLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-            }
-        }
-    }
-
-    private fun requestBluetoothPermission() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT)
-                != PackageManager.PERMISSION_GRANTED
-            ) {
-                btPermLauncher.launch(Manifest.permission.BLUETOOTH_CONNECT)
-            } else {
-                requestNotificationPermission()
-            }
-        } else {
-            requestNotificationPermission()
         }
     }
 

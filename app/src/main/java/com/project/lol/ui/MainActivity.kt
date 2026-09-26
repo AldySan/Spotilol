@@ -114,6 +114,7 @@ import com.project.lol.proxy.LocalProxyManager
 import com.project.lol.service.MediaNotificationService
 import com.project.lol.ui.components.SettingsDialog
 import com.project.lol.ui.theme.SpotifyTheme
+import com.project.lol.util.BuildInfo
 import com.project.lol.util.Logger
 import com.project.lol.util.UpdateChecker
 import com.project.lol.webview.SpotifyWebChromeClient
@@ -365,7 +366,7 @@ class MainActivity : ComponentActivity() {
                                         )
                                         Spacer(Modifier.width(6.dp))
                                         Text(
-                                            text = stringResource(R.string.main_version_label, versionName),
+                                            text = stringResource(R.string.main_version_label, versionName, BuildInfo.id),
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )

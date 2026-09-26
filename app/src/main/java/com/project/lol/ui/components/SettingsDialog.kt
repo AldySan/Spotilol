@@ -41,11 +41,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
+import com.project.lol.R
 import com.project.lol.ui.screens.SettingsContent
 import compose.icons.TablerIcons
 import compose.icons.tablericons.Settings
@@ -222,12 +224,12 @@ private fun SettingsDialogHeader(onClose: () -> Unit) {
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Settings",
+                    text = stringResource(R.string.settings_dialog_title),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "Spotilol v$versionName",
+                    text = stringResource(R.string.settings_dialog_version, versionName),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -235,7 +237,7 @@ private fun SettingsDialogHeader(onClose: () -> Unit) {
             IconButton(onClick = onClose) {
                 Icon(
                     imageVector = TablerIcons.X,
-                    contentDescription = "Close",
+                    contentDescription = stringResource(R.string.settings_dialog_close),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(18.dp)
                 )

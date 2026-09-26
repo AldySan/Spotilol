@@ -8,8 +8,8 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -25,6 +25,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -68,6 +69,7 @@ class CrashActivity : ComponentActivity() {
 
         val prefs = getSharedPreferences("spotilol_prefs", MODE_PRIVATE)
         val amoled = prefs.getBoolean("AmoledTheme", false)
+        val materialYou = prefs.getBoolean("MaterialYou", false)
         val seed = parseSeed(prefs.getString("PaletteSeed", null))
         val summary = intent?.getStringExtra(CrashHandler.extraSummary())
             ?: CrashStore.summary(this)
@@ -75,7 +77,7 @@ class CrashActivity : ComponentActivity() {
         val report = CrashStore.report(this) ?: "no crash report captured"
 
         setContent {
-            SpotifyTheme(amoled = amoled, seedColor = seed) {
+            SpotifyTheme(useDynamicColor = materialYou, amoled = amoled, seedColor = seed) {
                 CrashScreen(summary = summary, report = report, onRestart = { restart() })
             }
         }
@@ -121,7 +123,8 @@ private fun CrashScreen(summary: String, report: String, onRestart: () -> Unit) 
                 Text(
                     text = "Spotilol crashed",
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
                     text = summary,
@@ -135,26 +138,17 @@ private fun CrashScreen(summary: String, report: String, onRestart: () -> Unit) 
                 Icon(
                     imageVector = TablerIcons.Copy,
                     contentDescription = "Copy crash report",
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(18.dp)
                 )
             }
         }
 
-        Row(
-            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            InfoPill("model", field(report, "model"))
-            InfoPill("android", field(report, "android"))
-            InfoPill("app", field(report, "version"))
-            InfoPill("region", field(report, "country"))
-            InfoPill("tz", field(report, "timezone"))
-        }
-
         Surface(
             modifier = Modifier.fillMaxWidth().weight(1f),
             shape = RoundedCornerShape(12.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerLow
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
         ) {
             Column(modifier = Modifier.fillMaxSize().padding(10.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -179,6 +173,7 @@ private fun CrashScreen(summary: String, report: String, onRestart: () -> Unit) 
                         fontSize = 9.sp,
                         lineHeight = 12.sp
                     ),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())
                 )
             }
@@ -186,54 +181,23 @@ private fun CrashScreen(summary: String, report: String, onRestart: () -> Unit) 
 
         Button(
             onClick = onRestart,
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp)
+            modifier = Modifier.fillMaxWidth().height(52.dp),
+            shape = RoundedCornerShape(26.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
+            ),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
         ) {
             Icon(
                 imageVector = TablerIcons.RotateClockwise2,
                 contentDescription = null,
-                modifier = Modifier.size(16.dp)
+                modifier = Modifier.size(20.dp)
             )
-            Spacer(Modifier.width(6.dp))
-            Text("Restart", fontWeight = FontWeight.Bold)
+            Spacer(Modifier.width(8.dp))
+            Text("Restart", fontWeight = FontWeight.SemiBold)
         }
     }
-}
-
-@Composable
-private fun InfoPill(label: String, value: String) {
-    Surface(
-        shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(Modifier.width(4.dp))
-            Text(
-                text = value,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-    }
-}
-
-private fun field(report: String, key: String): String {
-    report.lineSequence().forEach { line ->
-        val trimmed = line.trim()
-        if (trimmed.startsWith("$key: ")) return trimmed.substring(key.length + 2).take(40)
-    }
-    return "?"
 }
 
 private fun copyReport(context: Context, scope: CoroutineScope, clipboard: Clipboard, report: String) {

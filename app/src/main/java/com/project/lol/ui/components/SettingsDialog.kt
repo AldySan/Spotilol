@@ -49,6 +49,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
 import com.project.lol.R
 import com.project.lol.ui.screens.SettingsContent
+import com.project.lol.util.BuildInfo
 import compose.icons.TablerIcons
 import compose.icons.tablericons.Settings
 import compose.icons.tablericons.X
@@ -229,7 +230,7 @@ private fun SettingsDialogHeader(onClose: () -> Unit) {
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = stringResource(R.string.settings_dialog_version, versionName),
+                    text = stringResource(R.string.settings_dialog_version, versionName, BuildInfo.id),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

@@ -389,6 +389,7 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
         }
         getSharedPreferences("spotilol_prefs", MODE_PRIVATE)
             .registerOnSharedPreferenceChangeListener(prefsListener)
+        Logger.i(TAG, "media service ready: session, notification and receivers up")
     }
 
     @Suppress("DEPRECATION")
@@ -401,6 +402,7 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        Logger.d(TAG, "onStartCommand startId=$startId action=${intent?.action ?: "none"} taskRemoved=$taskRemoved")
         if (taskRemoved) {
             stopSelf()
             return START_NOT_STICKY

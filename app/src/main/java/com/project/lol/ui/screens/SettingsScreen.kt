@@ -109,6 +109,7 @@ import com.project.lol.profile.ProfileManager
 import com.project.lol.proxy.LocalProxyManager
 import com.project.lol.service.MediaNotificationService
 import com.project.lol.ui.theme.SpotifyTheme
+import com.project.lol.util.BuildInfo
 import com.project.lol.util.GitHubApi
 import com.project.lol.util.GitHubRelease
 import com.project.lol.util.LogEntry
@@ -874,7 +875,7 @@ fun SettingsContent(
 
                     SettingTile(
                         title = stringResource(R.string.settings_version),
-                        subtitle = stringResource(R.string.settings_version_format, appVersionName),
+                        subtitle = stringResource(R.string.settings_version_format, appVersionName, BuildInfo.id),
                         icon = TablerIcons.DeviceMobile,
                         onClick = { showChangelogDialog = true }
                     )
@@ -1407,7 +1408,7 @@ private fun ChangelogDialog(onDismiss: () -> Unit) {
                     if (release != null) {
                         Text(
                             text = listOfNotNull(
-                                stringResource(R.string.settings_version_format, release!!.tagName.removePrefix("v")),
+                                stringResource(R.string.settings_changelog_version, release!!.tagName.removePrefix("v")),
                                 publishedLabel
                             ).joinToString(" · "),
                             style = MaterialTheme.typography.bodySmall,

@@ -44,6 +44,7 @@ import androidx.core.graphics.drawable.IconCompat
 import androidx.core.graphics.scale
 import androidx.core.graphics.toColorInt
 import com.project.lol.webview.helpers.AccentTheme
+import com.project.lol.util.Logger
 import java.lang.ref.WeakReference
 import java.net.HttpURLConnection
 import java.net.URL
@@ -127,7 +128,7 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
                         items.add(MediaBrowserCompat.MediaItem(desc, flags))
                     }
                 } catch (e: Exception) {
-                    android.util.Log.e(TAG, "Error parsing media items", e)
+                    Logger.e(TAG, "Error parsing media items", e)
                 }
             }
             val finalItems = items
@@ -170,7 +171,7 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
                         items.add(MediaBrowserCompat.MediaItem(desc, flags))
                     }
                 } catch (e: Exception) {
-                    android.util.Log.e(TAG, "Error parsing search results", e)
+                    Logger.e(TAG, "Error parsing search results", e)
                 }
             }
             val finalItems = items
@@ -271,9 +272,7 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
     private fun isRemoteOutput(type: Int): Boolean = remoteOutputTypes.contains(type)
 
     private fun btLog(msg: String) {
-        if (!getSharedPreferences("spotilol_prefs", MODE_PRIVATE)
-                .getBoolean("DebugOverlay", false)) return
-        com.project.lol.util.DebugLogStore.log("bt", msg)
+        Logger.s("bt", msg)
     }
 
     private fun autoPauseOnce(source: String) {
@@ -363,30 +362,30 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
         try {
             createNotificationChannel()
         } catch (e: Exception) {
-            android.util.Log.e(TAG, "Failed to create notification channel", e)
+            Logger.e(TAG, "Failed to create notification channel", e)
         }
 
         try {
             ServiceCompat.startForeground(this, NOTIFICATION_ID, buildNotificationSafe(), getStartForegroundServiceType())
         } catch (e: Throwable) {
-            android.util.Log.e(TAG, "Failed to start foreground", e)
+            Logger.e(TAG, "Failed to start foreground", e)
         }
 
         try {
             setupMediaSession()
         } catch (e: Exception) {
-            android.util.Log.e(TAG, "Failed to setup media session", e)
+            Logger.e(TAG, "Failed to setup media session", e)
         }
 
         try {
             registerReceivers()
         } catch (e: Exception) {
-            android.util.Log.e(TAG, "Failed to register receivers", e)
+            Logger.e(TAG, "Failed to register receivers", e)
         }
         try {
             registerDisconnectReceivers()
         } catch (e: Exception) {
-            android.util.Log.e(TAG, "Failed to register disconnect receivers", e)
+            Logger.e(TAG, "Failed to register disconnect receivers", e)
         }
         getSharedPreferences("spotilol_prefs", MODE_PRIVATE)
             .registerOnSharedPreferenceChangeListener(prefsListener)
@@ -409,12 +408,12 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
         try {
             ServiceCompat.startForeground(this, NOTIFICATION_ID, buildNotificationSafe(), getStartForegroundServiceType())
         } catch (e: Throwable) {
-            android.util.Log.e(TAG, "Failed to re-assert foreground", e)
+            Logger.e(TAG, "Failed to re-assert foreground", e)
         }
         try {
             MediaButtonReceiver.handleIntent(mediaSession, intent)
         } catch (e: Exception) {
-            android.util.Log.e(TAG, "Failed to handle media button intent", e)
+            Logger.e(TAG, "Failed to handle media button intent", e)
         }
         return START_NOT_STICKY
     }
@@ -498,7 +497,7 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
                 wv.dispatchWindowVisibilityChanged(android.view.View.VISIBLE)
                 wv.evaluateJavascript(js, null)
             } catch (e: Exception) {
-                android.util.Log.e(TAG, "Error waking WebView in wakeAndRun", e)
+                Logger.e(TAG, "Error waking WebView in wakeAndRun", e)
             }
         }
     }
@@ -656,7 +655,7 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
             knownRouteIds.addAll(am.getDevices(AudioManager.GET_DEVICES_OUTPUTS).map { it.id })
             am.registerAudioDeviceCallback(audioRouteCallback, mainHandler)
         } catch (e: Exception) {
-            android.util.Log.e(TAG, "Failed to register audio route callback", e)
+            Logger.e(TAG, "Failed to register audio route callback", e)
         }
     }
 
@@ -823,7 +822,7 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
         return try {
             buildNotification()
         } catch (e: Exception) {
-            android.util.Log.e(TAG, "Failed to build notification", e)
+            Logger.e(TAG, "Failed to build notification", e)
             NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle("Spotilol")
                 .setSmallIcon(R.drawable.ic_notification)

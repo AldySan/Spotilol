@@ -143,7 +143,8 @@
     <string name="settings_github_repository">GitHub Repository</string>
     <string name="settings_github_subtitle">github.com/lyssadev/Spotilol</string>
     <string name="settings_version">Spotilol Version</string>
-    <string name="settings_version_format">v%1$s</string>
+    <string name="settings_version_format">v%1$s · %2$s</string>
+    <string name="settings_changelog_version">v%1$s</string>
     <string name="settings_webview_engine">WebView Engine</string>
     <string name="settings_webview_system">System WebView</string>
     <string name="settings_collect_debug">Collect Debug</string>
@@ -180,7 +181,7 @@
     <string name="logger_copy">Copy</string>
     <string name="logger_close">Close</string>
     <string name="offline_app_name">Spotilol</string>
-    <string name="offline_version">v%1$s</string>
+    <string name="offline_version">v%1$s · %2$s</string>
     <string name="offline_desc_settings">Settings</string>
     <string name="offline_desc_exit_offline_mode">Exit offline mode</string>
     <string name="offline_status_loading">Loading…</string>
@@ -226,7 +227,7 @@
     <string name="offline_act_toast_cache_cleared">Cache cleared successfully</string>
     <string name="offline_act_toast_all_data_cleared">All data cleared</string>
     <string name="main_update_available">A new update is available</string>
-    <string name="main_version_label">v%1$s</string>
+    <string name="main_version_label">v%1$s · %2$s</string>
     <string name="main_settings_content_description">Settings</string>
     <string name="main_webview_version">Webview: %1$s</string>
     <string name="main_webview_version_unknown">N/A</string>
@@ -254,7 +255,8 @@
     <string name="main_pip_pause">Pause</string>
     <string name="main_pip_next">Next</string>
     <string name="splash_exported_to">Exported to: %1$s</string>
-    <string name="splash_version_label">v%1$s</string>
+    <string name="splash_title">Spotilol</string>
+    <string name="splash_version_label">v%1$s · %2$s</string>
     <string name="splash_cert_title">Certificate Required</string>
     <string name="splash_cert_subtitle">Install the Spotilol CA certificate to continue.</string>
     <string name="splash_cert_step_1">Export the .pem certificate below</string>
@@ -265,7 +267,7 @@
     <string name="splash_cert_check_button">Check</string>
     <string name="splash_cert_switch_normal">Switch to Normal</string>
     <string name="settings_dialog_title">Settings</string>
-    <string name="settings_dialog_version">Spotilol v%1$s</string>
+    <string name="settings_dialog_version">Spotilol v%1$s · %2$s</string>
     <string name="settings_dialog_close">Close</string>
     <string name="error_title_no_internet">You\'re Offline</string>
     <string name="error_message_no_internet">No internet connection detected.\nCheck your network and try again.</string>

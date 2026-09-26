@@ -183,6 +183,7 @@ object DownloadManager {
         )
         onProgress?.invoke(pct, label)
         onProgress2?.invoke(pct, label)
+        if (terminal || staged) Logger.d(TAG, "download $pct% $label")
     }
 
     private enum class ControlSignal { SKIP, CANCEL }

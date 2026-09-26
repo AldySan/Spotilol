@@ -81,6 +81,15 @@
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
             android:theme="@style/Theme.Spotilol" />
 
+        <activity
+            android:name=".ui.CrashActivity"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:excludeFromRecents="true"
+            android:screenOrientation="fullSensor"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
+            android:theme="@style/Theme.Spotilol" />
+
         <service
             android:name=".service.MediaNotificationService"
             android:exported="true"

@@ -113,6 +113,7 @@ import com.project.lol.proxy.LocalProxyManager
 import com.project.lol.service.MediaNotificationService
 import com.project.lol.ui.components.SettingsDialog
 import com.project.lol.ui.theme.SpotifyTheme
+import com.project.lol.util.Logger
 import com.project.lol.util.UpdateChecker
 import com.project.lol.webview.SpotifyWebChromeClient
 import com.project.lol.webview.SpotifyWebViewClient
@@ -140,6 +141,10 @@ import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 class MainActivity : ComponentActivity() {
+
+    companion object {
+        private const val TAG = "main"
+    }
 
     private var webView: WebView? = null
     private var serviceStarted = false
@@ -243,6 +248,13 @@ class MainActivity : ComponentActivity() {
         if (pendingLink != null && !serviceEnabledState.value) {
             setServiceEnabled(true)
         }
+
+        Logger.s(
+            TAG,
+            "session: loggedIn=$loggedIn service=${serviceEnabledState.value} mode=${prefs.getString("ConnectionMode", "normal")} " +
+                "engine=${prefs.getString("PlayerMode", "spotilol")} proxyRunning=${LocalProxyManager.isRunning} " +
+                "deeplink=${pendingLink ?: "none"} logging=${com.project.lol.util.Logger.isEnabled()}"
+        )
 
         setContent {
             val serviceEnabled = serviceEnabledState.value
@@ -522,6 +534,12 @@ class MainActivity : ComponentActivity() {
                                             ?: if (loggedIn) "https://open.spotify.com/"
                                             else "https://accounts.spotify.com/login"
                                         pendingLink = null
+                                        Logger.i(
+                                            TAG,
+                                            "webview ready: js=on dom=on multiWindow=on bfcache=" +
+                                                WebViewFeature.isFeatureSupported(WebViewFeature.BACK_FORWARD_CACHE) +
+                                                " proxy=$useProxy target=$target"
+                                        )
                                         loadUrl(target)
                                     }
                                 },
@@ -639,6 +657,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun setServiceEnabled(newValue: Boolean) {
+        Logger.i(TAG, "service toggle: $newValue")
         serviceEnabledState.value = newValue
         prefs.edit().putBoolean("ServiceOn", newValue).apply()
         if (!newValue) {
@@ -656,6 +675,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun switchConnectionMode(mode: String) {
+        Logger.i(TAG, "connection mode -> $mode, restarting app")
         prefs.edit().putString("ConnectionMode", mode).apply()
         prefs.edit().putBoolean("ServiceOn", false).apply()
         stopService(Intent(this, MediaNotificationService::class.java))
@@ -668,6 +688,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun switchOfflineMode(enabled: Boolean) {
+        Logger.i(TAG, "offline mode -> $enabled, restarting app")
         prefs.edit().putBoolean("OfflineMode", enabled).apply()
         stopService(Intent(this, MediaNotificationService::class.java))
         val intent = Intent(this, SplashActivity::class.java).apply {
@@ -678,12 +699,15 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun saveProfile(name: String, cookies: String) {
+        Logger.i(TAG, "saving account profile: $name")
         ProfileManager.saveProfile(this, name, cookies)
         Toast.makeText(this, "Account saved", Toast.LENGTH_SHORT).show()
     }
 
     private fun loadProfile(cookies: String) {
+        Logger.i(TAG, "loading account profile (${cookies.length} chars)")
         if (!ProfileManager.applyProfile(this, cookies)) {
+            Logger.w(TAG, "profile could not be applied")
             Toast.makeText(this, "Profile could not be loaded", Toast.LENGTH_SHORT).show()
             return
         }
@@ -695,11 +719,13 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun deleteProfile(name: String) {
+        Logger.i(TAG, "deleting account profile: $name")
         ProfileManager.deleteProfile(this, name)
         Toast.makeText(this, "Profile deleted", Toast.LENGTH_SHORT).show()
     }
 
     private fun clearWebViewCache() {
+        Logger.i(TAG, "clearing webview cache and history")
         val wv = WebView(applicationContext)
         wv.clearCache(true)
         wv.clearHistory()
@@ -708,6 +734,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun clearAllData() {
+        Logger.w(TAG, "clearing all data (cache, storage, cookies, login state)")
         val wv = WebView(applicationContext)
         wv.clearCache(true)
         wv.clearHistory()
@@ -728,6 +755,7 @@ class MainActivity : ComponentActivity() {
     private fun startSleepTimer(minutes: Int) {
         cancelSleepTimer()
         val totalMs = minutes * 60 * 1000L
+        Logger.i(TAG, "sleep timer started: ${minutes}min")
         sleepTimerActive.value = true
         sleepTimerRemainingMs.longValue = totalMs
 
@@ -747,6 +775,7 @@ class MainActivity : ComponentActivity() {
             }
 
             override fun onFinish() {
+                Logger.i(TAG, "sleep timer finished, pausing playback")
                 sleepTimerActive.value = false
                 sleepTimerRemainingMs.longValue = 0L
                 webView?.evaluateJavascript("""
@@ -760,6 +789,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun cancelSleepTimer() {
+        if (sleepTimer != null) Logger.i(TAG, "sleep timer cancelled")
         sleepTimer?.cancel()
         sleepTimer = null
         sleepTimerActive.value = false
@@ -1009,6 +1039,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun enterPipMode(video: Boolean = false) {
+        Logger.i(TAG, "entering pip mode (video=$video)")
         pipVideoRequested = video
         pipVideoActive.value = video
         pipUsed = true
@@ -1043,6 +1074,7 @@ class MainActivity : ComponentActivity() {
         view: View?,
         callback: android.webkit.WebChromeClient.CustomViewCallback?
     ) {
+        Logger.i(TAG, "fullscreen video view shown")
         pipVideoView = view
         pipVideoCallback = callback
         showPipVideoOverlay()
@@ -1050,6 +1082,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleCustomViewHidden() {
+        Logger.i(TAG, "fullscreen video view hidden")
         pipVideoView = null
         pipVideoCallback = null
         hidePipOverlay()
@@ -1208,6 +1241,7 @@ class MainActivity : ComponentActivity() {
         try {
             val obj = JSONObject(json)
             pipPlaying = obj.optBoolean("playing", false)
+            Logger.v(TAG, "media status: playing=$pipPlaying title=${obj.optString("title", "").take(48)}")
             val coverUrl = obj.optString("cover", "")
             if (coverUrl.isNotEmpty() && coverUrl != "null" && coverUrl != lastPipCoverUrl) {
                 lastPipCoverUrl = coverUrl
@@ -1218,7 +1252,9 @@ class MainActivity : ComponentActivity() {
                 }
             }
             runOnUiThread { updatePipParams() }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            Logger.d(TAG, "media status not parseable (${json.length} chars): ${e.message}")
+        }
     }
 
     private fun fetchPipCover(url: String) {
@@ -1269,6 +1305,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun startDownloadService() {
+        Logger.d(TAG, "starting download service")
         runCatching {
             ContextCompat.startForegroundService(
                 this, Intent(this, com.project.lol.service.DownloadService::class.java)
@@ -1277,6 +1314,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun destroyWebView() {
+        Logger.i(TAG, "destroying webview")
         pipVideoView = null
         pipVideoCallback = null
         pipVideoActive.value = false
@@ -1309,6 +1347,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
+        Logger.d(TAG, "config changed: orientation=${newConfig.orientation} pip=$isInPictureInPictureMode")
         if (isInPictureInPictureMode && pipVideoRequested) {
             setPipFillVideo(true)
             updatePipParams()
@@ -1324,7 +1363,9 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun startMediaService() {
+        Logger.d(TAG, "startMediaService requested")
         if (MediaNotificationService.instance != null) {
+            Logger.d(TAG, "media service already running, rebinding webview")
             MediaNotificationService.webView = webView
             return
         }
@@ -1365,6 +1406,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onStop() {
         super.onStop()
+        Logger.i(TAG, "activity stopped: suspending webview loops")
         webView?.evaluateJavascript("""
             try {
                 window.__splBg = true;
@@ -1377,6 +1419,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        Logger.i(TAG, "activity resumed: restoring webview loops")
 
         analytics.logEvent(FirebaseAnalytics.Event.SCREEN_VIEW, Bundle().apply {
             putString(FirebaseAnalytics.Param.SCREEN_NAME, "MainActivity")
@@ -1433,6 +1476,7 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         val link = extractSpotifyLink(intent)
+        Logger.i(TAG, "new intent received: link=${link ?: "none"}")
         if (link == null) {
             val loggedIn = prefs.getBoolean("LoggedIn", false)
             if (!loggedIn) {
@@ -1454,6 +1498,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun navigateSpotifyLink(link: String) {
+        Logger.i(TAG, "navigate to spotify link: $link")
         val wv = webView ?: run {
             pendingLink = link
             return
@@ -1465,9 +1510,11 @@ class MainActivity : ComponentActivity() {
             target.host == "open.spotify.com" &&
             path.length > 1
         if (!canSpa) {
+            Logger.d(TAG, "link needs a full load (spa=false)")
             wv.loadUrl(link)
             return
         }
+        Logger.d(TAG, "spa navigation to $path")
         val js = """
             (function() {
                 try {
@@ -1498,6 +1545,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        Logger.i(TAG, "activity destroyed, tearing down webview")
         cancelSleepTimer()
         pipVideoView = null
         pipVideoCallback = null

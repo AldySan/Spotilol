@@ -16,6 +16,7 @@ import androidx.core.app.ServiceCompat
 import androidx.core.graphics.toColorInt
 import com.project.lol.R
 import com.project.lol.offline.DownloadManager
+import com.project.lol.util.Logger
 import java.io.File
 
 class DownloadService : Service() {
@@ -63,7 +64,7 @@ class DownloadService : Service() {
                 this, NOTIF_ID, buildNotification(), foregroundServiceType()
             )
         } catch (e: Throwable) {
-            android.util.Log.e("DownloadService", "startForeground failed", e)
+            Logger.e("DownloadService", "startForeground failed", e)
         }
         handler.removeCallbacks(pollRunnable)
         handler.post(pollRunnable)

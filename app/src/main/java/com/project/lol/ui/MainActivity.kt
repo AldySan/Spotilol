@@ -330,7 +330,7 @@ class MainActivity : ComponentActivity() {
                     onDebugToggle = { enabled ->
                         webView?.evaluateJavascript(
                             if (enabled) DevLogPrelude.js()
-                            else "window.dbg=null;window.dbgw=null;window.dbge=null;window.DevLog=null;",
+                            else "window.dbg=null;window.dbgv=null;window.dbgi=null;window.dbgw=null;window.dbge=null;window.DevLog=null;",
                             null
                         )
                     },

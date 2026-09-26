@@ -192,6 +192,7 @@ object YTPlayerUtils {
         }
 
         for (clientIndex in (startIndex until STREAM_FALLBACK_CLIENTS.size)) {
+            Logger.d(TAG, "stream attempt: index=$clientIndex poToken=${poToken != null} sigTs=${signatureTimestamp.timestamp != null}")
             // reset for each client
             format = null
             streamUrl = null
@@ -268,6 +269,7 @@ object YTPlayerUtils {
                 } else {
                     STREAM_FALLBACK_CLIENTS[clientIndex]
                 }
+                Logger.i(TAG, "stream resolved: client=${currentClient.clientName} urlChars=${streamUrl.length}")
 
                 // Check if this is a privately owned track
                 val isPrivatelyOwnedTrack = streamPlayerResponse.videoDetails?.musicVideoType == "MUSIC_VIDEO_TYPE_PRIVATELY_OWNED_TRACK"

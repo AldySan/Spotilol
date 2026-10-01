@@ -29,7 +29,7 @@
     <img src="https://deepwiki.com/badge.svg" alt="DeepWiki" style="height: 28px;"/>
   </a>
   &nbsp;
-  <a href="https://discord.gg/AcmUkF6nBK">
+  <a href="https://discord.gg/95dAE2UkqP">
     <img src="https://img.shields.io/badge/Discord-join-1DB954?style=for-the-badge&logo=discord&logoColor=white&labelColor=0d0d0d" alt="discord"/>
   </a>
 </p>

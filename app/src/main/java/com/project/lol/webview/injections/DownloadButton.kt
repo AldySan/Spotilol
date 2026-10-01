@@ -3,17 +3,18 @@ package com.project.lol.webview.injections
 object DownloadButton {
     const val CONTENT = """
             window.splDoDownload = function(){
-                var id = window.__curTrackId;
+                var id = window.splTrackId || window.__curTrackId;
                 if(!id){
                     AndBridge.deferMessage('Track not ready');
                     return;
                 }
+                var m = (window.__splTrackMeta && window.__splTrackMeta[id]) || {};
                 var payload = JSON.stringify({
                     trackId: id,
-                    title: window.__curTrackName || window.track || '',
-                    artist: window.__curTrackArtist || window.artist || '',
-                    album: window.__curTrackAlbum || '',
-                    cover: window.__curTrackCover || window.cover || ''
+                    title: m.name || window.track || window.__curTrackName || '',
+                    artist: m.artist || window.artist || window.__curTrackArtist || '',
+                    album: m.album || window.__curTrackAlbum || '',
+                    cover: m.cover || window.__curTrackCover || window.cover || ''
                 });
                 AndBridge.downloadTrack(payload);
             };

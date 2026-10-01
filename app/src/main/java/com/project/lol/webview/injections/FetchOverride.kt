@@ -86,12 +86,21 @@ object FetchOverride {
                                     try {
                                         var j = JSON.parse(t);
                                         if(j && j.canonical_uri) {
+                                            var tid = j.canonical_uri.replace('spotify:track:','');
+                                            var cg = j.album && j.album.cover_group && j.album.cover_group.image;
+                                            window.__splTrackMeta = window.__splTrackMeta || {};
+                                            window.__splTrackMeta[tid] = {
+                                                uri: j.canonical_uri,
+                                                name: j.name || null,
+                                                artist: (j.artist && j.artist.length) ? j.artist[0].name : null,
+                                                album: (j.album) ? j.album.name : null,
+                                                cover: (cg && cg.length) ? 'https://i.scdn.co/image/' + cg[0].file_id : null
+                                            };
                                             window.__curTrackUri = j.canonical_uri;
-                                            window.__curTrackId = j.canonical_uri.replace('spotify:track:','');
+                                            window.__curTrackId = tid;
                                             window.__curTrackName = j.name || null;
                                             window.__curTrackArtist = (j.artist && j.artist.length) ? j.artist[0].name : null;
                                             window.__curTrackAlbum = (j.album) ? j.album.name : null;
-                                            var cg = j.album && j.album.cover_group && j.album.cover_group.image;
                                             if(cg && cg.length) window.__curTrackCover = 'https://i.scdn.co/image/' + cg[0].file_id;
                                         }
                                     } catch(e){}

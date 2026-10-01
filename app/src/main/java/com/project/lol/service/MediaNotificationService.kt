@@ -264,9 +264,14 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
 
         override fun onAudioDevicesRemoved(removedDevices: Array<out AudioDeviceInfo>) {
             knownRouteIds.removeAll(removedDevices.map { it.id }.toSet())
+            if (!isPlaying) return
             val prefs = getSharedPreferences("spotilol_prefs", MODE_PRIVATE)
             if (!prefs.getBoolean("BtAutoPause", false)) return
             if (removedDevices.none { isRemoteOutput(it.type) }) return
+            val stillRemote = getSystemService(AudioManager::class.java)
+                .getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+                .any { isRemoteOutput(it.type) }
+            if (stillRemote) return
             autoPauseOnce("route removed: " + removedDevices.joinToString("/") { it.type.toString() })
         }
     }
@@ -673,7 +678,7 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
                 mediaSession.controller.transportControls.pause()
             } catch (_: Exception) {}
         }
-        wakeAndRun("actPlayPause(false)")
+        webView?.evaluateJavascript("actPlayPause(false)", null)
     }
 
     private fun resumePlayback() {
@@ -685,7 +690,7 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
                 mediaSession.controller.transportControls.play()
             } catch (_: Exception) {}
         }
-        wakeAndRun("actPlayPause(true)")
+        webView?.evaluateJavascript("actPlayPause(true)", null)
     }
 
     fun updateFromMediaStatus(json: String) {

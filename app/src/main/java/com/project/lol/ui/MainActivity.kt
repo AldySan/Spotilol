@@ -491,7 +491,7 @@ class MainActivity : ComponentActivity() {
                                             }
                                         )
 
-                                        webViewClient = SpotifyWebViewClient(
+                                        val spotifyClient = SpotifyWebViewClient(
                                             onLoginRequired = {
                                                 loadUrl("https://accounts.spotify.com/login")
                                             },
@@ -505,6 +505,9 @@ class MainActivity : ComponentActivity() {
                                                 webViewError.value = code to desc
                                             }
                                         )
+                                        webViewClient = spotifyClient
+                                        // Before the first loadUrl, so it applies to the first page.
+                                        spotifyClient.installDocumentStartScripts(this)
 
                                         val executor = Executors.newSingleThreadExecutor()
                                         if (useProxy && LocalProxyManager.isRunning) {
@@ -1523,7 +1526,6 @@ class MainActivity : ComponentActivity() {
         webView?.let {
             it.stopLoading()
             it.clearHistory()
-            it.clearCache(true)
             it.clearFormData()
             it.removeJavascriptInterface("AndBridge")
             (it.parent as? ViewGroup)?.removeView(it)

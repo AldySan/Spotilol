@@ -879,7 +879,7 @@ fun SettingsContent(
                         subtitle = stringResource(R.string.settings_discord_subtitle),
                         icon = TablerIcons.BrandDiscord,
                         onClick = {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://discord.gg/AcmUkF6nBK"))
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://discord.gg/95dAE2UkqP"))
                             context.startActivity(intent)
                         }
                     )

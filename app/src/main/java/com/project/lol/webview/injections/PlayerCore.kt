@@ -51,9 +51,13 @@ object PlayerCore {
                 try{
                     var pb=window.splPbNode();
                     if(pb){
+                        var ic=pb.querySelector('svg path');
+                        var d=ic?(ic.getAttribute('d')||''):'';
+                        if(d.indexOf('M2.7 1a.7.7')===0) return true;
+                        if(d.indexOf('M3 1.713')===0) return false;
                         var al=pb.getAttribute('aria-label')||'';
-                        if(al==='Play') return false;
-                        if(al==='Pause') return true;
+                        if(/paus|wstrzymaj|duraklat|пауз|приостанов|一時停止|일시정지|暂停|暫停/i.test(al)) return true;
+                        if(/^(play|lecture|spela|spil|afspil)$|reproduc|reproduz|wiedergabe|abspielen|riproduci|afspelen|odtwarzaj|воспроизв|再生|재생|播放|oynat/i.test(al)) return false;
                     }
                     var el=window.splMediaEl();
                     if(el) return el.paused===false;

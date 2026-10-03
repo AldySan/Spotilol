@@ -42,3 +42,13 @@
 # referencing java.beans.* which breaks ART install-time verification
 
 -dontwarn java.lang.instrument.**
+
+-keep class * extends androidx.room.RoomDatabase {
+    <init>();
+}
+-keep class androidx.work.** {
+    <init>(...);
+}
+-keep class * extends androidx.glance.appwidget.action.ActionCallback {
+    <init>();
+}

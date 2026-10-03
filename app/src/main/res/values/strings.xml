@@ -348,4 +348,14 @@
     <string name="bridge_reloading">Reloading...</string>
 
     <string name="service_disabled_message">Service is not enabled</string>
+
+    <string name="widget_player_name">Spotilol player</string>
+    <string name="widget_player_description">Playback controls for Spotilol</string>
+    <string name="widget_art_name">Spotilol art</string>
+    <string name="widget_art_description">Album art of the current track</string>
+    <string name="widget_action_open_app">Open Spotilol</string>
+    <string name="widget_action_shuffle">Shuffle</string>
+    <string name="widget_action_repeat">Repeat</string>
+    <string name="widget_empty_title">Spotilol</string>
+    <string name="widget_empty_subtitle">Open the app to start playing</string>
 </resources>

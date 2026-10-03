@@ -36,7 +36,7 @@ object PlaybackControls {
                     commandContext = {
                         uri: collectionUri,
                         url: 'context://' + collectionUri,
-                        metadata: { context_description: 'Liked Songs' },
+                        metadata: { context_description: window.splLikedName() },
                         pages: [{ page_url: 'context://' + collectionUri, tracks: trackList.map(function(u) { return { uri: u }; }) }]
                     };
 
@@ -63,6 +63,27 @@ object PlaybackControls {
                         }
                     })
                 });
+            };
+            window.splLikedName = function() {
+                try {
+                    var h1 = document.querySelector('main h1');
+                    if (h1 && h1.textContent && h1.textContent.trim()) return h1.textContent.trim();
+                } catch(e) {}
+                try {
+                    var lib = window.mediaLib;
+                    if (lib && lib.playlists) {
+                        for (var i = 0; i < lib.playlists.length; i++) {
+                            var p = lib.playlists[i];
+                            if ((p.id || '').indexOf('collection') !== -1 && p.name) return p.name;
+                        }
+                    }
+                } catch(e) {}
+                return 'Liked Songs';
+            };
+            window.splIsLikedName = function(n) {
+                n = String(n || '').toLowerCase();
+                if (!n) return false;
+                return /liked songs|titres lik|titres aim|j'aime|canciones que te gustan|me gusta|lieblingstitel|brani che ti piacciono|m[uú]sicas curtidas|gelikete nummers|ulubione utwory|polubione utwory|любимые треки|мне нравится|улюблені треки|お気に入りの曲|いいねした曲|좋아요 표시한 곡|喜欢的歌曲|喜愛的歌曲|喜歡的歌曲|beğenilen şarkılar|gillade l[åa]tar|tykätyt kappaleet|obl[íi]bené skladby|obľúbené skladby|kedvelt dalok|melodii apreciate|αγαπημένα τραγούδια|שירים שאהבת|पसंद किए गए गाने|เพลงที่ถูกใจ|lagu yang disukai|bài hát đã thích|харесани песни/i.test(n);
             };
             window.splEnsurePb=function(){
                 var pb=window.pBtn;

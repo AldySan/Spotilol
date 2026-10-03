@@ -17,8 +17,8 @@ object LibraryParser {
                         || null;
                     if(!uri) return;
                     if(typename.indexOf('Playlist') !== -1 || typename.indexOf('PseudoPlaylist') !== -1 || uri.indexOf(':playlist:') !== -1) {
-                        if(name === 'Liked Songs' || uri.indexOf('collection') !== -1) {
-                            if(res.playlists.some(function(p){ return p.name === 'Liked Songs' || p.id.indexOf('collection') !== -1; })) return;
+                        if(window.splIsLikedName(name) || uri.indexOf('collection') !== -1) {
+                            if(res.playlists.some(function(p){ return window.splIsLikedName(p.name) || p.id.indexOf('collection') !== -1; })) return;
                             res.playlists.push({id:'spotify:collection:tracks', name:name, image:'https://misc.scdn.co/liked-songs/liked-songs-640.png'});
                         } else {
                             res.playlists.push({id:uri, name:name, image:image});

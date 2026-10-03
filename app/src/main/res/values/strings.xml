@@ -166,8 +166,8 @@
     <string name="settings_login_first">Log in to Spotify first</string>
     <string name="settings_changelog_title">Changelog</string>
     <string name="settings_changelog_error">Could not load release notes</string>
-    <string name="settings_changelog_open">Open changelogs</string>
-    <string name="settings_changelog_copy_close">Copy and close</string>
+    <string name="settings_changelog_open">Open</string>
+    <string name="settings_changelog_copy">Copy</string>
     <string name="settings_retry">Retry</string>
     <string name="settings_close">Close</string>
     <string name="settings_cancel">Cancel</string>

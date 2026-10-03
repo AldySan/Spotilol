@@ -76,6 +76,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -109,9 +110,11 @@ import com.project.lol.offline.DownloadManager
 import com.project.lol.profile.ProfileManager
 import com.project.lol.proxy.LocalProxyManager
 import com.project.lol.service.MediaNotificationService
+import com.project.lol.ui.components.ChangelogDialog
 import com.project.lol.ui.components.SettingsDialog
 import com.project.lol.ui.theme.SpotifyTheme
 import com.project.lol.util.BuildInfo
+import com.project.lol.util.ChangelogPrefs
 import com.project.lol.util.Logger
 import com.project.lol.util.UpdateChecker
 import com.project.lol.webview.SpotifyWebChromeClient
@@ -180,6 +183,8 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var prefs: SharedPreferences
 
+    private var changelogOnUpdate = false
+
     private val analytics: FirebaseAnalytics by lazy { FirebaseAnalytics.getInstance(this) }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -198,6 +203,7 @@ class MainActivity : ComponentActivity() {
         })
 
         prefs = getSharedPreferences("spotilol_prefs", MODE_PRIVATE)
+        changelogOnUpdate = ChangelogPrefs.shouldShowOnUpdate(this)
         val useProxy = prefs.getString("ConnectionMode", "normal") == "proxy"
 
         // After an OOM kill, Android can resume directly at MainActivity
@@ -262,6 +268,7 @@ class MainActivity : ComponentActivity() {
 
             var settingsDialogOpen by remember { mutableStateOf(false) }
             var showMiniMenu by remember { mutableStateOf(false) }
+            var showChangelog by rememberSaveable { mutableStateOf(changelogOnUpdate) }
             val versionName = remember {
                 runCatching { packageManager.getPackageInfo(packageName, 0).versionName }
                     .getOrNull() ?: ""
@@ -282,6 +289,12 @@ class MainActivity : ComponentActivity() {
             }
 
             SpotifyTheme(useDynamicColor = materialYou, amoled = amoled, seedColor = seedColor) {
+                if (showChangelog) {
+                    ChangelogDialog(onDismiss = {
+                        showChangelog = false
+                        ChangelogPrefs.markShown(this@MainActivity)
+                    })
+                }
                 SettingsDialog(
                     visible = settingsDialogOpen,
                     onClose = { settingsDialogOpen = false },

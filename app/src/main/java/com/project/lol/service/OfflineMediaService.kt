@@ -26,8 +26,17 @@ import androidx.media.session.MediaButtonReceiver
 import com.project.lol.R
 import com.project.lol.ui.OfflineActivity
 import com.project.lol.util.Logger
+import com.project.lol.webview.helpers.AccentTheme
+import com.project.lol.widget.WidgetSource
+import com.project.lol.widget.WidgetState
+import com.project.lol.widget.WidgetUpdater
+import androidx.core.graphics.toColorInt
 import java.io.File
 import kotlin.math.min
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 class OfflineMediaService : Service() {
 
@@ -40,6 +49,7 @@ class OfflineMediaService : Service() {
         const val ACTION_NEXT = "com.project.lol.offline.ACTION_NEXT"
         const val ACTION_PREV = "com.project.lol.offline.ACTION_PREV"
         const val ACTION_STOP = "com.project.lol.offline.ACTION_STOP"
+        const val ACTION_WIDGET_REFRESH = "com.project.lol.offline.ACTION_WIDGET_REFRESH"
 
         private val PLAYBACK_ACTIONS: Long =
             PlaybackStateCompat.ACTION_PLAY or
@@ -72,6 +82,8 @@ class OfflineMediaService : Service() {
     private var currentAlbum = ""
     private var currentPosition: Long = 0L
     private var currentDuration: Long = 0L
+    private val widgetScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private var lastWidgetPushAt = 0L
 
     private val actionReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -80,6 +92,7 @@ class OfflineMediaService : Service() {
                 ACTION_NEXT -> controller?.onNext()
                 ACTION_PREV -> controller?.onPrev()
                 ACTION_STOP -> controller?.onStop()
+                ACTION_WIDGET_REFRESH -> pushWidgetState(force = true)
             }
         }
     }
@@ -149,6 +162,7 @@ class OfflineMediaService : Service() {
             updateMetadata()
             updatePlaybackState()
             showNotification()
+            pushWidgetState(force = true)
         }
         try {
             ServiceCompat.startForeground(this, NOTIFICATION_ID, buildNotificationSafe(), getStartForegroundServiceType())
@@ -172,6 +186,7 @@ class OfflineMediaService : Service() {
         if (::mediaSession.isInitialized) {
             try { mediaSession.release() } catch (_: Exception) {}
         }
+        resetWidget()
         super.onDestroy()
     }
 
@@ -232,6 +247,7 @@ class OfflineMediaService : Service() {
             addAction(ACTION_NEXT)
             addAction(ACTION_PREV)
             addAction(ACTION_STOP)
+            addAction(ACTION_WIDGET_REFRESH)
             addAction(Intent.ACTION_MEDIA_BUTTON)
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -258,6 +274,7 @@ class OfflineMediaService : Service() {
         updateMetadata()
         updatePlaybackState()
         showNotification()
+        pushWidgetState(force = true)
     }
 
     fun updatePlaying(playing: Boolean, position: Long) {
@@ -265,11 +282,44 @@ class OfflineMediaService : Service() {
         currentPosition = position
         updatePlaybackState()
         showNotification()
+        pushWidgetState(force = true)
     }
 
     fun updatePosition(position: Long) {
         currentPosition = position
         updatePlaybackState()
+        pushWidgetState()
+    }
+
+    private fun widgetAccent(): Int = runCatching {
+        AccentTheme.resolveHex(this).toColorInt()
+    }.getOrDefault(NOTIF_COLOR)
+
+    private fun pushWidgetState(force: Boolean = false) {
+        val now = System.currentTimeMillis()
+        if (!force && now - lastWidgetPushAt < 2000L) return
+        if (!isPlaying && WidgetSource.get(this) == WidgetState.SOURCE_WEB) return
+        lastWidgetPushAt = now
+        val state = WidgetState(
+            title = currentTitle,
+            artist = currentArtist,
+            playing = isPlaying,
+            favorite = false,
+            shuffle = "disabled",
+            repeat = "false",
+            position = currentPosition,
+            duration = currentDuration,
+            accent = widgetAccent(),
+            source = WidgetState.SOURCE_OFFLINE,
+            cover = coverBitmap
+        )
+        val ctx = applicationContext
+        widgetScope.launch { runCatching { WidgetUpdater.push(ctx, state) } }
+    }
+
+    private fun resetWidget() {
+        val ctx = applicationContext
+        widgetScope.launch { runCatching { WidgetUpdater.push(ctx, WidgetState(source = WidgetState.SOURCE_OFFLINE)) } }
     }
 
     fun stopPlaybackService() {
@@ -282,6 +332,7 @@ class OfflineMediaService : Service() {
         if (::mediaSession.isInitialized) {
             try { mediaSession.isActive = false } catch (_: Exception) {}
         }
+        resetWidget()
         stopSelf()
     }
 
@@ -333,6 +384,7 @@ class OfflineMediaService : Service() {
                 coverBitmap = scaled
                 updateMetadata()
                 showNotification()
+                pushWidgetState(force = true)
             } catch (_: Exception) {}
         }.start()
     }

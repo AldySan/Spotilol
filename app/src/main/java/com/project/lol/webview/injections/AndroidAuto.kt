@@ -42,7 +42,7 @@ window.pendingMediaRequests = window.pendingMediaRequests || new Set();
                         var pls = lib.playlists;
                         for (var i = 0; i < pls.length; i++) {
                             var p = pls[i];
-                            if (p.name === 'Liked Songs' || (p.id||'').indexOf('collection') !== -1) {
+                            if (window.splIsLikedName(p.name) || (p.id||'').indexOf('collection') !== -1) {
                                 p.id = 'spotify:collection:tracks';
                                 p.image = 'https://misc.scdn.co/liked-songs/liked-songs-640.png';
                             }
@@ -146,7 +146,7 @@ window.pendingMediaRequests = window.pendingMediaRequests || new Set();
                         }
                         var items = ((window.mediaLib && window.mediaLib[parentId]) || []).map(function(item) {
                             var img = item.image;
-                            if (item.name === 'Liked Songs' || (item.id && (item.id.indexOf('collection') !== -1 || item.id === 'spotify:playlist:liked'))) {
+                            if (window.splIsLikedName(item.name) || (item.id && (item.id.indexOf('collection') !== -1 || item.id === 'spotify:playlist:liked'))) {
                                 img = 'https://misc.scdn.co/liked-songs/liked-songs-640.png';
                             }
                             return { id: item.id, name: item.name, image: img, artists: item.artists || [], browsable: true, isGrid: true };

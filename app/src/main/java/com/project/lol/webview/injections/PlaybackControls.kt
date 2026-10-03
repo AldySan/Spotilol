@@ -135,22 +135,51 @@ object PlaybackControls {
                 var fb = document.querySelector('button[data-testid=control-button-skip-forward]');
                 if(fb) { AndBridge.wakeUp(); fb.click(); }
             };
-            window.actToggleShuffle = function() {
-                var sb = document.querySelector('button[data-testid="control-button-shuffle"]');
-                if(!sb) {
-                    var allb=document.querySelectorAll('button');
-                    for(var i=0;i<allb.length;i++){
-                        var sbal=allb[i].getAttribute('aria-label')||'';
-                        if(/shuffle/i.test(sbal)&&!/spl-btn/.test(allb[i].className||'')){ sb=allb[i]; break; }
-                    }
+            window.splShuffleBtn = function() {
+                var b = document.querySelector('button[data-testid="control-button-shuffle"]');
+                if(b) return b;
+                var sk = document.querySelector('button[data-testid="control-button-skip-back"]');
+                if(sk) {
+                    var p = sk.previousElementSibling;
+                    if(p && p.tagName === 'BUTTON') return p;
+                    var f = sk.parentElement ? sk.parentElement.querySelector('button') : null;
+                    if(f && f !== sk) return f;
                 }
-                if(sb && sb.getAttribute('aria-disabled')!=='true') {
+                var bs = document.querySelectorAll('button');
+                for(var i=0;i<bs.length;i++){
+                    var ic = bs[i].querySelector('svg path');
+                    if(ic && (ic.getAttribute('d')||'').indexOf('M13.151.922') === 0 && !/spl-btn/.test(bs[i].className||'')) return bs[i];
+                }
+                return null;
+            };
+            window.splShuffleState = function() {
+                var b = window.splShuffleBtn();
+                if(!b) return 'off';
+                if(b.getAttribute('aria-disabled') === 'true') return 'disabled';
+                if((b.className||'').indexOf('text-bright-accent') === -1) return 'off';
+                return /smart|intelligent|inteligente|intelligente|inteligentny|slim|умный|スマート|스마트|智能|akıllı|älykäs/i.test(b.getAttribute('aria-label')||'') ? 'smart' : 'shuffle';
+            };
+            window.actToggleShuffle = function() {
+                var sb = window.splShuffleBtn();
+                if(sb && sb.getAttribute('aria-disabled') !== 'true') {
                     AndBridge.wakeUp();
                     sb.click();
                 }
             };
+            window.splRepeatBtn = function() {
+                var b = document.querySelector('button[data-testid="control-button-repeat"]');
+                if(b) return b;
+                var fw = document.querySelector('button[data-testid="control-button-skip-forward"]');
+                if(fw && fw.nextElementSibling && fw.nextElementSibling.tagName === 'BUTTON') return fw.nextElementSibling;
+                var bs = document.querySelectorAll('button');
+                for(var i=0;i<bs.length;i++){
+                    var ic = bs[i].querySelector('svg path');
+                    if(ic && (ic.getAttribute('d')||'').indexOf('M0 4.75') === 0 && !/spl-btn/.test(bs[i].className||'')) return bs[i];
+                }
+                return null;
+            };
             window.actRepeat = function() {
-                var rb = document.querySelector('button[data-testid=control-button-repeat]');
+                var rb = window.splRepeatBtn();
                 if(rb) {
                     if(repmode=='false') repmode='true';
                     else if(repmode=='true') repmode='mixed';

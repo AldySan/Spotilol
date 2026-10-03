@@ -99,6 +99,10 @@ dependencies {
     implementation(libs.lifecycle.runtime.compose)
     debugImplementation(libs.compose.ui.tooling)
 
+    // Glance (home screen widgets)
+    implementation(libs.glance.appwidget)
+    implementation(libs.glance.material3)
+
     // Ktor + serialization (YouTube InnerTube client)
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.okhttp)

@@ -169,7 +169,7 @@ object CollectionDownload {
                 if (btn) btn.classList.add('spl-ab-busy');
                 var type = pageType();
                 if (!type) { window.__splColBusy = false; if (btn) btn.classList.remove('spl-ab-busy'); return; }
-                var name = headerName(type === 'liked' ? 'Liked Songs' : 'Collection');
+                var name = headerName(type === 'liked' ? window.splLikedName() : 'Collection');
                 var albumFallback = (type === 'album') ? name : '';
                 try {
                     if (typeof window.splDownloadProgress === 'function') {

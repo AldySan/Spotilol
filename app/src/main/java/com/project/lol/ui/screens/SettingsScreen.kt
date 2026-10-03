@@ -108,6 +108,7 @@ import com.project.lol.offline.DownloadPrefs
 import com.project.lol.profile.ProfileManager
 import com.project.lol.proxy.LocalProxyManager
 import com.project.lol.service.MediaNotificationService
+import com.project.lol.ui.components.ChangelogDialog
 import com.project.lol.ui.theme.SpotifyTheme
 import com.project.lol.util.BuildInfo
 import com.project.lol.util.GitHubApi
@@ -1369,120 +1370,6 @@ private fun ColorSlider(
             textAlign = TextAlign.End
         )
     }
-}
-
-@Composable
-private fun ChangelogDialog(onDismiss: () -> Unit) {
-    val context = LocalContext.current
-    val configuration = LocalConfiguration.current
-    var release by remember { mutableStateOf<GitHubRelease?>(null) }
-    var loading by remember { mutableStateOf(true) }
-    var failed by remember { mutableStateOf(false) }
-
-    fun fetch() {
-        loading = true
-        failed = false
-        GitHubApi.fetchLatestRelease("lyssadev", "Spotilol") { r ->
-            loading = false
-            if (r == null || r.body.isBlank()) {
-                failed = true
-            } else {
-                release = r
-            }
-        }
-    }
-
-    LaunchedEffect(Unit) { fetch() }
-
-    val publishedLabel = release?.publishedAt?.let { iso ->
-        runCatching {
-            val parsed = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).parse(iso)
-            SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(parsed)
-        }.getOrNull()
-    }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(28.dp),
-        title = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = TablerIcons.InfoCircle,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Spacer(Modifier.width(10.dp))
-                Column {
-                    Text(
-                        text = stringResource(R.string.settings_changelog_title),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                    if (release != null) {
-                        Text(
-                            text = listOfNotNull(
-                                stringResource(R.string.settings_changelog_version, release!!.tagName.removePrefix("v")),
-                                publishedLabel
-                            ).joinToString(" · "),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-        },
-        text = {
-            when {
-                loading -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(160.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator()
-                    }
-                }
-                failed -> {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Text(
-                            text = stringResource(R.string.settings_changelog_error),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        TextButton(onClick = { fetch() }) {
-                            Text(stringResource(R.string.settings_retry), fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-                release != null -> {
-                    val r = release!!
-                    MarkdownText(
-                        markdown = r.body,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = (configuration.screenHeightDp * 0.65f).dp)
-                            .verticalScroll(rememberScrollState()),
-                        onLinkClick = { url ->
-                            runCatching {
-                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-                            }
-                        }
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.settings_close), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-            }
-        }
-    )
 }
 
 @Composable

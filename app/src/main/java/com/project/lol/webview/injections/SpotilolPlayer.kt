@@ -433,7 +433,8 @@ object SpotilolPlayer {
                             var vrg=document.querySelector('div[data-testid="volume-bar"] input[type="range"]')||document.querySelector('input[type="range"][data-testid="volume-bar"]');
                             var vpct=0;
                             if(vrg){vpct=parseFloat(vrg.value||'0')/(parseFloat(vrg.getAttribute('max'))||1);}
-                            var muted=(vrb&&vrb.getAttribute('aria-label')==='Unmute')||vpct<=0;
+                            var vmic=vrb?vrb.querySelector('svg path'):null;
+                            var muted=(vmic&&(vmic.getAttribute('d')||'').indexOf('M13.86 5.47')===0)||vpct<=0;
                             vl.classList.toggle('spl-active',muted===true);
                             var hasX=vbb&&!!vbb.querySelector('.spl-mute-x');
                             if(muted&&!hasX){

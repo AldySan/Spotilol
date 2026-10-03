@@ -29,33 +29,13 @@ object SpotilolPlayer {
                 npb.style.display='none';
 
                 function splFindShuffle(){
-                    var b=document.querySelector('button[data-testid="control-button-shuffle"]');
-                    if(b) return b;
-                    var all=document.querySelectorAll('button');
-                    for(var i=0;i<all.length;i++){
-                        var al=all[i].getAttribute('aria-label')||'';
-                        if(/shuffle/i.test(al)&&!/spl-btn/.test(all[i].className||'')) return all[i];
-                    }
-                    return null;
+                    return (typeof window.splShuffleBtn === 'function') ? window.splShuffleBtn() : document.querySelector('button[data-testid="control-button-shuffle"]');
                 }
                 function splFindRepeat(){
-                    var b=document.querySelector('button[data-testid="control-button-repeat"]');
-                    if(b) return b;
-                    var all=document.querySelectorAll('button');
-                    for(var i=0;i<all.length;i++){
-                        var al=all[i].getAttribute('aria-label')||'';
-                        if(/repeat/i.test(al)&&!/spl-btn/.test(all[i].className||'')) return all[i];
-                    }
-                    return null;
+                    return (typeof window.splRepeatBtn === 'function') ? window.splRepeatBtn() : document.querySelector('button[data-testid="control-button-repeat"]');
                 }
                 function splShuffleState(){
-                    var b=splFindShuffle();
-                    if(!b) return 'off';
-                    if(b.getAttribute('aria-disabled')==='true') return 'disabled';
-                    if(b.getAttribute('aria-checked')==='true') return 'shuffle';
-                    var al=b.getAttribute('aria-label')||'';
-                    if(/smart shuffle/i.test(al)) return /^disable/i.test(al)?'smart':'shuffle';
-                    return /^disable/i.test(al)?'shuffle':'off';
+                    return (typeof window.splShuffleState === 'function') ? window.splShuffleState() : 'off';
                 }
 
                 var pl=document.createElement('div');

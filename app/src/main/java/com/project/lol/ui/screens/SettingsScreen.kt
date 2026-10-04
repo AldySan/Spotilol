@@ -118,6 +118,7 @@ import com.project.lol.util.LogFilter
 import com.project.lol.util.LogLevel
 import com.project.lol.util.Logger
 import com.project.lol.util.MarkdownText
+import com.project.lol.util.Telemetry
 import com.project.lol.webview.helpers.LyricsTheme
 import compose.icons.TablerIcons
 import compose.icons.tablericons.AlertTriangle
@@ -246,6 +247,7 @@ fun SettingsContent(
     var playlistSortEnabled by remember { mutableStateOf(prefs.getBoolean("PlaylistSortEnabled", true)) }
     var showScrollbar by remember { mutableStateOf(prefs.getBoolean("ShowScrollbar", true)) }
     var lyricsStyle by remember { mutableStateOf(prefs.getString("LyricsStyle", LyricsTheme.DEFAULT_STYLE) ?: LyricsTheme.DEFAULT_STYLE) }
+    var telemetryEnabled by remember { mutableStateOf(prefs.getBoolean(Telemetry.KEY, false)) }
 
     val context = LocalContext.current
     var profiles by remember { mutableStateOf(ProfileManager.getProfiles(context)) }
@@ -836,6 +838,22 @@ fun SettingsContent(
                             } else {
                                 Toast.makeText(context, context.getString(R.string.settings_open_links_always_hint), Toast.LENGTH_LONG).show()
                             }
+                        }
+                    )
+                }
+
+                SettingSectionCard(
+                    title = stringResource(R.string.settings_section_privacy),
+                    icon = TablerIcons.Shield
+                ) {
+                    SettingSwitchTile(
+                        title = stringResource(R.string.settings_telemetry),
+                        subtitle = stringResource(R.string.settings_telemetry_subtitle),
+                        icon = TablerIcons.EyeOff,
+                        checked = telemetryEnabled,
+                        onCheckedChange = { enabled ->
+                            telemetryEnabled = enabled
+                            Telemetry.setEnabled(context, enabled)
                         }
                     )
                 }

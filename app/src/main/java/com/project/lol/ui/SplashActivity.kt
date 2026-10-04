@@ -73,12 +73,12 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.crashlytics.FirebaseCrashlytics
-import com.google.firebase.perf.FirebasePerformance
 import com.project.lol.BuildConfig
 import com.project.lol.R
 import com.project.lol.proxy.LocalProxyManager
 import com.project.lol.ui.theme.SpotifyTheme
 import com.project.lol.util.BuildInfo
+import com.project.lol.util.Telemetry
 import compose.icons.TablerIcons
 import compose.icons.tablericons.Bell
 import compose.icons.tablericons.Bluetooth
@@ -112,14 +112,15 @@ class SplashActivity : ComponentActivity() {
         }
 
         FirebaseCrashlytics.getInstance()
-        // Analytics/Performance are not needed for first frame; init off the main thread.
-        lifecycleScope.launch(Dispatchers.Default) {
-            FirebasePerformance.getInstance()
-            FirebaseAnalytics.getInstance(this@SplashActivity)
-                .logEvent(FirebaseAnalytics.Event.APP_OPEN, Bundle().apply {
-                    putString(FirebaseAnalytics.Param.SCREEN_NAME, "Spotilol")
-                    putString(FirebaseAnalytics.Param.SCREEN_CLASS, "SplashActivity")
-                })
+        if (Telemetry.isEnabled(this)) {
+            lifecycleScope.launch(Dispatchers.Default) {
+                Telemetry.apply(this@SplashActivity, true)
+                FirebaseAnalytics.getInstance(this@SplashActivity)
+                    .logEvent(FirebaseAnalytics.Event.APP_OPEN, Bundle().apply {
+                        putString(FirebaseAnalytics.Param.SCREEN_NAME, "Spotilol")
+                        putString(FirebaseAnalytics.Param.SCREEN_CLASS, "SplashActivity")
+                    })
+            }
         }
 
         setContent {

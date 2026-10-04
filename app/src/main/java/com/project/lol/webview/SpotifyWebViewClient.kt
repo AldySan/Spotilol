@@ -372,6 +372,7 @@ class SpotifyWebViewClient(
                 })();
             """.trimIndent())
             append(CssHack.CONTENT)
+            append(WatchFeed.CONTENT)
             append(ModalFix.CONTENT)
             append(ErrorDialogRestyle.CONTENT)
             append(ToastFix.CONTENT)

@@ -5,6 +5,13 @@ object FetchOverride {
             (function(){
                 if(window.oriFetch) return;
                 window.splOpHashes = window.splOpHashes || {};
+                window.__splLocalDevId = window.__splLocalDevId || null;
+                window.__splActiveDevId = window.__splActiveDevId || null;
+                window.__splRemoteActive = function(){
+                    try {
+                        return !!(window.__splLocalDevId && window.__splActiveDevId && window.__splActiveDevId !== window.__splLocalDevId);
+                    } catch(e){ return false; }
+                };
                 var orig = window.fetch.bind(window);
                 window.oriFetch = orig;
                 window.fetch = function(input, init) {
@@ -27,16 +34,19 @@ object FetchOverride {
                     }
                     var url = typeof input==='string' ? input : (input ? input.url : '');
                     if(url && url.indexOf) {
-                        var m = url.match(/\/from\/([A-Za-z0-9_-]+)\/to\//);
+                        var m = url.match(/\/from\/([A-Za-z0-9_-]+)\/to\/([A-Za-z0-9_-]+)/);
                         if(m && m[1]) window.spotDevId = m[1];
+                        if(m && m[1] && !window.__splLocalDevId) window.__splLocalDevId = m[1];
+                        if(m && m[2]) window.__splActiveDevId = m[2];
                         var m2 = url.match(/connect-state\/v1\/player\/(?:command|transfer)\/from\/([A-Za-z0-9_-]+)\/to\/([A-Za-z0-9_-]+)/);
-                        if(m2 && m2[2]) window.spotDevId = m2[2];
+                        if(m2 && m2[2]) { window.spotDevId = m2[2]; window.__splActiveDevId = m2[2]; }
                         var m3 = url.match(/\/track-playback\/v1\/devices/);
                         if(m3 && init && init.body) {
                             try {
                                 var pb = typeof init.body==='string' ? JSON.parse(init.body) : init.body;
-                                if(pb && pb.device && pb.device.device_id && pb.device.device_id!==window.spotDevId) {
-                                    window.spotDevId = pb.device.device_id;
+                                if(pb && pb.device && pb.device.device_id) {
+                                    if(!window.__splLocalDevId) window.__splLocalDevId = pb.device.device_id;
+                                    if(pb.device.device_id!==window.spotDevId) window.spotDevId = pb.device.device_id;
                                 }
                             } catch(e){}
                         }
@@ -68,7 +78,7 @@ object FetchOverride {
                     if(!window.__spotilolUseProxy && url && url.indexOf && (url.indexOf('connect-state') !== -1 || url.indexOf('melody/v1/msg') !== -1 || url.indexOf('/track-playback/') !== -1) && window.mngFetch) {
                         return window.mngFetch(input, init);
                     }
-                    if(window.ffDone && url && url.indexOf && url.indexOf('/track-playback/') !== -1 && method === 'PUT' && init && init.body) {
+                    if(window.ffDone && url && url.indexOf && url.indexOf('/track-playback/') !== -1 && method === 'PUT' && init && init.body && !window.__splRemoteActive()) {
                         try {
                             var pb = typeof init.body === 'string' ? JSON.parse(init.body) : init.body;
                             if(pb && pb.state_ref && pb.state_ref.paused === true && window.playing) {

@@ -47,7 +47,8 @@ object PlaybackControls {
                     playOptions.skip_to = { track_uri: uri };
                 }
 
-                (window.mngFetch || oriFetch)('https://gew4-spclient.spotify.com/connect-state/v1/player/command/from/' + window.spotDevId + '/to/' + window.spotDevId, {
+                var splTarget = (typeof window.__splRemoteActive === 'function' && window.__splRemoteActive() && window.__splActiveDevId) ? window.__splActiveDevId : window.spotDevId;
+                (window.mngFetch || oriFetch)('https://gew4-spclient.spotify.com/connect-state/v1/player/command/from/' + window.spotDevId + '/to/' + splTarget, {
                     method: 'POST',
                     headers: { 'Authorization': window.spotAuthToken, 'Client-Token': window.spotCliToken, 'Content-Type': 'application/json' },
                     body: JSON.stringify({

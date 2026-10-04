@@ -221,6 +221,8 @@
     <string name="offline_desc_play">Play</string>
     <string name="offline_desc_next">Next</string>
     <string name="offline_desc_close_player">Close player</string>
+    <string name="offline_desc_shuffle_enable">Enable shuffle</string>
+    <string name="offline_desc_shuffle_disable">Disable shuffle</string>
     <string name="offline_toast_could_not_delete_file">Could not delete file</string>
     <string name="offline_toast_could_not_delete_one_file">Could not delete 1 file</string>
     <string name="offline_toast_could_not_delete_files">Could not delete %1$d files</string>

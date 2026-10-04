@@ -75,6 +75,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -162,6 +163,9 @@ fun OfflineScreen(
     var positionMs by remember { mutableIntStateOf(0) }
     var durationMs by remember { mutableIntStateOf(0) }
     var scrubMs by remember { mutableIntStateOf(-1) }
+    var shuffleOn by remember { mutableStateOf(false) }
+    var shuffleOrder by remember { mutableStateOf<List<String>>(emptyList()) }
+    var shufflePos by remember { mutableIntStateOf(-1) }
 
     val mediaPlayer = remember { MediaPlayer() }
     var searchQuery by remember { mutableStateOf("") }
@@ -206,6 +210,7 @@ fun OfflineScreen(
                     putExtra("playing", isPlaying)
                     putExtra("position", positionMs.toLong())
                     putExtra("coverPath", song.coverFile?.absolutePath)
+                    putExtra("shuffle", shuffleOn)
                 }
             )
         }
@@ -213,6 +218,11 @@ fun OfflineScreen(
 
     fun play(index: Int) {
         playAt(mediaPlayer, context, songs, index, { currentIndex = it }, { playerSong = it }, { isPlaying = it }, { durationMs = it }, { positionMs = it })
+        if (shuffleOn) {
+            val key = songs.getOrNull(index)?.let { songKey(it) }
+            val pos = shuffleOrder.indexOf(key)
+            if (pos >= 0) shufflePos = pos
+        }
         syncService()
     }
 
@@ -229,8 +239,41 @@ fun OfflineScreen(
         syncService()
     }
 
+    fun ensureShuffleOrder() {
+        val keys = songs.map { songKey(it) }
+        if (shuffleOrder.size == keys.size && shuffleOrder.all { it in keys }) return
+        val currentKey = songs.getOrNull(currentIndex)?.let { songKey(it) }
+        shuffleOrder = buildList {
+            if (currentKey != null) add(currentKey)
+            addAll(keys.filter { it != currentKey }.shuffled())
+        }
+        shufflePos = if (currentKey != null) 0 else -1
+    }
+
+    fun toggleShuffle() {
+        shuffleOn = !shuffleOn
+        if (shuffleOn) {
+            shuffleOrder = emptyList()
+            shufflePos = -1
+            ensureShuffleOrder()
+        }
+    }
+
     fun step(delta: Int) {
         if (songs.isEmpty()) return
+        if (shuffleOn) {
+            ensureShuffleOrder()
+            val n = shuffleOrder.size
+            if (n > 0) {
+                val pos = if (shufflePos < 0) 0 else ((shufflePos + delta) % n + n) % n
+                val index = songs.indexOfFirst { songKey(it) == shuffleOrder[pos] }
+                if (index >= 0) {
+                    shufflePos = pos
+                    play(index)
+                    return
+                }
+            }
+        }
         val next = ((currentIndex + delta) % songs.size + songs.size) % songs.size
         play(next)
     }
@@ -315,6 +358,7 @@ fun OfflineScreen(
             }
 
             override fun onSeekTo(position: Long) = seekTo(position)
+            override fun onToggleShuffle() = toggleShuffle()
         }
         OfflineMediaService.controller = ctrl
         onDispose {
@@ -326,13 +370,24 @@ fun OfflineScreen(
 
     DisposableEffect(mediaPlayer) {
         mediaPlayer.setOnCompletionListener {
-            val index = currentIndex
-            if (index in 0 until songs.lastIndex) {
-                play(index + 1)
+            if (shuffleOn) {
+                ensureShuffleOrder()
+                if (shufflePos in 0 until shuffleOrder.size - 1) {
+                    step(1)
+                } else {
+                    isPlaying = false
+                    positionMs = 0
+                    OfflineMediaService.instance?.updatePlaying(false, 0)
+                }
             } else {
-                isPlaying = false
-                positionMs = 0
-                OfflineMediaService.instance?.updatePlaying(false, 0)
+                val index = currentIndex
+                if (index in 0 until songs.lastIndex) {
+                    play(index + 1)
+                } else {
+                    isPlaying = false
+                    positionMs = 0
+                    OfflineMediaService.instance?.updatePlaying(false, 0)
+                }
             }
         }
         onDispose { }
@@ -349,6 +404,10 @@ fun OfflineScreen(
             OfflineMediaService.instance?.updatePosition(positionMs.toLong())
             delay(500.milliseconds)
         }
+    }
+
+    LaunchedEffect(shuffleOn) {
+        OfflineMediaService.instance?.updateShuffle(shuffleOn)
     }
 
     SettingsDialog(
@@ -604,7 +663,9 @@ fun OfflineScreen(
                             onTogglePlay = { togglePlayPause() },
                             onPrev = { step(-1) },
                             onNext = { step(1) },
-                            onClose = { stopAndClear() }
+                            onClose = { stopAndClear() },
+                            shuffleOn = shuffleOn,
+                            onToggleShuffle = { toggleShuffle() }
                         )
                     }
                 }
@@ -843,6 +904,34 @@ private fun CompactIconButton(
         )
     }
 }
+
+@Composable
+private fun CompactIconButton(
+    painter: Painter,
+    contentDescription: String?,
+    tint: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    boxSize: Dp = 32.dp,
+    iconSize: Dp = 18.dp
+) {
+    Box(
+        modifier = modifier
+            .size(boxSize)
+            .clip(CircleShape)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            painter = painter,
+            contentDescription = contentDescription,
+            tint = tint,
+            modifier = Modifier.size(iconSize)
+        )
+    }
+}
+
+private fun songKey(song: OfflineSong): String = "${song.id}-${song.uri}"
 
 @Composable
 private fun OfflineSearchField(
@@ -1108,7 +1197,9 @@ private fun NowPlayingBar(
     onTogglePlay: () -> Unit,
     onPrev: () -> Unit,
     onNext: () -> Unit,
-    onClose: () -> Unit
+    onClose: () -> Unit,
+    shuffleOn: Boolean,
+    onToggleShuffle: () -> Unit
 ) {
     val scrubbing = scrubMs >= 0
     val shownPosition = if (scrubbing) scrubMs else positionMs
@@ -1142,6 +1233,14 @@ private fun NowPlayingBar(
                         overflow = TextOverflow.Ellipsis
                     )
                 }
+                CompactIconButton(
+                    painter = painterResource(if (shuffleOn) R.drawable.ic_shuffle_active else R.drawable.ic_shuffle),
+                    contentDescription = stringResource(if (shuffleOn) R.string.offline_desc_shuffle_disable else R.string.offline_desc_shuffle_enable),
+                    tint = if (shuffleOn) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    onClick = onToggleShuffle,
+                    boxSize = 30.dp,
+                    iconSize = 16.dp
+                )
                 CompactIconButton(
                     icon = TablerIcons.PlayerSkipBack,
                     contentDescription = stringResource(R.string.offline_desc_previous),

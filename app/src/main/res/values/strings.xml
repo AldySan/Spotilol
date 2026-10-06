@@ -80,6 +80,8 @@
     <string name="settings_lyrics_style_compact">Compact</string>
     <string name="settings_lyrics_style_karaoke">Karaoke</string>
     <string name="settings_lyrics_style_bold">Bold Large</string>
+    <string name="settings_spicylyrics">SpicyLyrics</string>
+    <string name="settings_spicylyrics_subtitle">Fill in lyrics Spotify is missing (SpicyLyrics API)</string>
     <string name="settings_take_control">Take Player Control</string>
     <string name="settings_take_control_subtitle">Auto accept the Take Control prompt</string>
     <string name="settings_android_auto">Android Auto Controls</string>

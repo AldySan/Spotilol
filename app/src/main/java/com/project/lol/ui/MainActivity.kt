@@ -102,9 +102,10 @@ import androidx.webkit.ProxyConfig
 import androidx.webkit.ProxyController
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
-import androidx.webkit.WebSettingsCompat
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.project.lol.R
+import com.project.lol.bridge.OriginScopedBridge
+import com.project.lol.security.WebSecurityPolicy
 import com.project.lol.bridge.SpotifyBridge
 import com.project.lol.offline.DownloadManager
 import com.project.lol.profile.ProfileManager
@@ -149,6 +150,20 @@ class MainActivity : ComponentActivity() {
     }
 
     private var webView: WebView? = null
+    private var pendingMediaSearch: String? = null
+
+    private fun captureMediaSearch(intent: Intent): Boolean {
+        if (intent.action != "android.media.action.MEDIA_PLAY_FROM_SEARCH") return false
+        pendingMediaSearch = intent.getStringExtra(android.app.SearchManager.QUERY).orEmpty().take(1024)
+        return true
+    }
+
+    private fun playPendingSearch(view: WebView) {
+        if (!WebSecurityPolicy.isPlayer(view.url)) return
+        val query = pendingMediaSearch ?: return
+        pendingMediaSearch = null
+        view.evaluateJavascript(com.project.lol.service.MediaSearch.playSearchScript(query), null)
+    }
     private var serviceStarted = false
     @Volatile private var pipCoverBitmap: Bitmap? = null
     @Volatile private var pipPlaying = false
@@ -240,6 +255,7 @@ class MainActivity : ComponentActivity() {
         applyOrientation()
         applyKeepScreenOn()
 
+        captureMediaSearch(intent)
         pendingLink = extractSpotifyLink(intent)
         if (pendingLink != null && !serviceEnabledState.value) {
             setServiceEnabled(true)
@@ -487,11 +503,12 @@ class MainActivity : ComponentActivity() {
                                         setInitialScale(100)
                                         setBackgroundColor(0xFF000000.toInt())
 
-                                        if (WebViewFeature.isFeatureSupported(WebViewFeature.BACK_FORWARD_CACHE)) {
-                                            WebSettingsCompat.setBackForwardCacheEnabled(settings, true)
+                                        if (!WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER) ||
+                                            !WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
+                                            webViewError.value = -1 to "Update Android System WebView to use the secure player bridge"
+                                            return@apply
                                         }
-
-                                        addJavascriptInterface(bridge, "AndBridge")
+                                        OriginScopedBridge.install(this, bridge)
                                         webChromeClient = SpotifyWebChromeClient(
                                             onProgressChanged = { progress ->
                                                 loadingProgress.intValue = progress
@@ -505,6 +522,7 @@ class MainActivity : ComponentActivity() {
                                         )
 
                                         val spotifyClient = SpotifyWebViewClient(
+                                            onPlayerReady = { playPendingSearch(it) },
                                             onLoginRequired = {
                                                 loadUrl("https://accounts.spotify.com/login")
                                             },
@@ -522,18 +540,23 @@ class MainActivity : ComponentActivity() {
                                         // Before the first loadUrl, so it applies to the first page.
                                         spotifyClient.installDocumentStartScripts(this)
 
-                                        val executor = Executors.newSingleThreadExecutor()
-                                        if (useProxy && LocalProxyManager.isRunning) {
-                                            val proxyConfig = ProxyConfig.Builder()
-                                                .addProxyRule("localhost:${LocalProxyManager.port}")
-                                                .build()
-                                            ProxyController.getInstance().setProxyOverride(
-                                                proxyConfig,
-                                                executor,
-                                                { }
-                                            )
-                                        } else {
-                                            ProxyController.getInstance().clearProxyOverride(executor, { })
+                                        if (WebViewFeature.isFeatureSupported(WebViewFeature.PROXY_OVERRIDE)) {
+                                            val executor = Executors.newSingleThreadExecutor()
+                                            if (useProxy && LocalProxyManager.isRunning) {
+                                                val proxyConfig = ProxyConfig.Builder()
+                                                    .addProxyRule("localhost:${LocalProxyManager.port}")
+                                                    .build()
+                                                ProxyController.getInstance().setProxyOverride(
+                                                    proxyConfig, executor, { executor.shutdown() }
+                                                )
+                                            } else {
+                                                ProxyController.getInstance().clearProxyOverride(
+                                                    executor, { executor.shutdown() }
+                                                )
+                                            }
+                                        } else if (useProxy) {
+                                            webViewError.value = -1 to "Update Android System WebView to use proxy mode"
+                                            return@apply
                                         }
 
                                         val target = pendingLink
@@ -660,9 +683,8 @@ class MainActivity : ComponentActivity() {
 
     private fun extractSpotifyLink(intent: Intent?): String? {
         val uri = intent?.data ?: return null
-        val host = uri.host ?: return null
-        val accepted = host == "spotify.link" || host.endsWith("spotify.com")
-        return if (accepted) uri.toString() else null
+        val url = uri.toString()
+        return url.takeIf(WebSecurityPolicy::isDeepLink)
     }
 
     private fun setServiceEnabled(newValue: Boolean) {
@@ -708,8 +730,11 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun saveProfile(name: String, cookies: String) {
-        Logger.i(TAG, "saving account profile: $name")
-        ProfileManager.saveProfile(this, name, cookies)
+        Logger.i(TAG, "saving account profile")
+        if (runCatching { ProfileManager.saveProfile(this, name, cookies) }.isFailure) {
+            Toast.makeText(this, "Could not save encrypted profile", Toast.LENGTH_LONG).show()
+            return
+        }
         Toast.makeText(this, getString(R.string.main_account_saved), Toast.LENGTH_SHORT).show()
     }
 
@@ -728,8 +753,11 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun deleteProfile(name: String) {
-        Logger.i(TAG, "deleting account profile: $name")
-        ProfileManager.deleteProfile(this, name)
+        Logger.i(TAG, "deleting account profile")
+        if (runCatching { ProfileManager.deleteProfile(this, name) }.isFailure) {
+            Toast.makeText(this, "Could not update encrypted profiles", Toast.LENGTH_LONG).show()
+            return
+        }
         Toast.makeText(this, getString(R.string.main_profile_deleted), Toast.LENGTH_SHORT).show()
     }
 
@@ -1330,8 +1358,9 @@ class MainActivity : ComponentActivity() {
         hidePipOverlay()
         webView?.let {
             it.stopLoading()
-            it.removeJavascriptInterface("AndBridge")
-            if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_VIEW_RENDERER_TERMINATE)) {
+            OriginScopedBridge.remove(it)
+            if (WebViewFeature.isFeatureSupported(WebViewFeature.GET_WEB_VIEW_RENDERER) &&
+                WebViewFeature.isFeatureSupported(WebViewFeature.WEB_VIEW_RENDERER_TERMINATE)) {
                 try {
                     WebViewCompat.getWebViewRenderProcess(it)?.terminate()
                 } catch (_: Exception) {}
@@ -1427,6 +1456,8 @@ class MainActivity : ComponentActivity() {
         val amoledEnabled = prefs.getBoolean("AmoledTheme", false)
 
         webView?.let { view ->
+            if (!WebSecurityPolicy.isPlayer(view.url)) return@let
+            val resumedUrl = view.url
             view.evaluateJavascript("""
                 try {
                     window.__splBg = false;
@@ -1450,6 +1481,7 @@ class MainActivity : ComponentActivity() {
             view.evaluateJavascript(js, null)
 
             view.evaluateJavascript(LogoutCheck.CONTENT) { result ->
+                if (view.url != resumedUrl || !WebSecurityPolicy.isPlayer(view.url)) return@evaluateJavascript
                 if (result == "\"out\"") {
                     prefs.edit().putBoolean("LoggedIn", false).apply()
                     view.loadUrl("https://accounts.spotify.com/login")
@@ -1460,6 +1492,16 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        if (captureMediaSearch(intent)) {
+            webView?.let { view ->
+                if (WebSecurityPolicy.isPlayer(view.url)) {
+                    view.evaluateJavascript("typeof window.searchMediaItems==='function'") { ready ->
+                        if (ready == "true") playPendingSearch(view)
+                    }
+                }
+            }
+            return
+        }
         val link = extractSpotifyLink(intent)
         Logger.i(TAG, "new intent received: link=${link ?: "none"}")
         if (link == null) {
@@ -1540,7 +1582,7 @@ class MainActivity : ComponentActivity() {
             it.stopLoading()
             it.clearHistory()
             it.clearFormData()
-            it.removeJavascriptInterface("AndBridge")
+            OriginScopedBridge.remove(it)
             (it.parent as? ViewGroup)?.removeView(it)
             it.removeAllViews()
             it.destroy()

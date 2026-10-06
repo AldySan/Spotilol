@@ -247,6 +247,7 @@ fun SettingsContent(
     var playlistSortEnabled by remember { mutableStateOf(prefs.getBoolean("PlaylistSortEnabled", true)) }
     var showScrollbar by remember { mutableStateOf(prefs.getBoolean("ShowScrollbar", true)) }
     var lyricsStyle by remember { mutableStateOf(prefs.getString("LyricsStyle", LyricsTheme.DEFAULT_STYLE) ?: LyricsTheme.DEFAULT_STYLE) }
+    var spicyLyricsEnabled by remember { mutableStateOf(prefs.getBoolean("SpicyLyrics", true)) }
     var telemetryEnabled by remember { mutableStateOf(prefs.getBoolean(Telemetry.KEY, false)) }
 
     val context = LocalContext.current
@@ -572,6 +573,19 @@ fun SettingsContent(
                         subtitle = lyricsStyleLabel,
                         icon = TablerIcons.Playlist,
                         onClick = { showLyricsStyleDialog = true }
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+
+                    SettingSwitchTile(
+                        title = stringResource(R.string.settings_spicylyrics),
+                        subtitle = stringResource(R.string.settings_spicylyrics_subtitle),
+                        icon = TablerIcons.WaveSine,
+                        checked = spicyLyricsEnabled,
+                        onCheckedChange = {
+                            spicyLyricsEnabled = it
+                            prefs.edit().putBoolean("SpicyLyrics", it).apply()
+                        }
                     )
 
                     HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))

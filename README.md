@@ -89,7 +89,7 @@ download the `.apk` and install it on your device. you may need to toggle **"Ins
 
 ## Requirements
 
-- Android 8.0+ (API 26)
+- Android 9.0+ (API 28)
 - a Spotify account (free or premium)
 - Google Chrome / WebView (comes with your phone)
 
@@ -107,7 +107,7 @@ want the full fingerprint treatment? flip the mode in **Settings → Connection 
 
 ### The Certificate Thing
 
-Spotilol generates a local CA cert so Spotify doesn't know you're in a WebView. it lives on your device, stays on your device.
+Spotilol generates a local CA cert to rewrite request headers; this does not guarantee that Spotify cannot detect the WebView. it lives on your device, stays on your device.
 
 1. open Spotilol in proxy mode — you'll see the **"Certificate Required"** screen
 2. tap **"Export .pem"** to save it to your Downloads

@@ -82,8 +82,8 @@ fun ChangelogDialog(onDismiss: () -> Unit) {
 
     val publishedLabel = release?.publishedAt?.let { iso ->
         runCatching {
-            val parsed = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).parse(iso)
-            SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(parsed)
+            val parsed = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }.parse(iso) ?: return@runCatching null
+            SimpleDateFormat("MMM d, yyyy", configuration.locales[0]).format(parsed)
         }.getOrNull()
     }
 

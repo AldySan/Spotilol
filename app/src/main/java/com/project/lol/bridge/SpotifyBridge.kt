@@ -15,6 +15,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.util.Locale
 import com.project.lol.offline.DownloadManager
+import com.project.lol.spicy.SpicyLyricsClient
 import com.project.lol.util.Logger
 
 class SpotifyBridge(activityRef: WeakReference<Activity>) {
@@ -319,6 +320,24 @@ class SpotifyBridge(activityRef: WeakReference<Activity>) {
             errorResult(e)
         } finally {
             try { conn?.disconnect() } catch (_: Exception) {}
+        }
+    }
+
+    @Suppress("unused")
+    @JavascriptInterface
+    fun spicyLyrics(trackId: String?, title: String?, artist: String?, duration: Int): String {
+        val id = trackId?.trim().orEmpty()
+        if (id.length != 22) return "null"
+        return try {
+            val payload = SpicyLyricsClient.fetch(id, title?.trim(), artist?.trim(), duration)
+            Logger.d(
+                TAG,
+                "spicyLyrics $id [${title ?: "-"}] dur=$duration -> ${if (payload == null) "miss" else "${payload.length} bytes"}"
+            )
+            payload ?: "null"
+        } catch (e: Exception) {
+            Logger.e(TAG, "spicyLyrics failed $id", e)
+            "null"
         }
     }
 }

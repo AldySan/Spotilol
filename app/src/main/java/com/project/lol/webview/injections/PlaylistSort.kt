@@ -1,25 +1,5 @@
 package com.project.lol.webview.injections
 
-/**
- * sort the rows of a playlist from the columns dropdown.
- *
- * spotify already ships a full sort engine but never wires it up for playlist
- * tracklists, so the headers are dead divs and the api ignores the sort variable
- * too. what does work is sorting the items as they come back from pathfinder,
- * then poking the query cache so the page refetches and the new order actually
- * lands on screen.
- *
- * the request is rewritten to pull the whole playlist in one go so the order is
- * global and not per page. the sorted list is kept in memory so the following
- * pages cost no extra round trip. huge playlists just get sorted per page.
- *
- * the sort lives in a sort by section added to the columns dropdown, which is
- * where people already look for column stuff. the rows are clones of spotify own
- * column rows, but the tick is swapped for a direction arrow, since a tick down
- * there just reads as one more column toggle and the section goes unnoticed.
- * tapping a row goes a to z, then z to a, then back to the original order, and
- * the arrow in the menu plus the one on the header show the direction at a glance.
- */
 object PlaylistSort {
     const val CONTENT = """
         (function(){
@@ -31,20 +11,23 @@ object PlaylistSort {
             var TTL = 30000;
             var STYLE_ID = 'spotilol-sort-style';
 
-            var state = null;
+            var map = {};
             try {
                 var raw = localStorage.getItem(LS_KEY);
-                if (raw) state = JSON.parse(raw);
-            } catch(e){ state = null; }
-            if (state && (!state.field || (state.order !== 'ASC' && state.order !== 'DESC'))) state = null;
+                if (raw) {
+                    var parsedStore = JSON.parse(raw);
+                    if (parsedStore && !parsedStore.field) map = parsedStore;
+                }
+            } catch(e){ map = {}; }
 
+            var state = null;
+            var stateUri = null;
             var held = {};
             var sortedHits = {};
             var qcCache = null;
             var menuTimer = null;
             var menuObserver = null;
 
-            // label shown in the dropdown, the column name comes from spotify own rows
             var SORT_FIELDS = [
                 ['TITLE_AND_ARTIST', '', 'Title'],
                 ['ALBUM', 'ALBUM', 'Album'],
@@ -54,7 +37,8 @@ object PlaylistSort {
             ];
 
             function enabled(){ return window.__splPlaylistSortEnabled !== false; }
-            function sortKey(){ return state ? state.field + ':' + state.order : ''; }
+            function keyOf(st){ return st ? st.field + ':' + st.order : ''; }
+            function sortKey(){ return keyOf(state); }
             function currentUri(){
                 var m = location.pathname.match(/^\/playlist\/([A-Za-z0-9]+)/);
                 if (m) return 'spotify:playlist:' + m[1];
@@ -63,14 +47,22 @@ object PlaylistSort {
                 return null;
             }
             function albumPage(){ return /^\/album\//.test(location.pathname); }
+            function stateFor(uri){
+                var s = uri ? map[uri] : null;
+                if (s && (!s.field || (s.order !== 'ASC' && s.order !== 'DESC'))) return null;
+                return s || null;
+            }
+            function syncState(){
+                var uri = currentUri();
+                if (uri === stateUri) return false;
+                stateUri = uri;
+                state = stateFor(uri);
+                return true;
+            }
             function save(){
-                try {
-                    if (state) localStorage.setItem(LS_KEY, JSON.stringify(state));
-                    else localStorage.removeItem(LS_KEY);
-                } catch(e){}
+                try { localStorage.setItem(LS_KEY, JSON.stringify(map)); } catch(e){}
             }
 
-            // what we sort by, straight from the pathfinder items
             function valueOf(item, field){
                 if (albumPage()) {
                     var t = item && item.track;
@@ -93,13 +85,12 @@ object PlaylistSort {
                 return null;
             }
 
-            function sortItems(items){
-                if (!state) return items;
-                var field = state.field;
-                var dir = state.order === 'DESC' ? -1 : 1;
+            function sortItems(items, st){
+                if (!st) return items;
+                var field = st.field;
+                var dir = st.order === 'DESC' ? -1 : 1;
                 return items.slice().sort(function(a, b){
                     var x = valueOf(a, field), y = valueOf(b, field);
-                    // rows with no value for this column go last
                     if (x === null && y === null) return 0;
                     if (x === null) return 1;
                     if (y === null) return -1;
@@ -110,7 +101,6 @@ object PlaylistSort {
                     return (x < y ? -1 : 1) * dir;
                 });
             }
-            // helpers to read and rebuild the response
             function readItems(j){
                 try { return j.data.playlistV2.content.items || null; } catch(e){}
                 try { return j.data.albumUnion.tracksV2.items || null; } catch(e){}
@@ -148,7 +138,6 @@ object PlaylistSort {
                 return new Response(JSON.stringify(out), { status: 200, statusText: 'OK', headers: headers });
             }
 
-            // react query access, only used to trigger a refetch
             function findQueryClient(){
                 if (qcCache) return qcCache;
                 var el = document.querySelector('[data-testid="playlist-tracklist"]') || document.body;
@@ -179,23 +168,15 @@ object PlaylistSort {
                 return null;
             }
 
-            // refetch the current playlist so the sort actually lands. a playlist
-            // that is already cached is never fetched again by browsing around, so
-            // we poke its queries ourselves.
             function apply(){
                 var uri = currentUri();
                 if (!uri) return false;
-                // an album resolves its rows by index and drops back to album order on any
-                // update, so refetching here would undo the sort. its order comes with the
-                // payload at mount instead
                 if (albumPage()) return false;
-                // a playlist we already fed sorted rows has to be refetched even when the
-                // sort just got turned off, otherwise the list keeps the order from the
-                // cache and it looks sorted while the menu says the sort is off
-                var wasSorted = !!held[uri] || !!state;
+                var st = stateFor(uri);
+                var wasSorted = !!held[uri] || !!st;
                 held[uri] = null;
                 if (!enabled() || !wasSorted) return false;
-                if (state && !fieldSupported(state.field)) return false;
+                if (st && !fieldSupported(st.field)) return false;
                 var qc = findQueryClient();
                 if (!qc || typeof qc.getQueryCache !== 'function') return false;
                 var all = [];
@@ -211,7 +192,6 @@ object PlaylistSort {
                 }
                 return hit;
             }
-            // column headers, which ones sort and the little arrow
             function injectStyle(){
                 if (document.getElementById(STYLE_ID)) return;
                 var s = document.createElement('style');
@@ -220,8 +200,6 @@ object PlaylistSort {
                     '[role="columnheader"][data-spl-sort]{-webkit-user-select:none;user-select:none}' +
                     '[role="columnheader"][data-spl-sort="ASC"]::after{content:"\\25B2";font-size:8px;margin-left:4px;opacity:.9}' +
                     '[role="columnheader"][data-spl-sort="DESC"]::after{content:"\\25BC";font-size:8px;margin-left:4px;opacity:.9}' +
-                    // the sort section has to read as its own group, spotify gives the
-                    // heading the same look as any other section so we add the rule
                     '[data-spl-opt="head"]{border-top:1px solid rgba(255,255,255,.12)}' +
                     '.spl-sort-arrow{display:flex;align-items:center;justify-content:center;width:16px;height:16px;font-size:9px;line-height:1;color:var(--text-bright-accent,#1ed760)}';
                 (document.head || document.documentElement).appendChild(s);
@@ -249,6 +227,7 @@ object PlaylistSort {
 
             function decorate(){
                 try {
+                    syncState();
                     injectStyle();
                     var cells = document.querySelectorAll('[role="columnheader"]');
                     var uri = currentUri();
@@ -272,15 +251,12 @@ object PlaylistSort {
                 } catch(e){}
             }
 
-            // the columns dropdown, only ours to touch when it really is the columns
-            // one. keyed off data column so a locale change cannot break the match
             function columnsMenu(){
                 var menu = document.getElementById('context-menu');
                 if (!menu || !menu.children || !menu.children.length) return null;
                 if (!menu.querySelector('button[role="menuitemcheckbox"][data-column]')) return null;
                 return menu.querySelector('ul[role="menu"]');
             }
-            // the section heading in the menu has no button inside it
             function sectionTemplate(ul){
                 for (var i = 0; i < ul.children.length; i++) {
                     var li = ul.children[i];
@@ -292,8 +268,6 @@ object PlaylistSort {
                 var b = ul.querySelector('button[role="menuitemcheckbox"][data-column]');
                 return (b && b.closest('li')) ? b.closest('li').cloneNode(true) : null;
             }
-            // the tick spotify draws is what makes a row read as a column toggle, so
-            // sort rows swap it for a direction arrow. the slot is kept so rows align
             function arrowFor(li, active){
                 var mark = li.querySelector('.spl-sort-arrow');
                 if (!mark) return;
@@ -310,7 +284,6 @@ object PlaylistSort {
                 }
                 arrowFor(li, active);
             }
-            // reuse spotify own wording so the row matches the rest of the menu
             function columnLabel(ul, col, fallback){
                 if (!col) return fallback;
                 var b = ul.querySelector('button[role="menuitemcheckbox"][data-column="' + col + '"]');
@@ -327,10 +300,7 @@ object PlaylistSort {
                 }
                 return null;
             }
-            // date added is only real on the playlists that carry it. editorial ones
-            // ship a dummy 1970 stamp and hide the column, so the row would sort nothing
             function fieldSupported(field){
-                // an album has no date added, and album/release date are the same for every row
                 if (albumPage()) return field === 'TITLE_AND_ARTIST' || field === 'DURATION';
                 if (field !== 'ADDED_AT') return true;
                 var ul = columnsMenu();
@@ -376,8 +346,6 @@ object PlaylistSort {
                         btn.setAttribute('role', 'menuitemradio');
                         btn.setAttribute('aria-label', label);
                         btn.removeAttribute('data-column');
-                        // the native tick would read as one more column toggle, so it
-                        // gets swapped for a direction arrow in the same slot
                         var cb = btn.querySelector('[data-encore-id="formCheckbox"]');
                         if (cb && cb.parentNode) {
                             var mark = document.createElement('span');
@@ -394,8 +362,6 @@ object PlaylistSort {
                     ul.setAttribute('data-spl-menu', stamp);
                 } catch(e){}
             }
-            // the menu is built by react on every open, so watch for it to show up.
-            // the check is one getElementById so a busy page costs nothing
             function scheduleMenu(){
                 if (menuTimer) return;
                 menuTimer = setTimeout(function(){ menuTimer = null; injectMenu(); }, 80);
@@ -423,20 +389,23 @@ object PlaylistSort {
             function afterSortChange(){
                 decorate();
                 if (!albumPage()) { apply(); return; }
-                // an album reads its rows once at mount, so a new order only lands on a fresh
-                // load. the counter caps it per chosen sort so it cannot reload in a loop
                 albumReload();
             }
-            // public api
             function setSort(field, order){
+                var uri = currentUri();
                 if (!field) { clearSort(); return; }
-                state = { field: field, order: order === 'DESC' ? 'DESC' : 'ASC' };
+                if (!uri) return;
+                map[uri] = { field: field, order: order === 'DESC' ? 'DESC' : 'ASC' };
                 save();
+                state = map[uri];
+                stateUri = uri;
                 afterSortChange();
             }
             function clearSort(){
+                var uri = currentUri();
+                if (uri && map[uri]) { delete map[uri]; save(); }
                 state = null;
-                save();
+                stateUri = uri;
                 afterSortChange();
             }
             function toggleField(field){
@@ -448,6 +417,11 @@ object PlaylistSort {
             function refresh(){
                 afterSortChange();
             }
+            function tick(){
+                var changed = syncState();
+                decorate();
+                if (changed && state && !albumPage()) apply();
+            }
 
             window.splPlaylistSort = {
                 get: function(){ return state ? { field: state.field, order: state.order } : null; },
@@ -457,14 +431,11 @@ object PlaylistSort {
                 refresh: refresh
             };
 
-            // fetch interceptor
             var prevFetch = window.fetch.bind(window);
             window.fetch = function(input, init){
                 try {
                     var url = typeof input === 'string' ? input : (input && input.url) || '';
-                    if (!enabled() || !state || !fieldSupported(state.field)
-                        || url.indexOf('api-partner.spotify.com/pathfinder') === -1
-                        || !init || !init.body) {
+                    if (url.indexOf('api-partner.spotify.com/pathfinder') === -1 || !init || !init.body) {
                         return prevFetch(input, init);
                     }
                     var body = init.body;
@@ -478,15 +449,15 @@ object PlaylistSort {
                     var uri = vars.uri;
                     var want = playlistOp ? 'spotify:playlist:' : 'spotify:album:';
                     if (!uri || String(uri).indexOf(want) !== 0) return prevFetch(input, init);
+                    var st = stateFor(uri);
+                    if (!enabled() || !st || !fieldSupported(st.field)) return prevFetch(input, init);
 
                     var offset = vars.offset | 0;
                     var limit = (vars.limit | 0) || 50;
-                    var key = sortKey();
+                    var key = keyOf(st);
                     var hit = held[uri];
                     if (!hit || hit.key !== key || (Date.now() - hit.ts) >= TTL) hit = null;
 
-                    // a page we already sorted, serve it from memory with no round trip.
-                    // holding the whole playlist means a page past its end is just empty
                     if (hit && (offset < hit.items.length || hit.total <= hit.items.length)) {
                         return Promise.resolve(rebuild(hit.envelope, hit.items.slice(offset, offset + limit)));
                     }
@@ -500,7 +471,7 @@ object PlaylistSort {
                             return resp.clone().json().then(function(j){
                                 var items = readItems(j);
                                 if (!items || !items.length) return resp;
-                                var sorted = sortItems(items);
+                                var sorted = sortItems(items, st);
                                 held[uri] = {
                                     items: sorted,
                                     envelope: j,
@@ -514,13 +485,11 @@ object PlaylistSort {
                         });
                     }
 
-                    // a range past the list we hold, so the playlist is bigger than our
-                    // max limit. fetch that page and sort it on its own
                     return prevFetch(input, init).then(function(resp){
                         return resp.clone().json().then(function(j){
                             var items = readItems(j);
                             if (!items || !items.length) return resp;
-                            return rebuild(j, sortItems(items));
+                            return rebuild(j, sortItems(items, st));
                         }).catch(function(){ return resp; });
                     });
                 } catch(e) {
@@ -528,9 +497,6 @@ object PlaylistSort {
                 }
             };
 
-            // picking a row from the sort by section.
-            // the menu is left open on purpose so the tick and the direction update
-            // in front of you, then a tap outside closes it like any other menu
             document.addEventListener('click', function(ev){
                 try {
                     var target = ev.target;
@@ -545,14 +511,11 @@ object PlaylistSort {
 
             observeMenu();
             injectStyle();
+            syncState();
             decorate();
-            setInterval(decorate, 1000);
-            // apply once the player has mounted so a saved choice survives reloads and
-            // also covers playlists served straight from the query cache
+            setInterval(tick, 1000);
             if (state) {
                 if (albumPage()) {
-                    // a load where the app asked for the album before this script was in place
-                    // leaves the rows in album order with no refetch to fix it, so heal once
                     setTimeout(function(){
                         if (sortedHits[currentUri() + '|' + sortKey()]) return;
                         albumReload();

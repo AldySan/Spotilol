@@ -171,10 +171,20 @@ class SplashActivity : ComponentActivity() {
                 if (checkTrigger == 0) return@LaunchedEffect
                 withContext(Dispatchers.IO) {
                     if (prefs.getString("ConnectionMode", "normal") == "proxy") {
-                        LocalProxyManager.init(this@SplashActivity)
-                        LocalProxyManager.start()
-                        awaitProxyBound()
-                        certInstalled = LocalProxyManager.isCAInstalled()
+                        try {
+                            LocalProxyManager.init(this@SplashActivity)
+                            LocalProxyManager.start()
+                            awaitProxyBound()
+                            certInstalled = LocalProxyManager.isCAInstalled()
+                        } catch (e: Exception) {
+                            LocalProxyManager.stop()
+                            prefs.edit().putString("ConnectionMode", "normal").commit()
+                            certInstalled = true
+                            runOnUiThread {
+                                android.widget.Toast.makeText(this@SplashActivity,
+                                    "Secure proxy initialization failed; using normal mode", android.widget.Toast.LENGTH_LONG).show()
+                            }
+                        }
                     } else {
                         LocalProxyManager.stop()
                         certInstalled = true

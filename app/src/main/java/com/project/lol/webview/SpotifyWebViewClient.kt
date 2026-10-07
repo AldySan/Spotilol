@@ -413,6 +413,7 @@ class SpotifyWebViewClient(
             if (playerMode == "spotilol") {
                 append(SpotilolPlayer.CONTENT)
                 append(VideoFullscreen.CONTENT)
+                append(LyricsPip.CONTENT)
             }
         }
         val cleanJs = JsUtils.stripConsoleLogs(js) + "\n" +

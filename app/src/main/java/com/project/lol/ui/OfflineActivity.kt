@@ -1,9 +1,15 @@
 package com.project.lol.ui
 
+import android.app.PendingIntent
+import android.app.PictureInPictureParams
+import android.app.RemoteAction
 import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.ActivityInfo
+import android.content.res.Configuration
+import android.graphics.drawable.Icon
 import android.os.Bundle
+import android.util.Rational
 import android.view.WindowManager
 import android.webkit.CookieManager
 import android.webkit.WebStorage
@@ -17,6 +23,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.core.view.WindowCompat
 import com.project.lol.R
 import com.project.lol.profile.ProfileManager
+import com.project.lol.service.OfflineMediaService
 import com.project.lol.ui.screens.OfflineScreen
 import com.project.lol.ui.theme.SpotifyTheme
 
@@ -30,6 +37,9 @@ class OfflineActivity : ComponentActivity() {
     private val landscapeState = mutableStateOf(false)
     private val keepScreenOnState = mutableStateOf(false)
     private val paletteSeedState = mutableStateOf<String?>(null)
+    private val pipActiveState = mutableStateOf(false)
+
+    private var pipPlaying = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -124,6 +134,12 @@ class OfflineActivity : ComponentActivity() {
                     },
                     onClearCache = { clearWebViewCache() },
                     onClearData = { clearAllData() },
+                    pipActive = pipActiveState.value,
+                    onEnterPip = { enterPipMode() },
+                    onPlaybackStateChange = { playing ->
+                        pipPlaying = playing
+                        updatePipParams()
+                    },
                     onExit = { exitOfflineMode() }
                 )
             }
@@ -144,6 +160,63 @@ class OfflineActivity : ComponentActivity() {
         } else {
             window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }
+    }
+
+    override fun onPictureInPictureModeChanged(
+        isInPictureInPictureMode: Boolean,
+        newConfig: Configuration
+    ) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        pipActiveState.value = isInPictureInPictureMode
+        updatePipParams()
+    }
+
+    private fun enterPipMode() {
+        if (isInPictureInPictureMode) return
+        runCatching { enterPictureInPictureMode(buildPipParams()) }
+    }
+
+    private fun updatePipParams() {
+        if (!isInPictureInPictureMode) return
+        runCatching { setPictureInPictureParams(buildPipParams()) }
+    }
+
+    private fun buildPipParams(): PictureInPictureParams =
+        PictureInPictureParams.Builder()
+            .setAspectRatio(Rational(1, 1))
+            .setActions(buildPipActions())
+            .build()
+
+    private fun buildPipActions(): List<RemoteAction> {
+        val previous = RemoteAction(
+            Icon.createWithResource(this, R.drawable.ic_skip_prev),
+            getString(R.string.offline_desc_previous),
+            getString(R.string.offline_desc_previous),
+            pipActionIntent(OfflineMediaService.ACTION_PREV)
+        )
+        val playPause = RemoteAction(
+            Icon.createWithResource(this, if (pipPlaying) R.drawable.ic_pause else R.drawable.ic_play),
+            getString(if (pipPlaying) R.string.offline_desc_pause else R.string.offline_desc_play),
+            getString(if (pipPlaying) R.string.offline_desc_pause else R.string.offline_desc_play),
+            pipActionIntent(OfflineMediaService.ACTION_PLAY_PAUSE)
+        )
+        val next = RemoteAction(
+            Icon.createWithResource(this, R.drawable.ic_skip_next),
+            getString(R.string.offline_desc_next),
+            getString(R.string.offline_desc_next),
+            pipActionIntent(OfflineMediaService.ACTION_NEXT)
+        )
+        return listOf(previous, playPause, next)
+    }
+
+    private fun pipActionIntent(action: String): PendingIntent {
+        val intent = Intent(action).setPackage(packageName)
+        return PendingIntent.getBroadcast(
+            this,
+            action.hashCode(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
     }
 
     private fun clearWebViewCache() {

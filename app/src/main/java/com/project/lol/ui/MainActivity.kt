@@ -613,7 +613,7 @@ class MainActivity : ComponentActivity() {
                                 animationSpec = tween(durationMillis = 600, delayMillis = 200),
                                 label = "progressAlpha"
                             )
-                            if (progressAlpha > 0.001f) {
+                            if (progressAlpha > 0.001f && !pipFilling) {
                                 LinearProgressIndicator(
                                     progress = { loadProgress / 100f },
                                     modifier = Modifier
@@ -678,7 +678,7 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        if (hideTopBar) {
+                        if (hideTopBar && !pipFilling) {
                             QuickAccessOverlay(
                                 showMenu = showMiniMenu,
                                 onToggleMenu = { showMiniMenu = !showMiniMenu },

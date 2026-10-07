@@ -648,7 +648,7 @@ object SearchOverlay {
                     if(mo && moTarget === navBar) return;
                     if(mo) mo.disconnect();
                     mo = new MutationObserver(function(){
-                        if(window.__splBg) return;
+                        if(window.__splBg||window.__splBusy) return;
                         var icon = document.querySelector('#global-nav-bar button[data-testid="search-icon"]');
                         if(icon && !icon._splSearch) bindSearchIcon();
                     });
@@ -663,7 +663,7 @@ object SearchOverlay {
                 watchBody();
                 if(!navBar) document.addEventListener('DOMContentLoaded', watchBody, { once: true });
                 var int = setInterval(function(){
-                    if(window.__splBg) return;
+                    if(window.__splBg||window.__splBusy) return;
                     if(navBar && !navBar.isConnected) startMo();
                     bindSearchIcon();
                 }, 2000);

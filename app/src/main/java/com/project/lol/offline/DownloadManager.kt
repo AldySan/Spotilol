@@ -19,7 +19,9 @@ import com.project.lol.offline.audio.Tags
 import com.project.lol.yt.AudioQuality
 import com.project.lol.yt.CandidateScorer
 import com.project.lol.yt.CandidateScorer.isAcceptableMatch
+import com.project.lol.yt.WebViewHealth
 import com.project.lol.yt.YTPlayerUtils
+import com.project.lol.yt.cipher.CipherDeobfuscator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -76,6 +78,11 @@ private data class ResolvedStream(
     val url: String,
     val chosen: SongItem,
 )
+
+private sealed class ResolveOutcome {
+    data class Success(val stream: ResolvedStream) : ResolveOutcome()
+    data class Failure(val reason: String) : ResolveOutcome()
+}
 
 private data class FinalAudio(
     val file: File,
@@ -587,13 +594,16 @@ object DownloadManager {
         if (signal != null) return TrackResult.Aborted
 
         val format = DownloadPrefs.format(context)
-        val resolved = resolveStream(
+        val resolved = when (val outcome = resolveStream(
             context, trackId, title, artist, album,
             preferredMimeType = if (format == DownloadFormat.M4A) "audio/mp4" else null,
-        ) ?: run {
-            Logger.w(TAG, "downloadToFile: no stream source for $trackId")
-            lastDownloadError = "Download source not available yet"
-            return TrackResult.Failed(title, artist, album)
+        )) {
+            is ResolveOutcome.Success -> outcome.stream
+            is ResolveOutcome.Failure -> {
+                Logger.w(TAG, "downloadToFile: no stream source for $trackId: ${outcome.reason}")
+                lastDownloadError = outcome.reason
+                return TrackResult.Failed(title, artist, album)
+            }
         }
         // Resolution takes a few seconds and is not interruptible - catch
         // aborts requested during it here instead of downloading anyway.
@@ -749,7 +759,7 @@ object DownloadManager {
         artist: String,
         album: String,
         preferredMimeType: String? = null,
-    ): ResolvedStream? {
+    ): ResolveOutcome {
         val searchText = buildString {
             append(title)
             if (artist.isNotBlank()) append(" $artist")
@@ -759,15 +769,19 @@ object DownloadManager {
             YouTube.search(searchText, YouTube.SearchFilter.FILTER_SONG).getOrNull()
         }.onFailure { Logger.e(TAG, "resolveStream: search failed: ${it.message}", it) }
             .getOrNull()
-        if (searchResult == null || searchResult.items.isEmpty()) {
+        if (searchResult == null) {
+            Logger.w(TAG, "resolveStream: search failed for '$searchText'")
+            return ResolveOutcome.Failure("Search failed on YouTube Music")
+        }
+        if (searchResult.items.isEmpty()) {
             Logger.w(TAG, "resolveStream: no results for '$searchText'")
-            return null
+            return ResolveOutcome.Failure("No results on YouTube Music")
         }
 
         val songItems = searchResult.items.filterIsInstance<SongItem>()
         if (songItems.isEmpty()) {
             Logger.w(TAG, "resolveStream: no song items for '$searchText'")
-            return null
+            return ResolveOutcome.Failure("No song results on YouTube Music")
         }
 
         val metadata = CandidateScorer.TrackMatchMetadata(
@@ -782,32 +796,32 @@ object DownloadManager {
 
         val chosen = scored.firstOrNull()?.item ?: run {
             Logger.w(TAG, "resolveStream: no acceptable match for '$searchText'")
-            return null
+            return ResolveOutcome.Failure("No matching track on YouTube Music")
         }
 
         val connectivityManager =
             context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        val playback = runCatching {
-            YTPlayerUtils.playerResponseForPlayback(
-                videoId = chosen.id,
-                playlistId = null,
-                audioQuality = AudioQuality.HIGH,
-                connectivityManager = connectivityManager,
-                skipValidation = true,
-                preferredMimeType = preferredMimeType,
-            ).getOrNull()
-        }.onFailure { Logger.e(TAG, "resolveStream: playback resolve failed: ${it.message}", it) }
-            .getOrNull()
+        val playbackResult = YTPlayerUtils.playerResponseForPlayback(
+            videoId = chosen.id,
+            playlistId = null,
+            audioQuality = AudioQuality.HIGH,
+            connectivityManager = connectivityManager,
+            skipValidation = true,
+            preferredMimeType = preferredMimeType,
+        ).onFailure { Logger.e(TAG, "resolveStream: playback resolve failed: ${it.message}", it) }
 
-        val data = playback ?: run {
-            Logger.w(TAG, "resolveStream: no playback data for ${chosen.id}")
-            return null
+        val data = playbackResult.getOrNull() ?: run {
+            val detail = playbackResult.exceptionOrNull()?.message?.takeIf { it.isNotBlank() } ?: "unknown error"
+            val webViewIssue = WebViewHealth.failureReason(CipherDeobfuscator.contextOrNull)
+            val reason = if (webViewIssue != null) "Stream unavailable: $detail ($webViewIssue)" else "Stream unavailable: $detail"
+            Logger.w(TAG, "resolveStream: no playback data for ${chosen.id}: $reason")
+            return ResolveOutcome.Failure(reason)
         }
 
         val streamUrl = data.streamUrl
         if (streamUrl.isBlank()) {
             Logger.w(TAG, "resolveStream: empty stream url for ${chosen.id}")
-            return null
+            return ResolveOutcome.Failure("Empty stream url from YouTube")
         }
 
         val mimeType = data.format.mimeType.substringBefore(';').trim()
@@ -816,7 +830,7 @@ object DownloadManager {
             mimeType.startsWith("audio/webm") -> "webm"
             else -> "m4a"
         }
-        return ResolvedStream(container, mimeType, streamUrl, chosen)
+        return ResolveOutcome.Success(ResolvedStream(container, mimeType, streamUrl, chosen))
     }
 
     @Volatile

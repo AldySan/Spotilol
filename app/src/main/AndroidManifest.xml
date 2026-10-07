@@ -92,6 +92,7 @@
             android:exported="false"
             android:launchMode="singleTop"
             android:screenOrientation="fullSensor"
+            android:supportsPictureInPicture="true"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
             android:theme="@style/Theme.Spotilol" />
 

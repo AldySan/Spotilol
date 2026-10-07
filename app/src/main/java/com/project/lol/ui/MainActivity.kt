@@ -178,6 +178,7 @@ class MainActivity : ComponentActivity() {
     private var pipVideoCallback: android.webkit.WebChromeClient.CustomViewCallback? = null
     private var pipVideoAspect: Rational? = null
     private var pipVideoRequested = false
+    private var pipLyricsRequested = false
     private val pipVideoActive = mutableStateOf(false)
 
     private val serviceEnabledState = mutableStateOf(true)
@@ -467,6 +468,10 @@ class MainActivity : ComponentActivity() {
 
                             bridge.onExitVideoFullscreen = {
                                 exitVideoFullscreenMode()
+                            }
+
+                            bridge.onEnterLyricsPipRequest = {
+                                enterPipLyricsMode()
                             }
 
                             bridge.onMediaStatus = { json ->
@@ -1106,7 +1111,9 @@ class MainActivity : ComponentActivity() {
         if (!ok) {
             hidePipOverlay()
             pipVideoActive.value = false
+            pipLyricsRequested = false
             if (video) setPipFillVideo(false)
+            setPipFillLyrics(false)
         }
     }
 
@@ -1121,6 +1128,21 @@ class MainActivity : ComponentActivity() {
         wv.post {
             wv.evaluateJavascript(
                 "window.__splPipFillVideo&&window.__splPipFillVideo(true)"
+            ) { enterPipMode(video = true) }
+        }
+    }
+
+    private fun enterPipLyricsMode() {
+        pipLyricsRequested = true
+        pipVideoAspect = Rational(9, 16)
+        val wv = webView
+        if (wv == null) {
+            enterPipMode(video = true)
+            return
+        }
+        wv.post {
+            wv.evaluateJavascript(
+                "window.__splPipFillLyrics&&window.__splPipFillLyrics(true)"
             ) { enterPipMode(video = true) }
         }
     }
@@ -1158,6 +1180,13 @@ class MainActivity : ComponentActivity() {
         )
     }
 
+    private fun setPipFillLyrics(on: Boolean) {
+        webView?.evaluateJavascript(
+            "window.__splPipFillLyrics&&window.__splPipFillLyrics($on)",
+            null
+        )
+    }
+
     private fun fallbackPipToCover() {
         if (!isInPictureInPictureMode) return
         pipVideoAspect = Rational(1, 1)
@@ -1181,8 +1210,10 @@ class MainActivity : ComponentActivity() {
             pipVideoView = null
             pipVideoAspect = null
             pipVideoRequested = false
+            pipLyricsRequested = false
             pipVideoActive.value = false
             setPipFillVideo(false)
+            setPipFillLyrics(false)
             pipVideoCallback?.onCustomViewHidden()
             pipVideoCallback = null
         }
@@ -1373,6 +1404,7 @@ class MainActivity : ComponentActivity() {
         pipVideoView = null
         pipVideoCallback = null
         pipVideoActive.value = false
+        pipLyricsRequested = false
         hidePipOverlay()
         webView?.let {
             it.stopLoading()
@@ -1424,7 +1456,7 @@ class MainActivity : ComponentActivity() {
         super.onConfigurationChanged(newConfig)
         Logger.d(TAG, "config changed: orientation=${newConfig.orientation} pip=$isInPictureInPictureMode")
         if (isInPictureInPictureMode && pipVideoRequested) {
-            setPipFillVideo(true)
+            if (pipLyricsRequested) setPipFillLyrics(true) else setPipFillVideo(true)
             updatePipParams()
         }
     }
@@ -1614,6 +1646,7 @@ class MainActivity : ComponentActivity() {
         pipVideoView = null
         pipVideoCallback = null
         pipVideoActive.value = false
+        pipLyricsRequested = false
         hidePipOverlay()
         webView?.let {
             it.stopLoading()

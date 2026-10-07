@@ -45,6 +45,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -284,6 +285,7 @@ class MainActivity : ComponentActivity() {
             val loadProgress = loadingProgress.intValue
             val blockServiceWorker = blockServiceWorkerState.value
             val pipFilling = pipVideoActive.value
+            val videoFullscreen = videoFullscreenState.value
 
             var settingsDialogOpen by remember { mutableStateOf(false) }
             var showMiniMenu by remember { mutableStateOf(false) }
@@ -381,7 +383,7 @@ class MainActivity : ComponentActivity() {
                 ) {
                     Scaffold(
                         topBar = {
-                            if (!hideTopBar && !pipFilling) {
+                            if (!hideTopBar && !pipFilling && !videoFullscreen) {
                                 CenterAlignedTopAppBar(
                                 title = {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -437,7 +439,7 @@ class MainActivity : ComponentActivity() {
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .padding(innerPadding)
+                                .padding(if (videoFullscreen) PaddingValues(0.dp) else innerPadding)
                         ) {
                             if (serviceEnabled) {
                             val bridge = remember {

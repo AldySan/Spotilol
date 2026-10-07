@@ -1,6 +1,7 @@
 package com.project.lol.yt.potoken
 
 import android.webkit.CookieManager
+import com.project.lol.yt.WebViewHealth
 import com.project.lol.yt.cipher.CipherDeobfuscator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
@@ -29,6 +30,10 @@ class PoTokenGenerator {
 
     fun getWebClientPoToken(videoId: String, sessionId: String): PoTokenResult? {
         if (!webViewSupported || webViewBadImpl) {
+            return null
+        }
+        if (!WebViewHealth.isUsable(CipherDeobfuscator.contextOrNull)) {
+            Logger.e(TAG, "poToken skipped: ${WebViewHealth.failureReason(CipherDeobfuscator.contextOrNull)}")
             return null
         }
 

@@ -5,12 +5,15 @@ import android.net.Uri
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.project.lol.util.Logger
+import com.project.lol.yt.WebViewHealth
 
 object CipherDeobfuscator {
     private const val TAG = "Metrolist_CipherDeobfusc"
 
     lateinit var appContext: Context
         private set
+
+    val contextOrNull: Context? get() = if (this::appContext.isInitialized) appContext else null
 
     fun initialize(context: Context) {
         appContext = context.applicationContext
@@ -100,6 +103,10 @@ object CipherDeobfuscator {
     }
 
     private suspend fun getOrCreateWebView(forceRefresh: Boolean): CipherWebView? {
+        if (!WebViewHealth.isUsable(contextOrNull)) {
+            Logger.e(TAG, "WebView unavailable: ${WebViewHealth.failureReason(contextOrNull)}")
+            return null
+        }
         if (!forceRefresh && cipherWebView != null) {
             return cipherWebView
         }

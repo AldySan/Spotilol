@@ -30,7 +30,7 @@ object CssHack {
             window.addCSSJSHack=function(){
                 if(cssint) clearInterval(cssint);
                 cssint=setInterval(function(){
-                    if(window.__splBg) return;
+                    if(window.__splBg||window.__splBusy) return;
                     var lb=document.querySelector('#Desktop_LeftSidebar_Id header>div>div:first-child button:not(.fuckd)');
                     if(lb){
                         window.lBtn=lb;lb.classList.add('fuckd','lbtn');lb.style.padding=0;lb.style.height='20px';

@@ -225,6 +225,10 @@
     <string name="offline_desc_close_player">Close player</string>
     <string name="offline_desc_shuffle_enable">Enable shuffle</string>
     <string name="offline_desc_shuffle_disable">Disable shuffle</string>
+    <string name="offline_now_playing">Now playing</string>
+    <string name="offline_desc_collapse_player">Collapse player</string>
+    <string name="offline_desc_enter_pip">Picture in picture</string>
+    <string name="offline_desc_volume">Volume</string>
     <string name="offline_toast_could_not_delete_file">Could not delete file</string>
     <string name="offline_toast_could_not_delete_one_file">Could not delete 1 file</string>
     <string name="offline_toast_could_not_delete_files">Could not delete %1$d files</string>

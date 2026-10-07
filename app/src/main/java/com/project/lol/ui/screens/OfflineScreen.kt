@@ -1,9 +1,11 @@
 package com.project.lol.ui.screens
 
+import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.media.AudioManager
 import android.media.MediaMetadataRetriever
 import android.media.MediaPlayer
 import android.widget.Toast
@@ -22,6 +24,7 @@ import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -58,6 +61,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -102,10 +106,12 @@ import com.project.lol.service.OfflineMediaService
 import com.project.lol.ui.components.SettingsDialog
 import com.project.lol.util.BuildInfo
 import compose.icons.TablerIcons
+import compose.icons.tablericons.ChevronDown
 import compose.icons.tablericons.CloudOff
 import compose.icons.tablericons.Logout
 import compose.icons.tablericons.Menu2
 import compose.icons.tablericons.Music
+import compose.icons.tablericons.PictureInPicture
 import compose.icons.tablericons.PlayerPause
 import compose.icons.tablericons.PlayerPlay
 import compose.icons.tablericons.PlayerSkipBack
@@ -113,7 +119,11 @@ import compose.icons.tablericons.PlayerSkipForward
 import compose.icons.tablericons.Search
 import compose.icons.tablericons.Settings
 import compose.icons.tablericons.Trash
+import compose.icons.tablericons.Volume
+import compose.icons.tablericons.Volume2
+import compose.icons.tablericons.Volume3
 import compose.icons.tablericons.X
+import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -144,6 +154,9 @@ fun OfflineScreen(
     onDeleteProfile: (String) -> Unit,
     onClearCache: () -> Unit,
     onClearData: () -> Unit,
+    pipActive: Boolean,
+    onEnterPip: () -> Unit,
+    onPlaybackStateChange: (Boolean) -> Unit,
     onExit: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -168,6 +181,7 @@ fun OfflineScreen(
     var shuffleOn by remember { mutableStateOf(false) }
     var shuffleOrder by remember { mutableStateOf<List<String>>(emptyList()) }
     var shufflePos by remember { mutableIntStateOf(-1) }
+    var playerExpanded by remember { mutableStateOf(false) }
 
     val mediaPlayer = remember { MediaPlayer() }
     var searchQuery by remember { mutableStateOf("") }
@@ -338,9 +352,10 @@ fun OfflineScreen(
         }
     }
 
-    BackHandler(enabled = settingsDialogOpen || searchFocused || searchQuery.isNotBlank()) {
+    BackHandler(enabled = settingsDialogOpen || playerExpanded || searchFocused || searchQuery.isNotBlank()) {
         when {
             settingsDialogOpen -> settingsDialogOpen = false
+            playerExpanded -> playerExpanded = false
             searchFocused -> {
                 focusManager.clearFocus()
                 keyboardController?.hide()
@@ -423,6 +438,10 @@ fun OfflineScreen(
         OfflineMediaService.instance?.updateShuffle(shuffleOn)
     }
 
+    LaunchedEffect(isPlaying) {
+        onPlaybackStateChange(isPlaying)
+    }
+
     SettingsDialog(
         visible = settingsDialogOpen,
         onClose = { settingsDialogOpen = false },
@@ -457,7 +476,7 @@ fun OfflineScreen(
             containerColor = MaterialTheme.colorScheme.background,
             contentColor = MaterialTheme.colorScheme.onBackground,
             topBar = {
-                if (!hideTopBar) {
+                if (!hideTopBar && !pipActive) {
                     CenterAlignedTopAppBar(
                         title = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -678,12 +697,51 @@ fun OfflineScreen(
                             onNext = { step(1) },
                             onClose = { stopAndClear() },
                             shuffleOn = shuffleOn,
-                            onToggleShuffle = { toggleShuffle() }
+                            onToggleShuffle = { toggleShuffle() },
+                            onExpand = { playerExpanded = true }
                         )
                     }
                 }
 
-                if (hideTopBar) {
+                val expandedSong = playerSong
+                AnimatedVisibility(
+                    visible = playerExpanded && expandedSong != null,
+                    modifier = Modifier.fillMaxSize(),
+                    enter = slideInVertically(initialOffsetY = { it }, animationSpec = tween(260)) + fadeIn(tween(260)),
+                    exit = slideOutVertically(targetOffsetY = { it }, animationSpec = tween(200)) + fadeOut(tween(200))
+                ) {
+                    if (expandedSong != null) {
+                        FullScreenPlayer(
+                            song = expandedSong,
+                            playing = isPlaying,
+                            positionMs = positionMs,
+                            durationMs = durationMs,
+                            scrubMs = scrubMs,
+                            onScrub = { scrubMs = it },
+                            onScrubFinished = {
+                                if (scrubMs >= 0) seekTo(scrubMs.toLong())
+                                scrubMs = -1
+                            },
+                            onTogglePlay = { togglePlayPause() },
+                            onPrev = { step(-1) },
+                            onNext = { step(1) },
+                            onCollapse = { playerExpanded = false },
+                            onClose = {
+                                playerExpanded = false
+                                stopAndClear()
+                            },
+                            shuffleOn = shuffleOn,
+                            onToggleShuffle = { toggleShuffle() },
+                            onEnterPip = onEnterPip
+                        )
+                    }
+                }
+
+                if (pipActive) {
+                    PipContent(song = playerSong)
+                }
+
+                if (hideTopBar && !pipActive) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
                         Box(
                             modifier = Modifier
@@ -1017,25 +1075,60 @@ private fun SeekBar(
     modifier: Modifier = Modifier
 ) {
     val total = durationMs.coerceAtLeast(1)
-    val fraction = positionMs.coerceIn(0, total).toFloat() / total.toFloat()
-    val trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
-    val progressColor = MaterialTheme.colorScheme.primary
+    CompactBar(
+        fraction = positionMs.coerceIn(0, total).toFloat() / total.toFloat(),
+        trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+        progressColor = MaterialTheme.colorScheme.primary,
+        active = scrubbing,
+        onScrub = { onScrub((it * total).toInt().coerceIn(0, total)) },
+        onScrubFinished = onScrubFinished,
+        modifier = modifier
+    )
+}
+
+@Composable
+private fun VolumeBar(
+    fraction: Float,
+    onScrub: (Float) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    CompactBar(
+        fraction = fraction,
+        trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+        progressColor = MaterialTheme.colorScheme.onSurface,
+        onScrub = onScrub,
+        onScrubFinished = {},
+        modifier = modifier
+    )
+}
+
+@Composable
+private fun CompactBar(
+    fraction: Float,
+    trackColor: Color,
+    progressColor: Color,
+    onScrub: (Float) -> Unit,
+    onScrubFinished: () -> Unit,
+    modifier: Modifier = Modifier,
+    active: Boolean = false
+) {
+    val clamped = fraction.coerceIn(0f, 1f)
     var widthPx by remember { mutableIntStateOf(0) }
     var dragging by remember { mutableStateOf(false) }
 
-    fun msAt(x: Float): Int =
-        if (widthPx <= 0) 0 else ((x / widthPx) * total).toInt().coerceIn(0, total)
+    fun fractionAt(x: Float): Float =
+        if (widthPx <= 0) 0f else (x / widthPx).coerceIn(0f, 1f)
 
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(22.dp)
             .onSizeChanged { widthPx = it.width }
-            .pointerInput(total, widthPx) {
+            .pointerInput(widthPx) {
                 detectHorizontalDragGestures(
                     onDragStart = { offset ->
                         dragging = true
-                        onScrub(msAt(offset.x))
+                        onScrub(fractionAt(offset.x))
                     },
                     onDragEnd = {
                         dragging = false
@@ -1047,12 +1140,12 @@ private fun SeekBar(
                     }
                 ) { change, _ ->
                     change.consume()
-                    onScrub(msAt(change.position.x))
+                    onScrub(fractionAt(change.position.x))
                 }
             }
-            .pointerInput(total, widthPx) {
+            .pointerInput(widthPx) {
                 detectTapGestures { offset ->
-                    onScrub(msAt(offset.x))
+                    onScrub(fractionAt(offset.x))
                     onScrubFinished()
                 }
             }
@@ -1060,7 +1153,7 @@ private fun SeekBar(
                 val centerY = size.height / 2f
                 val trackHeight = 3.dp.toPx()
                 val radius = trackHeight / 2f
-                val progressWidth = size.width * fraction.coerceIn(0f, 1f)
+                val progressWidth = size.width * clamped
                 drawRoundRect(
                     color = trackColor,
                     topLeft = Offset(0f, centerY - radius),
@@ -1073,7 +1166,7 @@ private fun SeekBar(
                     size = Size(progressWidth, trackHeight),
                     cornerRadius = CornerRadius(radius, radius)
                 )
-                val thumbRadius = (if (dragging || scrubbing) 6.dp else 4.dp).toPx()
+                val thumbRadius = (if (dragging || active) 6.dp else 4.dp).toPx()
                 drawCircle(
                     color = progressColor,
                     radius = thumbRadius,
@@ -1141,8 +1234,22 @@ private fun OfflineSongRow(
 
 @Composable
 private fun SongCover(song: OfflineSong, size: Dp, corner: Dp) {
+    CoverBox(
+        song = song,
+        corner = corner,
+        iconFraction = 0.5f,
+        modifier = Modifier.size(size)
+    )
+}
+
+@Composable
+private fun CoverBox(
+    song: OfflineSong,
+    corner: Dp,
+    modifier: Modifier = Modifier,
+    iconFraction: Float = 0.5f
+) {
     val context = LocalContext.current
-    val resources = LocalResources.current
     var bitmap by remember(song.id, song.uri) { mutableStateOf<Bitmap?>(null) }
 
     LaunchedEffect(song.id, song.uri) {
@@ -1150,8 +1257,7 @@ private fun SongCover(song: OfflineSong, size: Dp, corner: Dp) {
     }
 
     Box(
-        modifier = Modifier
-            .size(size)
+        modifier = modifier
             .clip(RoundedCornerShape(corner))
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)),
         contentAlignment = Alignment.Center
@@ -1169,7 +1275,7 @@ private fun SongCover(song: OfflineSong, size: Dp, corner: Dp) {
                 imageVector = TablerIcons.Music,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                modifier = Modifier.size(size / 2)
+                modifier = Modifier.fillMaxSize(iconFraction)
             )
         }
     }
@@ -1211,6 +1317,7 @@ private fun NowPlayingBar(
     onTogglePlay: () -> Unit,
     onPrev: () -> Unit,
     onNext: () -> Unit,
+    onExpand: () -> Unit,
     onClose: () -> Unit,
     shuffleOn: Boolean,
     onToggleShuffle: () -> Unit
@@ -1229,23 +1336,32 @@ private fun NowPlayingBar(
     ) {
         Column(modifier = Modifier.padding(start = 12.dp, end = 8.dp, top = 8.dp, bottom = 10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                SongCover(song = song, size = 40.dp, corner = 8.dp)
-                Spacer(Modifier.width(10.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = song.title,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = song.artist.ifBlank { stringResource(R.string.offline_unknown_artist) },
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable(onClick = onExpand)
+                        .padding(vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    SongCover(song = song, size = 40.dp, corner = 8.dp)
+                    Spacer(Modifier.width(10.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = song.title,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = song.artist.ifBlank { stringResource(R.string.offline_unknown_artist) },
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
                 CompactIconButton(
                     painter = painterResource(if (shuffleOn) R.drawable.ic_shuffle_active else R.drawable.ic_shuffle),
@@ -1309,6 +1425,259 @@ private fun NowPlayingBar(
             }
         }
     }
+}
+
+@Composable
+private fun FullScreenPlayer(
+    song: OfflineSong,
+    playing: Boolean,
+    positionMs: Int,
+    durationMs: Int,
+    scrubMs: Int,
+    onScrub: (Int) -> Unit,
+    onScrubFinished: () -> Unit,
+    onTogglePlay: () -> Unit,
+    onPrev: () -> Unit,
+    onNext: () -> Unit,
+    onCollapse: () -> Unit,
+    onClose: () -> Unit,
+    shuffleOn: Boolean,
+    onToggleShuffle: () -> Unit,
+    onEnterPip: () -> Unit
+) {
+    val context = LocalContext.current
+    val audioManager = remember {
+        context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    }
+    val maxVolume = remember {
+        audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+    }
+    var volumeFraction by remember { mutableFloatStateOf(0f) }
+
+    LaunchedEffect(maxVolume) {
+        while (true) {
+            val current = runCatching {
+                audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+            }.getOrDefault(0)
+            volumeFraction = current.toFloat() / maxVolume
+            delay(400.milliseconds)
+        }
+    }
+
+    val scrubbing = scrubMs >= 0
+    val shownPosition = if (scrubbing) scrubMs else positionMs
+
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 20.dp)
+                .padding(top = 6.dp, bottom = 14.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                CompactIconButton(
+                    icon = TablerIcons.ChevronDown,
+                    contentDescription = stringResource(R.string.offline_desc_collapse_player),
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    onClick = onCollapse,
+                    boxSize = 40.dp,
+                    iconSize = 22.dp
+                )
+                Spacer(Modifier.weight(1f))
+                Text(
+                    text = stringResource(R.string.offline_now_playing),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1
+                )
+                Spacer(Modifier.weight(1f))
+                CompactIconButton(
+                    icon = TablerIcons.X,
+                    contentDescription = stringResource(R.string.offline_desc_close_player),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    onClick = onClose,
+                    boxSize = 40.dp,
+                    iconSize = 18.dp
+                )
+            }
+
+            BoxWithConstraints(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .padding(vertical = 12.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                val side = if (maxWidth < maxHeight) maxWidth else maxHeight
+                CoverBox(
+                    song = song,
+                    corner = 16.dp,
+                    iconFraction = 0.4f,
+                    modifier = Modifier
+                        .size(side)
+                        .shadow(10.dp, RoundedCornerShape(16.dp))
+                )
+            }
+
+            Text(
+                text = song.title,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = song.artist.ifBlank { stringResource(R.string.offline_unknown_artist) },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Spacer(Modifier.height(12.dp))
+            SeekBar(
+                positionMs = shownPosition,
+                durationMs = durationMs,
+                scrubbing = scrubbing,
+                onScrub = onScrub,
+                onScrubFinished = onScrubFinished
+            )
+            Row(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = formatTime(shownPosition),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.weight(1f))
+                Text(
+                    text = formatTime(durationMs),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Spacer(Modifier.height(10.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                CompactIconButton(
+                    painter = painterResource(if (shuffleOn) R.drawable.ic_shuffle_active else R.drawable.ic_shuffle),
+                    contentDescription = stringResource(if (shuffleOn) R.string.offline_desc_shuffle_disable else R.string.offline_desc_shuffle_enable),
+                    tint = if (shuffleOn) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    onClick = onToggleShuffle,
+                    boxSize = 44.dp,
+                    iconSize = 20.dp
+                )
+                CompactIconButton(
+                    icon = TablerIcons.PlayerSkipBack,
+                    contentDescription = stringResource(R.string.offline_desc_previous),
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    onClick = onPrev,
+                    boxSize = 52.dp,
+                    iconSize = 30.dp
+                )
+                Box(
+                    modifier = Modifier
+                        .size(62.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary)
+                        .clickable(onClick = onTogglePlay),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = if (playing) TablerIcons.PlayerPause else TablerIcons.PlayerPlay,
+                        contentDescription = stringResource(if (playing) R.string.offline_desc_pause else R.string.offline_desc_play),
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(30.dp)
+                    )
+                }
+                CompactIconButton(
+                    icon = TablerIcons.PlayerSkipForward,
+                    contentDescription = stringResource(R.string.offline_desc_next),
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    onClick = onNext,
+                    boxSize = 52.dp,
+                    iconSize = 30.dp
+                )
+                CompactIconButton(
+                    icon = TablerIcons.PictureInPicture,
+                    contentDescription = stringResource(R.string.offline_desc_enter_pip),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    onClick = onEnterPip,
+                    boxSize = 44.dp,
+                    iconSize = 20.dp
+                )
+            }
+
+            Spacer(Modifier.height(14.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = volumeIcon(volumeFraction),
+                    contentDescription = stringResource(R.string.offline_desc_volume),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(Modifier.width(10.dp))
+                VolumeBar(
+                    fraction = volumeFraction,
+                    onScrub = { fraction ->
+                        val level = (fraction * maxVolume).roundToInt().coerceIn(0, maxVolume)
+                        runCatching {
+                            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, level, 0)
+                        }
+                        volumeFraction = level.toFloat() / maxVolume
+                    },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PipContent(song: OfflineSong?) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black),
+        contentAlignment = Alignment.Center
+    ) {
+        if (song != null) {
+            CoverBox(
+                song = song,
+                corner = 0.dp,
+                iconFraction = 0.4f,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            Icon(
+                imageVector = TablerIcons.Music,
+                contentDescription = null,
+                tint = Color.White.copy(alpha = 0.4f),
+                modifier = Modifier.size(36.dp)
+            )
+        }
+    }
+}
+
+private fun volumeIcon(fraction: Float): ImageVector = when {
+    fraction < 0.4f -> TablerIcons.Volume
+    fraction < 0.75f -> TablerIcons.Volume2
+    else -> TablerIcons.Volume3
 }
 
 private fun formatTime(ms: Int): String {

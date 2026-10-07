@@ -40,6 +40,8 @@ class SpotifyBridge(activityRef: WeakReference<Activity>) {
     var onTimerDialogRequest: (() -> Unit)? = null
     var onEnterPipRequest: (() -> Unit)? = null
     var onEnterPipVideoRequest: ((Int, Int) -> Unit)? = null
+    var onEnterVideoFullscreen: (() -> Unit)? = null
+    var onExitVideoFullscreen: (() -> Unit)? = null
     var onDownloadTrack: ((String) -> Unit)? = null
     var onDownloadCollection: ((String) -> Unit)? = null
 
@@ -185,6 +187,22 @@ class SpotifyBridge(activityRef: WeakReference<Activity>) {
         Logger.i(CALL, "enterPipVideo ${w}x$h")
         activity.runOnUiThread {
             onEnterPipVideoRequest?.invoke(w, h)
+        }
+    }
+
+    fun enterVideoFullscreen() {
+        val activity = activityRef.get() ?: return
+        Logger.i(CALL, "enterVideoFullscreen")
+        activity.runOnUiThread {
+            onEnterVideoFullscreen?.invoke()
+        }
+    }
+
+    fun exitVideoFullscreen() {
+        val activity = activityRef.get() ?: return
+        Logger.i(CALL, "exitVideoFullscreen")
+        activity.runOnUiThread {
+            onExitVideoFullscreen?.invoke()
         }
     }
 

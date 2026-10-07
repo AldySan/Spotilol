@@ -98,6 +98,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Popup
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.webkit.ProxyConfig
 import androidx.webkit.ProxyController
 import androidx.webkit.WebViewCompat
@@ -182,6 +184,7 @@ class MainActivity : ComponentActivity() {
     private val amoledState = mutableStateOf(false)
     private val hideTopBarState = mutableStateOf(false)
     private val landscapeModeState = mutableStateOf(false)
+    private val videoFullscreenState = mutableStateOf(false)
     private val keepScreenOnState = mutableStateOf(false)
     private val paletteSeedState = mutableStateOf<String?>(null)
 
@@ -296,11 +299,16 @@ class MainActivity : ComponentActivity() {
                 AccentTheme.resolveColor(this@MainActivity)
             }
 
-            BackHandler(enabled = settingsDialogOpen || webView?.canGoBack() == true) {
-                if (settingsDialogOpen) {
-                    settingsDialogOpen = false
-                } else {
-                    webView?.goBack()
+            BackHandler(
+                enabled = settingsDialogOpen || videoFullscreenState.value || webView?.canGoBack() == true
+            ) {
+                when {
+                    settingsDialogOpen -> settingsDialogOpen = false
+                    videoFullscreenState.value -> {
+                        webView?.evaluateJavascript("window.__splVfsExit&&window.__splVfsExit()", null)
+                        exitVideoFullscreenMode()
+                    }
+                    else -> webView?.goBack()
                 }
             }
 
@@ -449,6 +457,14 @@ class MainActivity : ComponentActivity() {
 
                             bridge.onEnterPipVideoRequest = { w, h ->
                                 enterPipVideoMode(w, h)
+                            }
+
+                            bridge.onEnterVideoFullscreen = {
+                                enterVideoFullscreenMode()
+                            }
+
+                            bridge.onExitVideoFullscreen = {
+                                exitVideoFullscreenMode()
                             }
 
                             bridge.onMediaStatus = { json ->
@@ -1376,11 +1392,30 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun applyOrientation() {
-        requestedOrientation = if (landscapeModeState.value) {
-            ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-        } else {
-            ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        requestedOrientation = when {
+            videoFullscreenState.value -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            landscapeModeState.value -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            else -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         }
+    }
+
+    private fun enterVideoFullscreenMode() {
+        if (videoFullscreenState.value) return
+        videoFullscreenState.value = true
+        applyOrientation()
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        WindowInsetsControllerCompat(window, window.decorView).apply {
+            hide(WindowInsetsCompat.Type.systemBars())
+            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        }
+    }
+
+    private fun exitVideoFullscreenMode() {
+        if (!videoFullscreenState.value) return
+        videoFullscreenState.value = false
+        WindowInsetsControllerCompat(window, window.decorView).show(WindowInsetsCompat.Type.systemBars())
+        WindowCompat.setDecorFitsSystemWindows(window, true)
+        applyOrientation()
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {

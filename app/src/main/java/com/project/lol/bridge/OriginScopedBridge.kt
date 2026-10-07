@@ -97,6 +97,8 @@ class OriginScopedBridge private constructor(private val view: WebView, private 
             "openTimerDialog" -> bridge.openTimerDialog()
             "enterPip" -> bridge.enterPip()
             "enterPipVideo" -> bridge.enterPipVideo(a.getInt(0).coerceIn(1, 8192), a.getInt(1).coerceIn(1, 8192))
+            "enterVideoFullscreen" -> bridge.enterVideoFullscreen()
+            "exitVideoFullscreen" -> bridge.exitVideoFullscreen()
             "downloadTrack" -> bridge.downloadTrack(s(0))
             "downloadCollection" -> bridge.downloadCollection(s(0))
             "skipDownload" -> bridge.skipDownload()

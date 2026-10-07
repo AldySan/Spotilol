@@ -35,7 +35,8 @@ object BridgeScript {
         'loginDetected','deferMessage','wakeUp','wakeOff','cssInjected','dbg','clearDebugLog',
         'recAdContentIds','playLoaded','recMediaPosition','recMediaStatus','onMediaItemsLoaded',
         'onSearchCompleted','manageTShut','manageTSleep','recAccountName','openTimerDialog',
-        'enterPip','enterPipVideo','downloadTrack','downloadCollection','skipDownload','cancelDownload'
+        'enterPip','enterPipVideo','enterVideoFullscreen','exitVideoFullscreen',
+        'downloadTrack','downloadCollection','skipDownload','cancelDownload'
     ];
     methods.forEach(function(method) {
         bridge[method] = function() { return send(method, Array.prototype.slice.call(arguments), false); };

@@ -146,7 +146,7 @@ object LyricsSyncFix {
             }
 
             function tick(){
-                if (window.__splBg) return;
+                if (window.__splBg || window.__splBusy) return;
                 if (tracked.length) reposition();
                 var now = Date.now();
                 if (now - lastSweep < SWEEP_MS) return;
@@ -159,7 +159,7 @@ object LyricsSyncFix {
             rebalance();
 
             var obs = new MutationObserver(function(muts){
-                if (window.__splBg) return;
+                if (window.__splBg || window.__splBusy) return;
                 var dirty = false;
                 for (var i = 0; i < muts.length && !dirty; i++){
                     var a = muts[i].addedNodes, r = muts[i].removedNodes;

@@ -85,11 +85,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -186,6 +188,7 @@ class MainActivity : ComponentActivity() {
     private val amoledState = mutableStateOf(false)
     private val hideTopBarState = mutableStateOf(false)
     private val landscapeModeState = mutableStateOf(false)
+    private val wideVideoState = mutableStateOf(false)
     private val videoFullscreenState = mutableStateOf(false)
     private val keepScreenOnState = mutableStateOf(false)
     private val paletteSeedState = mutableStateOf<String?>(null)
@@ -287,8 +290,21 @@ class MainActivity : ComponentActivity() {
             val blockServiceWorker = blockServiceWorkerState.value
             val pipFilling = pipVideoActive.value
             val videoFullscreen = videoFullscreenState.value
+            val wideVideoFullscreen = wideVideoState.value &&
+                LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+            LaunchedEffect(wideVideoFullscreen) {
+                WindowCompat.getInsetsController(window, window.decorView).apply {
+                    if (wideVideoFullscreen) {
+                        systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                        hide(WindowInsetsCompat.Type.systemBars())
+                    } else {
+                        show(WindowInsetsCompat.Type.systemBars())
+                    }
+                }
+            }
 
             var settingsDialogOpen by remember { mutableStateOf(false) }
+            var playerExpanded by remember { mutableStateOf(false) }
             var showMiniMenu by remember { mutableStateOf(false) }
             var showChangelog by rememberSaveable { mutableStateOf(changelogOnUpdate) }
             val versionName = remember {
@@ -303,13 +319,17 @@ class MainActivity : ComponentActivity() {
             }
 
             BackHandler(
-                enabled = settingsDialogOpen || videoFullscreenState.value || webView?.canGoBack() == true
+                enabled = settingsDialogOpen || videoFullscreenState.value || playerExpanded || webView?.canGoBack() == true
             ) {
                 when {
                     settingsDialogOpen -> settingsDialogOpen = false
                     videoFullscreenState.value -> {
                         webView?.evaluateJavascript("window.__splVfsExit&&window.__splVfsExit()", null)
                         exitVideoFullscreenMode()
+                    }
+                    playerExpanded -> {
+                        playerExpanded = false
+                        webView?.evaluateJavascript("window.splSetMini&&window.splSetMini(true)", null)
                     }
                     else -> webView?.goBack()
                 }
@@ -384,12 +404,13 @@ class MainActivity : ComponentActivity() {
                 ) {
                     Scaffold(
                         topBar = {
-                            if (!hideTopBar && !pipFilling && !videoFullscreen) {
+                            if (!hideTopBar && !pipFilling && !videoFullscreen && !wideVideoFullscreen) {
                                 CenterAlignedTopAppBar(
                                 title = {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Text(
                                             text = stringResource(R.string.app_name),
+                                            style = MaterialTheme.typography.titleMedium,
                                             fontWeight = FontWeight.Bold
                                         )
                                         Spacer(Modifier.width(6.dp))
@@ -418,6 +439,7 @@ class MainActivity : ComponentActivity() {
                                 Switch(
                                     checked = serviceEnabled,
                                     onCheckedChange = { newValue -> setServiceEnabled(newValue) },
+                                    modifier = Modifier.scale(0.75f),
                                     colors = SwitchDefaults.colors(
                                         checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
                                         checkedTrackColor = MaterialTheme.colorScheme.primary,
@@ -427,6 +449,7 @@ class MainActivity : ComponentActivity() {
                                 )
                                 Spacer(Modifier.width(8.dp))
                             },
+                                expandedHeight = 48.dp,
                                 colors = TopAppBarDefaults.topAppBarColors(
                                     containerColor = MaterialTheme.colorScheme.surface,
                                     titleContentColor = MaterialTheme.colorScheme.onSurface,
@@ -452,6 +475,13 @@ class MainActivity : ComponentActivity() {
                                 if (!timerActive) {
                                     sleepTimerInputText.value = ""
                                 }
+                            }
+
+                            bridge.onPlayerExpanded = { playerExpanded = it }
+
+                            bridge.onWideVideo = {
+                                wideVideoState.value = it
+                                applyOrientation()
                             }
 
                             bridge.onEnterPipRequest = {
@@ -1429,6 +1459,7 @@ class MainActivity : ComponentActivity() {
         requestedOrientation = when {
             videoFullscreenState.value -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
             landscapeModeState.value -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            wideVideoState.value -> ActivityInfo.SCREEN_ORIENTATION_FULL_USER
             else -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         }
     }

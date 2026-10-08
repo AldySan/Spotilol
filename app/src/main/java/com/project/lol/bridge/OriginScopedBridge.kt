@@ -100,6 +100,8 @@ class OriginScopedBridge private constructor(private val view: WebView, private 
             "enterVideoFullscreen" -> bridge.enterVideoFullscreen()
             "exitVideoFullscreen" -> bridge.exitVideoFullscreen()
             "enterLyricsPip" -> bridge.enterLyricsPip()
+            "playerExpanded" -> bridge.playerExpanded(a.getBoolean(0))
+            "wideVideo" -> bridge.wideVideo(a.getBoolean(0))
             "downloadTrack" -> bridge.downloadTrack(s(0))
             "downloadCollection" -> bridge.downloadCollection(s(0))
             "skipDownload" -> bridge.skipDownload()

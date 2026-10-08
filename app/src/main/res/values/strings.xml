@@ -70,6 +70,11 @@
     <string name="settings_player_mode">Player Mode</string>
     <string name="settings_player_spotilol">Spotilol Player</string>
     <string name="settings_player_original">Spotify Original</string>
+    <string name="settings_player_fullscreen">Spotilol Player FullScreen</string>
+    <string name="settings_web_canvas">Canvas</string>
+    <string name="settings_web_canvas_subtitle">Looping videos behind songs (Spotify\'s Canvas setting)</string>
+    <string name="settings_web_videos">Video Podcasts</string>
+    <string name="settings_web_videos_subtitle">Let Spotify play video for podcast episodes</string>
     <string name="settings_hide_empty_player">Hide Empty Mini Player</string>
     <string name="settings_hide_empty_player_subtitle">Hide the mini player until a track is loaded</string>
     <string name="settings_playlist_sort">Sort Playlists by Column</string>

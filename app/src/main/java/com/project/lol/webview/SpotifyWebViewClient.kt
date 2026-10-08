@@ -348,6 +348,8 @@ class SpotifyWebViewClient(
         val spicyLyricsEnabled = prefs.getBoolean("SpicyLyrics", true)
         val showScrollbar = prefs.getBoolean("ShowScrollbar", true)
         val lyricsStyle = prefs.getString("LyricsStyle", LyricsTheme.DEFAULT_STYLE) ?: LyricsTheme.DEFAULT_STYLE
+        val webCanvas = prefs.getBoolean("WebCanvas", true)
+        val webVideos = prefs.getBoolean("WebVideos", true)
 
         Logger.s(
             TAG,
@@ -365,6 +367,7 @@ class SpotifyWebViewClient(
             append("window.__splPlaylistSortEnabled=$playlistSortEnabled;\n")
             append("window.__spicyLyricsEnabled=$spicyLyricsEnabled;\n")
             append("window.__splShowScrollbar=$showScrollbar;\n")
+            append("window.__splWebPrefs=[$webCanvas,$webVideos];\n")
             if (debugOverlay) {
                 append(DevLogPrelude.js())
                 append("\n")
@@ -410,7 +413,9 @@ class SpotifyWebViewClient(
             append(LibraryAutoClose.CONTENT)
             append(PlaylistSort.CONTENT)
             append(SpicyLyrics.CONTENT)
-            if (playerMode == "spotilol") {
+            append(WebPrefs.CONTENT)
+            if (playerMode == "spotilol" || playerMode == "fullscreen") {
+                append("window.__splFullPlayer=${playerMode == "fullscreen"};\n")
                 append(SpotilolPlayer.CONTENT)
                 append(VideoFullscreen.CONTENT)
                 append(LyricsPip.CONTENT)
@@ -481,6 +486,11 @@ class SpotifyWebViewClient(
                     val hideEmpty = prefs.getBoolean("HideEmptyPlayer", false)
                     wv.evaluateJavascript("window.__splHideEmpty=$hideEmpty; if(window.splApplyEmpty) window.splApplyEmpty();", null)
                 }
+                "WebCanvas", "WebVideos" -> {
+                    val c = prefs.getBoolean("WebCanvas", true)
+                    val v = prefs.getBoolean("WebVideos", true)
+                    wv.evaluateJavascript("window.__splWebPrefs=[$c,$v]; if(window.splSyncWebPrefs) window.splSyncWebPrefs($c,$v,true);", null)
+                }
                 "PlaylistSortEnabled" -> {
                     val sortOn = prefs.getBoolean("PlaylistSortEnabled", true)
                     wv.evaluateJavascript("window.__splPlaylistSortEnabled=$sortOn; if(window.splPlaylistSort) window.splPlaylistSort.refresh();", null)
@@ -499,6 +509,7 @@ class SpotifyWebViewClient(
         if (mode == "original") {
             val js = """
                 (function(){
+                    if(window.splSetMini) splSetMini(true);
                     var pl=document.getElementById('spotilolPlayerControls');
                     if(pl) pl.style.display='none';
                     var s=document.createElement('style');
@@ -509,6 +520,7 @@ class SpotifyWebViewClient(
             """.trimIndent()
             view.evaluateJavascript(js, null)
         } else {
+            view.evaluateJavascript("window.__splFullPlayer=${mode == "fullscreen"};", null)
             view.evaluateJavascript("if(typeof initSpotilolPlayer!=='function'){" + SpotilolPlayer.CONTENT + "}", null)
             val js = """
                 (function(){
@@ -517,7 +529,7 @@ class SpotifyWebViewClient(
                     var npb=document.querySelector('aside[data-testid="now-playing-bar"]');
                     if(npb) npb.style.display='none';
                     var pl=document.getElementById('spotilolPlayerControls');
-                    if(pl){pl.style.display='flex';}
+                    if(pl){pl.style.display='flex';if(window.splRefreshMode)splRefreshMode();}
                     else if(typeof initSpotilolPlayer==='function'){initSpotilolPlayer();}
                 })();
             """.trimIndent()

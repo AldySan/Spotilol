@@ -412,6 +412,7 @@ class SpotifyWebViewClient(
             append(QueueAutoClose.CONTENT)
             append(LibraryAutoClose.CONTENT)
             append(PlaylistSort.CONTENT)
+            append(ColumnsButton.CONTENT)
             append(SpicyLyrics.CONTENT)
             append(WebPrefs.CONTENT)
             if (playerMode == "spotilol" || playerMode == "fullscreen") {

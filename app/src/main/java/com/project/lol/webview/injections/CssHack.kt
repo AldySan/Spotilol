@@ -38,7 +38,7 @@ object CssHack {
                         switchLs();AndBridge.cssInjected();
                     }
                     var lbit=document.querySelector('#Desktop_LeftSidebar_Id div[role=grid]:not(.fuckd)');
-                    if(lbit){lbit.classList.add('fuckd');lbit.addEventListener('click',function(){setTimeout(function(){lBtn.click();closeNowPlay();},0);});}
+                    if(lbit){lbit.classList.add('fuckd');lbit.addEventListener('click',function(e){var t=e.target;if(t&&t.closest){var r=t.closest('div[role=row]');if(r&&r.querySelector('button[aria-expanded]'))return;}setTimeout(function(){lBtn.click();closeNowPlay();},0);});}
                     var hb=document.querySelector('#global-nav-bar button[data-testid=home-button]:not(.fuckd)');
                     if(hb){hb.classList.add('fuckd');hb.addEventListener('click',function(){closeNowPlay();});}
                     var sr=document.querySelector('input[data-testid=search-input]:not(.fuckd)');

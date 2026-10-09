@@ -39,6 +39,26 @@ object SpotilolPlayer {
                 function splShuffleState(){
                     return (typeof window.splShuffleState === 'function') ? window.splShuffleState() : 'off';
                 }
+                function splVideoToggle(){
+                    var bs=document.querySelectorAll('button');
+                    for(var i=0;i<bs.length;i++){
+                        if(bs[i].closest('#spotilolPlayerControls')) continue;
+                        var a=(bs[i].getAttribute('aria-label')||'').trim().toLowerCase();
+                        if(a==='switch to audio'||a==='switch to video') return bs[i];
+                    }
+                    for(var j=0;j<bs.length;j++){
+                        if(bs[j].closest('#spotilolPlayerControls')) continue;
+                        var p=bs[j].querySelector('svg path');
+                        var d=p?(p.getAttribute('d')||''):'';
+                        if(d.indexOf('M4 1h11v11.75')===0||d.indexOf('M1.75 2.5a.25.25 0 0 0-.25.25v10.5')===0) return bs[j];
+                    }
+                    return null;
+                }
+                function splPageVideo(){
+                    return document.querySelector('.VideoPlayer__container video');
+                }
+                var splIconVideo='<svg viewBox="0 0 16 16"><path fill="currentColor" d="M1.75 2.5a.25.25 0 0 0-.25.25v10.5c0 .138.112.25.25.25h12.5a.25.25 0 0 0 .25-.25V2.75a.25.25 0 0 0-.25-.25zM0 2.75C0 1.784.784 1 1.75 1h12.5c.967 0 1.75.784 1.75 1.75v10.5A1.75 1.75 0 0 1 14.25 15H1.75A1.75 1.75 0 0 1 0 13.25z"/><path fill="currentColor" d="m6 5 5.196 3L6 11z"/></svg>';
+                var splIconAudio='<svg viewBox="0 0 16 16"><path fill="currentColor" d="M4 1h11v11.75A2.75 2.75 0 1 1 12.25 10h1.25V2.5h-8v10.25A2.75 2.75 0 1 1 2.75 10H4zm0 10.5H2.75A1.25 1.25 0 1 0 4 12.75zm9.5 0h-1.25a1.25 1.25 0 1 0 1.25 1.25z"/></svg>';
 
                 var pl=document.createElement('div');
                 pl.id='spotilolPlayerControls';
@@ -51,7 +71,9 @@ object SpotilolPlayer {
                     +'<div class="spl-top">'
                     +'<div class="spl-cover"><img id="spl-cover-img" src="" alt=""></div>'
                     +'<div class="spl-info"><div class="spl-track" id="spl-track">No track</div>'
-                    +'<div class="spl-artist" id="spl-artist">\u2014</div></div>'
+                    +'<div class="spl-artist" id="spl-artist">\u2014</div>'
+                    +'<button class="spl-avswitch" id="spl-avtoggle" type="button" aria-label="Switch to video" style="display:none;"><span class="spl-avswitch-i" id="spl-avtoggle-i" data-k="v"><svg viewBox="0 0 16 16"><path fill="currentColor" d="M1.75 2.5a.25.25 0 0 0-.25.25v10.5c0 .138.112.25.25.25h12.5a.25.25 0 0 0 .25-.25V2.75a.25.25 0 0 0-.25-.25zM0 2.75C0 1.784.784 1 1.75 1h12.5c.967 0 1.75.784 1.75 1.75v10.5A1.75 1.75 0 0 1 14.25 15H1.75A1.75 1.75 0 0 1 0 13.25z"/><path fill="currentColor" d="m6 5 5.196 3L6 11z"/></svg></span><span id="spl-avtoggle-l">Switch to video</span></button>'
+                    +'</div>'
                     +'<button class="spl-btn spl-btn-sm spl-liked-btn" id="spl-liked" aria-label="Like"><svg viewBox="0 0 16 16"><path fill="currentColor" d="M15.724 4.22A4.313 4.313 0 0 0 12.192.814a4.269 4.269 0 0 0-3.622 1.13.837.837 0 0 1-1.14 0 4.272 4.272 0 0 0-6.38 5.69l5.4 6.06a1.09 1.09 0 0 0 1.504.06l5.397-5.892a4.32 4.32 0 0 0 1.253-3.436z"/></svg></button>'
                     +'<div class="spl-mini-transport">'
                     +'<button class="spl-btn" id="spl-prev-mini" aria-label="Previous"><svg viewBox="0 0 16 16"><path fill="currentColor" d="M3.3 1a.7.7 0 0 1 .7.7v5.15l9.95-5.744a.7.7 0 0 1 1.05.606v12.575a.7.7 0 0 1-1.05.607L4 9.149V14.3a.7.7 0 0 1-.7.7H1.7a.7.7 0 0 1-.7-.7V1.7a.7.7 0 0 1 .7-.7z"/></svg></button>'
@@ -69,6 +91,7 @@ object SpotilolPlayer {
                     +'<button class="spl-btn spl-btn-sm" id="spl-queue" aria-label="Queue"><svg viewBox="0 0 16 16"><path fill="currentColor" d="M15 15H1v-1.5h14zm0-4.5H1V9h14zm-14-7A2.5 2.5 0 0 1 3.5 1h9a2.5 2.5 0 0 1 0 5h-9A2.5 2.5 0 0 1 1 3.5m2.5-1a1 1 0 0 0 0 2h9a1 1 0 1 0 0-2z"/></svg></button>'
                     +'<button class="spl-btn spl-btn-sm" id="spl-download" aria-label="Download"><svg viewBox="0 0 16 16"><path fill="currentColor" d="M8 1a1 1 0 0 1 1 1v6.586l2.293-2.293a1 1 0 1 1 1.414 1.414l-4 4a1 1 0 0 1-1.414 0l-4-4a1 1 0 1 1 1.414-1.414L7 8.586V2a1 1 0 0 1 1-1zM2 13a1 1 0 0 1 1-1h10a1 1 0 1 1 0 2H3a1 1 0 0 1-1-1z"/></svg></button>'
                     +'<button class="spl-btn spl-btn-sm" id="spl-dl-cancel" aria-label="Cancel download" style="display:none;"><svg viewBox="0 0 16 16"><path fill="currentColor" d="M2.47 2.47a.75.75 0 0 1 1.06 0L8 6.94l4.47-4.47a.75.75 0 1 1 1.06 1.06L9.06 8l4.47 4.47a.75.75 0 1 1-1.06 1.06L8 9.06l-4.47 4.47a.75.75 0 0 1-1.06-1.06L6.94 8 2.47 3.53a.75.75 0 0 1 0-1.06z"/></svg></button>'
+                    +'<button class="spl-btn spl-btn-sm" id="spl-connect" aria-label="Connect to a device"><svg viewBox="0 0 16 16"><path fill="currentColor" d="M6 2.75C6 1.784 6.784 1 7.75 1h6.5c.966 0 1.75.784 1.75 1.75v10.5A1.75 1.75 0 0 1 14.25 15h-6.5A1.75 1.75 0 0 1 6 13.25zm1.75-.25a.25.25 0 0 0-.25.25v10.5c0 .138.112.25.25.25h6.5a.25.25 0 0 0 .25-.25V2.75a.25.25 0 0 0-.25-.25zm-6 0a.25.25 0 0 0-.25.25v6.5c0 .138.112.25.25.25H4V11H1.75A1.75 1.75 0 0 1 0 9.25v-6.5C0 1.784.784 1 1.75 1H4v1.5zM4 15H2v-1.5h2z"/><path fill="currentColor" d="M13 10a2 2 0 1 1-4 0 2 2 0 0 1 4 0m-1-5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"/></svg></button>'
                     +'<div class="spl-vol-wrap" id="spl-vol">'
                     +'<button class="spl-btn spl-btn-sm spl-vol-btn" id="spl-vol-btn" aria-label="Volume"><svg viewBox="0 0 16 16"><path fill="currentColor" d="M9.741.85a.75.75 0 0 1 .375.65v13a.75.75 0 0 1-1.125.65l-6.925-4a3.64 3.64 0 0 1-1.33-4.967 3.64 3.64 0 0 1 1.33-1.332l6.925-4a.75.75 0 0 1 .75 0zm-6.924 5.3a2.14 2.14 0 0 0 0 3.7l5.8 3.35V2.8zm8.683 4.29V5.56a2.75 2.75 0 0 1 0 4.88"/><path fill="currentColor" d="M11.5 13.614a5.752 5.752 0 0 0 0-11.228v1.55a4.252 4.252 0 0 1 0 8.127z"/></svg></button>'
                     +'<div class="spl-vol-bar" id="spl-vol-bar"><div class="spl-vol-track"></div><div class="spl-vol-fill" id="spl-vol-fill"></div><div class="spl-vol-handle" id="spl-vol-handle"></div></div>'
@@ -180,6 +203,12 @@ object SpotilolPlayer {
                         '#spotilolPlayerControls.spl-full:not(.spl-has-canvas) .spl-canvas-toggle{opacity:.4}',
                         '#spotilolPlayerControls.spl-full .spl-canvas-toggle svg{width:22px;height:22px}',
                         '#spotilolPlayerControls.spl-full .spl-np-head .spl-canvas-toggle.spl-active{color:var(--spl-accent,#1db954)}',
+                        '#spotilolPlayerControls .spl-avswitch{display:inline-flex;align-items:center;gap:8px;align-self:flex-start;width:fit-content;margin-top:12px;padding:0 14px 0 12px;height:34px;border:0;border-radius:17px;background:rgba(255,255,255,.12);color:#fff;font:600 13px/1 inherit;cursor:pointer;flex-shrink:0;transition:background .15s}',
+                        '#spotilolPlayerControls .spl-avswitch:hover{background:rgba(255,255,255,.2)}',
+                        '#spotilolPlayerControls .spl-avswitch:active{transform:scale(.97)}',
+                        '#spotilolPlayerControls .spl-avswitch .spl-avswitch-i{display:flex;align-items:center;flex-shrink:0}',
+                        '#spotilolPlayerControls .spl-avswitch svg{width:16px;height:16px;fill:currentColor}',
+                        '#spotilolPlayerControls:not(.spl-full) .spl-avswitch{display:none!important}',
                         'html.spl-hide-ctx #context-menu,html.spl-hide-ctx [data-tippy-root],html.spl-hide-ctx [role="menu"]{opacity:0!important}',
                         '#spotilolPlayerControls.spl-full #spl-speed-sheet.spl-open{display:flex;position:absolute;inset:0;z-index:5;align-items:flex-end;background:rgba(0,0,0,.55)}',
                         '#spotilolPlayerControls .spl-sheet-card{width:100%;box-sizing:border-box;background:#282828;border-radius:16px 16px 0 0;padding:18px 18px 28px}',
@@ -224,6 +253,8 @@ object SpotilolPlayer {
                 document.getElementById('spl-lyrics').onclick=function(){if(this.classList.contains('spl-disabled'))return;splCollapseFull();if(typeof closeNowPlay==='function') closeNowPlay();var lb=document.querySelector('button[data-testid=lyrics-button]');if(lb&&!lb.disabled)lb.click()};
                 document.getElementById('spl-queue').onclick=function(){splCollapseFull();var qb=document.querySelector('button[data-testid=control-button-queue]');if(qb)qb.click()};
                 document.getElementById('spl-vol-btn').onclick=function(){var vb=document.querySelector('button[data-testid=volume-bar-toggle-mute-button]');if(vb)vb.click()};
+                document.getElementById('spl-connect').onclick=function(){var cb=document.querySelector('button[aria-describedby="connect-message-nudge"]');if(cb)cb.click()};
+                document.getElementById('spl-avtoggle').onclick=function(){var t=splVideoToggle();if(!t)return;if(/switch to audio/i.test(t.getAttribute('aria-label')||'')){var s=document.getElementById('spl-video');var v=s?s.querySelector('video'):null;if(v&&splVidHome&&splVidHome.isConnected){splVidHome.appendChild(v);}splVidSuppress=Date.now()+1500;}t.click()};
                 (function(){
                     var vBar=document.getElementById('spl-vol-bar');
                     function splVolRange(){var r=document.querySelector('div[data-testid="volume-bar"] input[type="range"]');if(r)return r;return document.querySelector('input[type="range"][data-testid="volume-bar"]');}
@@ -608,6 +639,8 @@ object SpotilolPlayer {
                         var lk=document.getElementById('spl-liked');
                         var ly=document.getElementById('spl-lyrics');
                         var tm=document.getElementById('spl-timer');
+                        var cn=document.getElementById('spl-connect');
+                        var av=document.getElementById('spl-avtoggle');
 
                         var npb=document.querySelector('[data-testid="now-playing-widget"]');
                         var imgEl=npb?npb.querySelector('img[data-testid="cover-art-image"]'):null;
@@ -716,6 +749,34 @@ object SpotilolPlayer {
                             ly.style.display='none';
                         }
                         if(tm) tm.classList.toggle('spl-active',typeof sleepTimerActive!=='undefined'&&sleepTimerActive&&sleepTimerActive.value);
+                        if(cn){
+                            var cbtn=document.querySelector('button[aria-describedby="connect-message-nudge"]');
+                            if(cbtn){
+                                cn.style.display='';
+                                cn.classList.toggle('spl-active',cbtn.getAttribute('aria-pressed')==='true');
+                            } else {
+                                cn.style.display='none';
+                            }
+                        }
+                        if(av){
+                            var avb=splVideoToggle();
+                            if(avb&&pl.classList.contains('spl-full')){
+                                var toVid=/switch to video/i.test(avb.getAttribute('aria-label')||'');
+                                var avl=toVid?'Switch to video':'Switch to audio';
+                                av.style.display='';
+                                if(av.getAttribute('aria-label')!==avl) av.setAttribute('aria-label',avl);
+                                var alt=document.getElementById('spl-avtoggle-l');
+                                if(alt&&alt.textContent!==avl) alt.textContent=avl;
+                                var aic=document.getElementById('spl-avtoggle-i');
+                                var ak=toVid?'v':'a';
+                                if(aic&&aic.getAttribute('data-k')!==ak){
+                                    aic.setAttribute('data-k',ak);
+                                    aic.innerHTML=toVid?splIconVideo:splIconAudio;
+                                }
+                            } else {
+                                av.style.display='none';
+                            }
+                        }
                         var dcb=document.getElementById('spl-dl-cancel');
                         if(dcb) dcb.style.display = window.__splDlActive ? '' : 'none';
 
@@ -847,7 +908,8 @@ object SpotilolPlayer {
                     }
                     function splCanvasTick(){
                         if(!window.__splFullPlayer||pl.style.display==='none'){ if(!cvEl.paused) cvEl.pause(); return; }
-                        var tid=pl.classList.contains('spl-episode')?null:splCurTrackId();
+                        var hasVid=!!splPageVideo()||!!document.querySelector('#spl-video video');
+                        var tid=(pl.classList.contains('spl-episode')||hasVid)?null:splCurTrackId();
                         if(tid!==splCanvasFor){
                             splCanvasFor=tid;
                             splCanvasUrl=null;
@@ -868,7 +930,7 @@ object SpotilolPlayer {
                         }
                         else if(!want&&!cvEl.paused) cvEl.pause();
                     }
-                    var splVidHome=null,splVidWide=false,splCtlTimer=0;
+                    var splVidHome=null,splVidWide=false,splCtlTimer=0,splVidSuppress=0;
                     function splShowControls(show){
                         clearTimeout(splCtlTimer);
                         pl.classList.toggle('spl-ctl-hidden',!show);
@@ -878,19 +940,18 @@ object SpotilolPlayer {
                         var slot=document.getElementById('spl-video');
                         if(!slot) return;
                         var v=slot.querySelector('video');
-                        if(pl.classList.contains('spl-full')&&pl.classList.contains('spl-episode')){
-                            if(!v){
-                                var sv=document.querySelector('.VideoPlayer__container video');
-                                if(sv&&sv.videoWidth){
-                                    splVidHome=sv.parentNode; slot.appendChild(sv); v=sv;
-                                }
+                        var avail=splPageVideo();
+                        var full=pl.classList.contains('spl-full');
+                        if(full&&(pl.classList.contains('spl-episode')||v||avail)){
+                            if(!v&&avail&&avail.videoWidth&&Date.now()>splVidSuppress){
+                                splVidHome=avail.parentNode; slot.appendChild(avail); v=avail;
                             }
                         } else if(v&&splVidHome&&splVidHome.isConnected){
                             splVidHome.appendChild(v); v=null;
                         }
                         pl.classList.toggle('spl-video-on',!!(v&&v.videoWidth));
                         pl.classList.toggle('spl-video-tall',!!(v&&v.videoHeight>v.videoWidth));
-                        var wide=!!(v&&v.videoWidth>v.videoHeight&&pl.classList.contains('spl-full'));
+                        var wide=!!(v&&v.videoWidth>v.videoHeight&&full);
                         if(wide!==splVidWide){ splVidWide=wide; try{ AndBridge.wideVideo(wide); }catch(e){} if(wide) splShowControls(true); }
                         if(!v&&pl.classList.contains('spl-ctl-hidden')) splShowControls(true);
                     }

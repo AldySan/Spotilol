@@ -404,6 +404,7 @@ class SpotifyWebViewClient(
                 })();
             """.trimIndent())
             append(CssHack.CONTENT)
+            append(ContextMenuSheet.CONTENT)
             append(WatchFeed.CONTENT)
             append(ModalFix.CONTENT)
             append(ErrorDialogRestyle.CONTENT)

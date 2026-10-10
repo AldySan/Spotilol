@@ -187,7 +187,7 @@
     <string name="offline_version">v%1$s · %2$s</string>
     <string name="offline_desc_settings">Paramètres</string>
     <string name="offline_desc_exit_offline_mode">Quitter le mode hors-ligne</string>
-    <string name="offline_desc_open_folder">Ouvrir le dossier des téléchargements</string>
+    <string name="offline_desc_locate_track">Ouvrir le fichier</string>
     <string name="offline_status_loading">Chargement…</string>
     <string name="offline_status_no_results_for">Aucun résultat pour \"%1$s\"</string>
     <string name="offline_status_one_result_for">1 résultat pour \"%1$s\"</string>

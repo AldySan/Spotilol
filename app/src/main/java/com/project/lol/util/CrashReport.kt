@@ -13,7 +13,6 @@ import android.os.SystemClock
 import android.telephony.TelephonyManager
 import androidx.webkit.WebViewCompat
 import com.project.lol.BuildConfig
-import com.project.lol.proxy.LocalProxyManager
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -127,8 +126,6 @@ object CrashReport {
             }
         }
         val prefs = context.getSharedPreferences("spotilol_prefs", Context.MODE_PRIVATE)
-        sb.appendLine("connectionMode: ${prefs.getString("ConnectionMode", "normal")}")
-        sb.appendLine("localProxy: running=${LocalProxyManager.isRunning} port=${LocalProxyManager.port}")
         sb.appendLine()
     }
 

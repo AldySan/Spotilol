@@ -150,14 +150,15 @@ class SpotifyWebChromeClient(
         permissionRequest ?: return
         Handler(Looper.getMainLooper()).post {
             val resources = permissionRequest.resources
-            Logger.d(TAG, "permission request: ${permissionRequest.origin} ${resources.joinToString(",")}")
-            if (WebSecurityPolicy.isPlayer(permissionRequest.origin.toString()) &&
+            val origin = permissionRequest.origin.toString()
+            Logger.i(TAG, "permission request: $origin ${resources.joinToString(",")}")
+            if (WebSecurityPolicy.isSpotifyHost(origin) &&
                 resources.contains(PermissionRequest.RESOURCE_PROTECTED_MEDIA_ID)) {
                 permissionRequest.grant(arrayOf(PermissionRequest.RESOURCE_PROTECTED_MEDIA_ID))
                 Logger.i(TAG, "protected media granted")
             } else {
                 permissionRequest.deny()
-                Logger.w(TAG, "permission denied: ${resources.joinToString(",")}")
+                Logger.w(TAG, "permission denied: $origin ${resources.joinToString(",")}")
             }
         }
     }

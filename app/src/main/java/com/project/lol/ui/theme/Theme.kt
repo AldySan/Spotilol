@@ -67,7 +67,7 @@ fun defaultDarkScheme(): ColorScheme = darkColorScheme(
     outlineVariant = Color(0xFF444444)
 )
 
-private fun schemeFromSeed(seed: Color): ColorScheme {
+fun schemeFromSeed(seed: Color): ColorScheme {
     fun rotated(degrees: Float): Color {
         val hsv = FloatArray(3)
         android.graphics.Color.colorToHSV(seed.toArgb(), hsv)

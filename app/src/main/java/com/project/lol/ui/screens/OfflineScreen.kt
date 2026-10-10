@@ -15,9 +15,13 @@ import android.os.Looper
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
@@ -26,6 +30,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -81,9 +86,13 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
@@ -114,6 +123,7 @@ import com.project.lol.timer.SleepTimerAction
 import com.project.lol.timer.SleepTimerManager
 import com.project.lol.ui.components.SettingsDialog
 import com.project.lol.ui.components.SleepTimerDialog
+import com.project.lol.ui.theme.schemeFromSeed
 import com.project.lol.util.BuildInfo
 import compose.icons.TablerIcons
 import compose.icons.tablericons.ChevronDown
@@ -823,8 +833,22 @@ fun OfflineScreen(
                 AnimatedVisibility(
                     visible = playerExpanded && expandedSong != null,
                     modifier = Modifier.fillMaxSize(),
-                    enter = slideInVertically(initialOffsetY = { it }, animationSpec = tween(260)) + fadeIn(tween(260)),
-                    exit = slideOutVertically(targetOffsetY = { it }, animationSpec = tween(200)) + fadeOut(tween(200))
+                    enter = slideInVertically(
+                        initialOffsetY = { it },
+                        animationSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow)
+                    ) + fadeIn(tween(240)) + scaleIn(
+                        initialScale = 0.92f,
+                        transformOrigin = TransformOrigin(0.5f, 1f),
+                        animationSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow)
+                    ),
+                    exit = slideOutVertically(
+                        targetOffsetY = { it },
+                        animationSpec = tween(220)
+                    ) + fadeOut(tween(180)) + scaleOut(
+                        targetScale = 0.94f,
+                        transformOrigin = TransformOrigin(0.5f, 1f),
+                        animationSpec = tween(220)
+                    )
                 ) {
                     if (expandedSong != null) {
                         FullScreenPlayer(
@@ -1523,6 +1547,73 @@ private fun decodeCover(context: android.content.Context, song: OfflineSong): Bi
     }.getOrNull()
 }
 
+private fun extractSeedColor(bitmap: Bitmap): Color? {
+    val sample = 32
+    val scaled = Bitmap.createScaledBitmap(bitmap, sample, sample, false)
+    val pixels = IntArray(sample * sample)
+    scaled.getPixels(pixels, 0, sample, 0, 0, sample, sample)
+    if (scaled !== bitmap) scaled.recycle()
+
+    var allR = 0L
+    var allG = 0L
+    var allB = 0L
+    var allN = 0
+    var vividR = 0L
+    var vividG = 0L
+    var vividB = 0L
+    var vividN = 0
+    for (pixel in pixels) {
+        if (android.graphics.Color.alpha(pixel) < 200) continue
+        val r = android.graphics.Color.red(pixel)
+        val g = android.graphics.Color.green(pixel)
+        val b = android.graphics.Color.blue(pixel)
+        allR += r
+        allG += g
+        allB += b
+        allN++
+        val max = maxOf(r, g, b)
+        val min = minOf(r, g, b)
+        val saturation = if (max == 0) 0f else (max - min).toFloat() / max
+        if (saturation > 0.28f && max > 70 && min < 230) {
+            vividR += r
+            vividG += g
+            vividB += b
+            vividN++
+        }
+    }
+    if (allN == 0) return null
+    return if (vividN > 0) {
+        Color(
+            android.graphics.Color.rgb(
+                (vividR / vividN).toInt(),
+                (vividG / vividN).toInt(),
+                (vividB / vividN).toInt()
+            )
+        )
+    } else {
+        Color(
+            android.graphics.Color.rgb(
+                (allR / allN).toInt(),
+                (allG / allN).toInt(),
+                (allB / allN).toInt()
+            )
+        )
+    }
+}
+
+@Composable
+private fun coverBackgroundBrush(seed: Color?): Brush {
+    val base = MaterialTheme.colorScheme.background
+    if (seed == null) return Brush.verticalGradient(listOf(base, base))
+    return Brush.verticalGradient(
+        listOf(
+            lerp(base, seed, 0.55f),
+            lerp(base, seed, 0.14f),
+            base
+        )
+    )
+}
+
 private fun repeatIcon(mode: RepeatMode): Int = when (mode) {
     RepeatMode.OFF -> R.drawable.ic_repeat_off
     RepeatMode.ALL -> R.drawable.ic_repeat
@@ -1556,11 +1647,27 @@ private fun NowPlayingBar(
 ) {
     val scrubbing = scrubMs >= 0
     val shownPosition = if (scrubbing) scrubMs else positionMs
+    val density = LocalDensity.current
+    val expandThreshold = with(density) { 56.dp.toPx() }
+    var dragOffset by remember { mutableFloatStateOf(0f) }
 
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 10.dp, vertical = 10.dp),
+            .padding(horizontal = 10.dp, vertical = 10.dp)
+            .graphicsLayer { translationY = dragOffset }
+            .pointerInput(Unit) {
+                detectVerticalDragGestures(
+                    onDragEnd = {
+                        if (dragOffset < -expandThreshold) onExpand()
+                        dragOffset = 0f
+                    },
+                    onDragCancel = { dragOffset = 0f },
+                    onVerticalDrag = { _, amount ->
+                        dragOffset = (dragOffset + amount).coerceIn(-size.height * 0.6f, 0f)
+                    }
+                )
+            },
         shape = RoundedCornerShape(18.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.97f),
         tonalElevation = 4.dp,
@@ -1572,7 +1679,6 @@ private fun NowPlayingBar(
                     modifier = Modifier
                         .weight(1f)
                         .clip(RoundedCornerShape(10.dp))
-                        .clickable(onClick = onExpand)
                         .padding(vertical = 2.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -1688,6 +1794,7 @@ private fun FullScreenPlayer(
     onEnterPip: () -> Unit
 ) {
     val context = LocalContext.current
+    val density = LocalDensity.current
     val audioManager = remember {
         context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     }
@@ -1706,13 +1813,20 @@ private fun FullScreenPlayer(
         }
     }
 
+    var coverSeed by remember(song.id, song.uri) { mutableStateOf<Color?>(null) }
+    LaunchedEffect(song.id, song.uri) {
+        val bitmap = withContext(Dispatchers.IO) { decodeCover(context, song) }
+        coverSeed = bitmap?.let { extractSeedColor(it) }
+    }
+    val coverScheme = coverSeed?.let { remember(it) { schemeFromSeed(it) } }
+
+    val collapseThreshold = with(density) { 84.dp.toPx() }
+    var dragOffset by remember { mutableFloatStateOf(0f) }
+
     val scrubbing = scrubMs >= 0
     val shownPosition = if (scrubbing) scrubMs else positionMs
 
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
-    ) {
+    val body: @Composable () -> Unit = {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -1894,6 +2008,32 @@ private fun FullScreenPlayer(
                     modifier = Modifier.weight(1f)
                 )
             }
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .graphicsLayer { translationY = dragOffset }
+            .pointerInput(Unit) {
+                detectVerticalDragGestures(
+                    onDragEnd = {
+                        if (dragOffset > collapseThreshold) onCollapse()
+                        dragOffset = 0f
+                    },
+                    onDragCancel = { dragOffset = 0f },
+                    onVerticalDrag = { _, amount ->
+                        dragOffset = (dragOffset + amount).coerceIn(0f, size.height * 0.7f)
+                    }
+                )
+            }
+            .background(coverBackgroundBrush(coverSeed))
+    ) {
+        val scheme = coverScheme
+        if (scheme != null) {
+            MaterialTheme(colorScheme = scheme) { body() }
+        } else {
+            body()
         }
     }
 }

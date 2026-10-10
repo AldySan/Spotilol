@@ -97,26 +97,7 @@ download the `.apk` and install it on your device. you may need to toggle **"Ins
 
 ## Quick Start
 
-install the APK, open it, done. Spotilol runs in **normal mode** by default — no certificate, no setup, no "Certificate Required" screen. it just works out of the box.
-
----
-
-## Proxy MITM Mode (optional)
-
-want the full fingerprint treatment? flip the mode in **Settings → Connection Mode → "MITM Proxy (Certificate)"**. the app restarts and walks you through the cert install.
-
-### The Certificate Thing
-
-Spotilol generates a local CA cert to rewrite request headers; this does not guarantee that Spotify cannot detect the WebView. it lives on your device, stays on your device.
-
-1. open Spotilol in proxy mode — you'll see the **"Certificate Required"** screen
-2. tap **"Export .pem"** to save it to your Downloads
-3. go to **Settings > Security > Encryption & Credentials > Install a certificate > CA certificate**
-4. find `spotilol_ca.pem` in your Downloads and tap it
-5. it'll warn you about network monitoring — tap **"Install anyway"**
-6. come back to Spotilol and tap **"Check"**. if it worked, you're in.
-
-> **Note:** if you ever clear your device's credential storage (like after a factory reset), you'll have to do this again.
+install the APK, open it, done. no setup, no certificates, no fuss — it just works out of the box.
 
 ---
 

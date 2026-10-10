@@ -105,6 +105,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.core.content.ContextCompat
 import com.project.lol.R
+import com.project.lol.offline.DownloadFolder
+import com.project.lol.offline.DownloadPrefs
 import com.project.lol.offline.OfflineSong
 import com.project.lol.offline.OfflineStore
 import com.project.lol.service.OfflineMediaService
@@ -117,6 +119,7 @@ import com.project.lol.util.BuildInfo
 import compose.icons.TablerIcons
 import compose.icons.tablericons.ChevronDown
 import compose.icons.tablericons.CloudOff
+import compose.icons.tablericons.Folder
 import compose.icons.tablericons.Logout
 import compose.icons.tablericons.Menu2
 import compose.icons.tablericons.Music
@@ -138,6 +141,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.time.Duration.Companion.milliseconds
+
+private enum class RepeatMode { OFF, ALL, ONE }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -189,6 +194,7 @@ fun OfflineScreen(
     var shuffleOn by remember { mutableStateOf(false) }
     var shuffleOrder by remember { mutableStateOf<List<String>>(emptyList()) }
     var shufflePos by remember { mutableIntStateOf(-1) }
+    var repeatMode by remember { mutableStateOf(RepeatMode.OFF) }
     var playerExpanded by remember { mutableStateOf(false) }
     var showSleepTimerDialog by remember { mutableStateOf(false) }
     var sleepTimerInput by remember { mutableStateOf("") }
@@ -335,6 +341,14 @@ fun OfflineScreen(
         }
     }
 
+    fun cycleRepeat() {
+        repeatMode = when (repeatMode) {
+            RepeatMode.OFF -> RepeatMode.ALL
+            RepeatMode.ALL -> RepeatMode.ONE
+            RepeatMode.ONE -> RepeatMode.OFF
+        }
+    }
+
     fun step(delta: Int) {
         if (songs.isEmpty()) return
         if (shuffleOn) {
@@ -473,24 +487,38 @@ fun OfflineScreen(
                 SleepTimerManager.onTrackCompleted()
                 return@setOnCompletionListener
             }
-            if (shuffleOn) {
+            if (repeatMode == RepeatMode.ONE && currentIndex in songs.indices) {
+                play(currentIndex)
+                return@setOnCompletionListener
+            }
+            val advanced = if (shuffleOn) {
                 ensureShuffleOrder()
                 if (shufflePos in 0 until shuffleOrder.size - 1) {
                     step(1)
+                    true
+                } else if (repeatMode == RepeatMode.ALL && shuffleOrder.isNotEmpty()) {
+                    shufflePos = -1
+                    step(1)
+                    true
                 } else {
-                    isPlaying = false
-                    positionMs = 0
-                    OfflineMediaService.instance?.updatePlaying(false, 0)
+                    false
                 }
             } else {
                 val index = currentIndex
                 if (index in 0 until songs.lastIndex) {
                     play(index + 1)
+                    true
+                } else if (repeatMode == RepeatMode.ALL && songs.isNotEmpty()) {
+                    play(0)
+                    true
                 } else {
-                    isPlaying = false
-                    positionMs = 0
-                    OfflineMediaService.instance?.updatePlaying(false, 0)
+                    false
                 }
+            }
+            if (!advanced) {
+                isPlaying = false
+                positionMs = 0
+                OfflineMediaService.instance?.updatePlaying(false, 0)
             }
         }
         onDispose { }
@@ -576,6 +604,21 @@ fun OfflineScreen(
                             }
                         },
                         actions = {
+                            IconButton(onClick = {
+                                if (!DownloadFolder.openInFileManager(context)) {
+                                    Toast.makeText(
+                                        context,
+                                        DownloadPrefs.folderDisplayPath(context),
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                            }) {
+                                Icon(
+                                    imageVector = TablerIcons.Folder,
+                                    contentDescription = stringResource(R.string.offline_desc_open_folder),
+                                    tint = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
                             IconButton(onClick = { showSleepTimerDialog = true }) {
                                 Icon(
                                     painter = painterResource(R.drawable.ic_timer),
@@ -780,6 +823,8 @@ fun OfflineScreen(
                             onClose = { stopAndClear() },
                             shuffleOn = shuffleOn,
                             onToggleShuffle = { toggleShuffle() },
+                            repeatMode = repeatMode,
+                            onCycleRepeat = { cycleRepeat() },
                             onExpand = { playerExpanded = true }
                         )
                     }
@@ -814,6 +859,8 @@ fun OfflineScreen(
                             },
                             shuffleOn = shuffleOn,
                             onToggleShuffle = { toggleShuffle() },
+                            repeatMode = repeatMode,
+                            onCycleRepeat = { cycleRepeat() },
                             onEnterPip = onEnterPip
                         )
                     }
@@ -1478,6 +1525,18 @@ private fun decodeCover(context: android.content.Context, song: OfflineSong): Bi
     }.getOrNull()
 }
 
+private fun repeatIcon(mode: RepeatMode): Int = when (mode) {
+    RepeatMode.OFF -> R.drawable.ic_repeat_off
+    RepeatMode.ALL -> R.drawable.ic_repeat
+    RepeatMode.ONE -> R.drawable.ic_repeat_one
+}
+
+private fun repeatDescription(mode: RepeatMode): Int = when (mode) {
+    RepeatMode.OFF -> R.string.offline_desc_repeat_off
+    RepeatMode.ALL -> R.string.offline_desc_repeat_all
+    RepeatMode.ONE -> R.string.offline_desc_repeat_one
+}
+
 @Composable
 private fun NowPlayingBar(
     song: OfflineSong,
@@ -1493,7 +1552,9 @@ private fun NowPlayingBar(
     onExpand: () -> Unit,
     onClose: () -> Unit,
     shuffleOn: Boolean,
-    onToggleShuffle: () -> Unit
+    onToggleShuffle: () -> Unit,
+    repeatMode: RepeatMode,
+    onCycleRepeat: () -> Unit
 ) {
     val scrubbing = scrubMs >= 0
     val shownPosition = if (scrubbing) scrubMs else positionMs
@@ -1541,6 +1602,14 @@ private fun NowPlayingBar(
                     contentDescription = stringResource(if (shuffleOn) R.string.offline_desc_shuffle_disable else R.string.offline_desc_shuffle_enable),
                     tint = if (shuffleOn) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     onClick = onToggleShuffle,
+                    boxSize = 30.dp,
+                    iconSize = 16.dp
+                )
+                CompactIconButton(
+                    painter = painterResource(repeatIcon(repeatMode)),
+                    contentDescription = stringResource(repeatDescription(repeatMode)),
+                    tint = if (repeatMode == RepeatMode.OFF) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary,
+                    onClick = onCycleRepeat,
                     boxSize = 30.dp,
                     iconSize = 16.dp
                 )
@@ -1616,6 +1685,8 @@ private fun FullScreenPlayer(
     onClose: () -> Unit,
     shuffleOn: Boolean,
     onToggleShuffle: () -> Unit,
+    repeatMode: RepeatMode,
+    onCycleRepeat: () -> Unit,
     onEnterPip: () -> Unit
 ) {
     val context = LocalContext.current
@@ -1671,6 +1742,14 @@ private fun FullScreenPlayer(
                     maxLines = 1
                 )
                 Spacer(Modifier.weight(1f))
+                CompactIconButton(
+                    icon = TablerIcons.PictureInPicture,
+                    contentDescription = stringResource(R.string.offline_desc_enter_pip),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    onClick = onEnterPip,
+                    boxSize = 40.dp,
+                    iconSize = 18.dp
+                )
                 CompactIconButton(
                     icon = TablerIcons.X,
                     contentDescription = stringResource(R.string.offline_desc_close_player),
@@ -1784,10 +1863,10 @@ private fun FullScreenPlayer(
                     iconSize = 30.dp
                 )
                 CompactIconButton(
-                    icon = TablerIcons.PictureInPicture,
-                    contentDescription = stringResource(R.string.offline_desc_enter_pip),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    onClick = onEnterPip,
+                    painter = painterResource(repeatIcon(repeatMode)),
+                    contentDescription = stringResource(repeatDescription(repeatMode)),
+                    tint = if (repeatMode == RepeatMode.OFF) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary,
+                    onClick = onCycleRepeat,
                     boxSize = 44.dp,
                     iconSize = 20.dp
                 )

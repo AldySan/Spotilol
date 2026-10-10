@@ -107,7 +107,6 @@ import com.project.lol.offline.DownloadFolder
 import com.project.lol.offline.DownloadFormat
 import com.project.lol.offline.DownloadPrefs
 import com.project.lol.profile.ProfileManager
-import com.project.lol.proxy.LocalProxyManager
 import com.project.lol.service.MediaNotificationService
 import com.project.lol.ui.components.ChangelogDialog
 import com.project.lol.ui.theme.SpotifyTheme
@@ -220,7 +219,6 @@ fun SettingsContent(
     onKeepScreenOnChange: (Boolean) -> Unit,
     paletteSeed: String?,
     onPaletteSeedChange: (String?) -> Unit,
-    onConnectionModeChange: (String) -> Unit,
     onOfflineModeChange: (Boolean) -> Unit,
     onSaveProfile: (String, String) -> Unit,
     onLoadProfile: (String) -> Unit,
@@ -244,7 +242,6 @@ fun SettingsContent(
     var btAutoResume by remember { mutableStateOf(prefs.getBoolean("BtAutoResume", false)) }
     var hpAutoResume by remember { mutableStateOf(prefs.getBoolean("HpAutoResume", false)) }
     var playerMode by remember { mutableStateOf(prefs.getString("PlayerMode", "spotilol") ?: "spotilol") }
-    var connectionMode by remember { mutableStateOf(prefs.getString("ConnectionMode", "normal") ?: "normal") }
     var offlineMode by remember { mutableStateOf(prefs.getBoolean("OfflineMode", false)) }
     var blockSW by remember { mutableStateOf(blockServiceWorker) }
     var hideEmptyPlayer by remember { mutableStateOf(prefs.getBoolean("HideEmptyPlayer", false)) }
@@ -260,7 +257,6 @@ fun SettingsContent(
     val resources = LocalResources.current
     var profiles by remember { mutableStateOf(ProfileManager.getProfiles(context)) }
 
-    var showConnectionModeDialog by remember { mutableStateOf(false) }
     var showSaveAccountDialog by remember { mutableStateOf(false) }
     var pendingCookies by remember { mutableStateOf<String?>(null) }
     var accountNameInput by remember { mutableStateOf("") }
@@ -819,23 +815,6 @@ fun SettingsContent(
 
             if (settingsTab == SettingsTab.Advanced) {
                 SettingSectionCard(
-                    title = stringResource(R.string.settings_section_connection_mode),
-                    icon = TablerIcons.Shield
-                ) {
-                    val modeLabel = if (connectionMode == "proxy") {
-                        stringResource(R.string.settings_connection_proxy)
-                    } else {
-                        stringResource(R.string.settings_connection_normal)
-                    }
-                    SettingTile(
-                        title = stringResource(R.string.settings_connection_mode),
-                        subtitle = stringResource(R.string.settings_connection_mode_subtitle, modeLabel),
-                        icon = TablerIcons.Shield,
-                        onClick = { showConnectionModeDialog = true }
-                    )
-                }
-
-                SettingSectionCard(
                     title = stringResource(R.string.settings_section_system),
                     icon = TablerIcons.Power
                 ) {
@@ -908,23 +887,6 @@ fun SettingsContent(
                             Telemetry.setEnabled(context, enabled)
                         }
                     )
-                }
-
-                if (connectionMode == "proxy") {
-                    SettingSectionCard(
-                        title = stringResource(R.string.settings_section_security_network),
-                        icon = TablerIcons.Shield
-                    ) {
-                        SettingTile(
-                            title = stringResource(R.string.settings_ca_certificate),
-                            subtitle = stringResource(R.string.settings_ca_certificate_subtitle),
-                            icon = TablerIcons.Shield,
-                            onClick = {
-                                val path = LocalProxyManager.exportCACert(context)
-                                Toast.makeText(context, resources.getString(R.string.settings_cert_exported, path), Toast.LENGTH_LONG).show()
-                            }
-                        )
-                    }
                 }
             }
 
@@ -1090,22 +1052,6 @@ fun SettingsContent(
                     Text(stringResource(R.string.settings_cancel), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-        )
-    }
-
-    if (showConnectionModeDialog) {
-        SingleChoiceDialog(
-            title = stringResource(R.string.settings_connection_mode),
-            options = listOf(
-                "normal" to stringResource(R.string.settings_connection_normal),
-                "proxy" to stringResource(R.string.settings_connection_proxy)
-            ),
-            selected = connectionMode,
-            onSelect = { value ->
-                connectionMode = value
-                onConnectionModeChange(value)
-            },
-            onDismiss = { showConnectionModeDialog = false }
         )
     }
 
@@ -1999,7 +1945,6 @@ fun SettingsContentPreview() {
             onKeepScreenOnChange = {},
             paletteSeed = null,
             onPaletteSeedChange = {},
-            onConnectionModeChange = {},
             onOfflineModeChange = {},
             onSaveProfile = { _, _ -> },
             onLoadProfile = {},

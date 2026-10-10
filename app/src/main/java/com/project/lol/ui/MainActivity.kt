@@ -15,7 +15,6 @@ import android.graphics.drawable.Icon
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.os.CountDownTimer
 import android.os.Handler
 import android.os.Looper
 import android.util.Rational
@@ -37,7 +36,6 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -51,16 +49,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -71,10 +64,10 @@ import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -89,8 +82,6 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
@@ -113,8 +104,12 @@ import com.project.lol.bridge.SpotifyBridge
 import com.project.lol.offline.DownloadManager
 import com.project.lol.profile.ProfileManager
 import com.project.lol.service.MediaNotificationService
+import com.project.lol.timer.AppQuit
+import com.project.lol.timer.SleepTimerAction
+import com.project.lol.timer.SleepTimerManager
 import com.project.lol.ui.components.ChangelogDialog
 import com.project.lol.ui.components.SettingsDialog
+import com.project.lol.ui.components.SleepTimerDialog
 import com.project.lol.ui.theme.SpotifyTheme
 import com.project.lol.util.BuildInfo
 import com.project.lol.util.ChangelogPrefs
@@ -191,9 +186,7 @@ class MainActivity : ComponentActivity() {
 
     private val showSleepTimerDialog = mutableStateOf(false)
     private val sleepTimerInputText = mutableStateOf("")
-    private var sleepTimer: CountDownTimer? = null
-    private val sleepTimerRemainingMs = mutableLongStateOf(0L)
-    private val sleepTimerActive = mutableStateOf(false)
+    private val sleepTimerState = mutableStateOf(SleepTimerManager.state())
 
     private val loadingProgress = mutableIntStateOf(100)
     private val blockServiceWorkerState = mutableStateOf(true)
@@ -222,6 +215,10 @@ class MainActivity : ComponentActivity() {
         })
 
         prefs = getSharedPreferences("spotilol_prefs", MODE_PRIVATE)
+
+        SleepTimerManager.loadAction(this)
+        sleepTimerState.value = SleepTimerManager.state()
+
         changelogOnUpdate = ChangelogPrefs.shouldShowOnUpdate(this)
 
         if ((applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
@@ -273,7 +270,6 @@ class MainActivity : ComponentActivity() {
             val keepScreenOn = keepScreenOnState.value
             val paletteSeed = paletteSeedState.value
             val showDialog = showSleepTimerDialog.value
-            val timerActive = sleepTimerActive.value
             val loadProgress = loadingProgress.intValue
             val blockServiceWorker = blockServiceWorkerState.value
             val pipFilling = pipVideoActive.value
@@ -459,9 +455,33 @@ class MainActivity : ComponentActivity() {
 
                             bridge.onTimerDialogRequest = {
                                 showSleepTimerDialog.value = true
-                                if (!timerActive) {
+                                if (!SleepTimerManager.isActive) {
                                     sleepTimerInputText.value = ""
                                 }
+                            }
+
+                            bridge.onPlayLoaded = {
+                                publishTimerHighlight(SleepTimerManager.isActive)
+                            }
+
+                            bridge.onMediaPosition = { position ->
+                                SleepTimerManager.onPosition(position)
+                            }
+
+                            DisposableEffect(bridge) {
+                                var styledActive: Boolean? = null
+                                val releaseHost = SleepTimerManager.registerHost(
+                                    stateChange = {
+                                        sleepTimerState.value = SleepTimerManager.state()
+                                        val isActiveNow = SleepTimerManager.isActive
+                                        if (isActiveNow != styledActive) {
+                                            styledActive = isActiveNow
+                                            publishTimerHighlight(isActiveNow)
+                                        }
+                                    },
+                                    expire = { handleSleepTimerExpire() }
+                                )
+                                onDispose { releaseHost() }
                             }
 
                             bridge.onPlayerExpanded = { playerExpanded = it }
@@ -643,21 +663,25 @@ class MainActivity : ComponentActivity() {
 
                             if (showDialog) {
                                 SleepTimerDialog(
-                                    timerActive = timerActive,
-                                    timerRemainingMs = sleepTimerRemainingMs.longValue,
+                                    state = sleepTimerState.value,
                                     inputText = sleepTimerInputText.value,
                                     onInputChange = { sleepTimerInputText.value = it },
-                                    onSetTimer = { minutes ->
+                                    onStartCountdown = { minutes ->
                                         showSleepTimerDialog.value = false
-                                        if (minutes > 0) {
-                                            startSleepTimer(minutes)
-                                        } else {
-                                            cancelSleepTimer()
-                                        }
+                                        analytics.logEvent("sleep_timer_start", Bundle().apply {
+                                            putString("minutes", minutes.toString())
+                                        })
+                                        SleepTimerManager.startCountdown(minutes)
                                     },
+                                    onStartEndOfSong = {
+                                        showSleepTimerDialog.value = false
+                                        analytics.logEvent("sleep_timer_end_of_song", null)
+                                        SleepTimerManager.startEndOfSong()
+                                    },
+                                    onActionChange = { SleepTimerManager.setAction(this@MainActivity, it) },
                                     onCancelTimer = {
                                         showSleepTimerDialog.value = false
-                                        cancelSleepTimer()
+                                        SleepTimerManager.cancel()
                                     },
                                     onDismiss = {
                                         showSleepTimerDialog.value = false
@@ -728,6 +752,7 @@ class MainActivity : ComponentActivity() {
 
     private fun switchOfflineMode(enabled: Boolean) {
         Logger.i(TAG, "offline mode -> $enabled, restarting app")
+        SleepTimerManager.cancel()
         prefs.edit().putBoolean("OfflineMode", enabled).apply()
         stopService(Intent(this, MediaNotificationService::class.java))
         val intent = Intent(this, SplashActivity::class.java).apply {
@@ -797,188 +822,33 @@ class MainActivity : ComponentActivity() {
         finish()
     }
 
-    private fun startSleepTimer(minutes: Int) {
-        cancelSleepTimer()
-        val totalMs = minutes * 60 * 1000L
-        Logger.i(TAG, "sleep timer started: ${minutes}min")
-        sleepTimerActive.value = true
-        sleepTimerRemainingMs.longValue = totalMs
-
-        analytics.logEvent("sleep_timer_start", Bundle().apply {
-            putString("minutes", minutes.toString())
-        })
-
-        webView?.evaluateJavascript("""
-            if(window.timerBtn) timerBtn.style.color='var(--spl-accent,#2d6)';
-            var t=document.getElementById('spl-timer');
-            if(t) t.classList.add('spl-active');
-        """.trimIndent(), null)
-
-        sleepTimer = object : CountDownTimer(totalMs, 1000) {
-            override fun onTick(millisUntilFinished: Long) {
-                sleepTimerRemainingMs.longValue = millisUntilFinished
-            }
-
-            override fun onFinish() {
-                Logger.i(TAG, "sleep timer finished, pausing playback")
-                sleepTimerActive.value = false
-                sleepTimerRemainingMs.longValue = 0L
-                webView?.evaluateJavascript("""
-                    if(window.timerBtn) timerBtn.style.color='';
-                    var t=document.getElementById('spl-timer');
-                    if(t) t.classList.remove('spl-active');
-                """.trimIndent(), null)
+    private fun handleSleepTimerExpire() {
+        when (SleepTimerManager.action) {
+            SleepTimerAction.PAUSE -> {
+                Logger.i(TAG, "sleep timer expired: pausing playback")
                 webView?.evaluateJavascript("actPlayPause(false)", null)
             }
-        }.start()
-    }
 
-    private fun cancelSleepTimer() {
-        if (sleepTimer != null) Logger.i(TAG, "sleep timer cancelled")
-        sleepTimer?.cancel()
-        sleepTimer = null
-        sleepTimerActive.value = false
-        sleepTimerRemainingMs.longValue = 0L
-        webView?.evaluateJavascript("""
-            if(window.timerBtn) timerBtn.style.color='';
-            var t=document.getElementById('spl-timer');
-            if(t) t.classList.remove('spl-active');
-        """.trimIndent(), null)
-    }
-
-    @Composable
-    private fun SleepTimerDialog(
-        timerActive: Boolean,
-        timerRemainingMs: Long,
-        inputText: String,
-        onInputChange: (String) -> Unit,
-        onSetTimer: (Int) -> Unit,
-        onCancelTimer: () -> Unit,
-        onDismiss: () -> Unit
-    ) {
-        val minutes = inputText.toIntOrNull() ?: 0
-        if (timerActive) {
-            val remainingSecs = timerRemainingMs / 1000
-            val mins = remainingSecs / 60
-            val secs = remainingSecs % 60
-            val timeStr = stringResource(R.string.main_timer_remaining, mins, secs)
-
-            AlertDialog(
-                onDismissRequest = onDismiss,
-                shape = RoundedCornerShape(16.dp),
-                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                titleContentColor = MaterialTheme.colorScheme.onSurface,
-                textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                title = {
-                    Text(
-                        stringResource(R.string.main_sleep_timer_title),
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.fillMaxWidth(),
-                        textAlign = TextAlign.Center
-                    )
-                },
-                text = {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = stringResource(R.string.main_sleep_timer_emoji),
-                            style = MaterialTheme.typography.displaySmall
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            text = stringResource(R.string.main_timer_active),
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Text(
-                            text = timeStr,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                },
-                confirmButton = {
-                    Row(
-                        horizontalArrangement = Arrangement.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Button(onClick = onDismiss) {
-                            Text(stringResource(R.string.main_close))
-                        }
-                        Spacer(Modifier.width(12.dp))
-                        Button(
-                            onClick = onCancelTimer,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.error
-                            )
-                        ) {
-                            Text(stringResource(R.string.main_cancel_timer))
-                        }
-                    }
-                },
-                dismissButton = {}
-            )
-        } else {
-            AlertDialog(
-                onDismissRequest = onDismiss,
-                shape = RoundedCornerShape(16.dp),
-                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                titleContentColor = MaterialTheme.colorScheme.onSurface,
-                textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                title = {
-                    Text(
-                        stringResource(R.string.main_sleep_timer_title),
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.fillMaxWidth(),
-                        textAlign = TextAlign.Center
-                    )
-                },
-                text = {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = stringResource(R.string.main_set_minutes),
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Spacer(Modifier.height(12.dp))
-                        OutlinedTextField(
-                            value = inputText,
-                            onValueChange = { new ->
-                                if (new.length <= 5 && new.all { it.isDigit() }) {
-                                    onInputChange(new)
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            placeholder = { Text(stringResource(R.string.main_timer_minutes_hint)) },
-                            trailingIcon = { Text(stringResource(R.string.main_minutes_suffix), style = MaterialTheme.typography.bodyMedium) }
-                        )
-                    }
-                },
-                confirmButton = {
-                    Row(
-                        horizontalArrangement = Arrangement.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Button(onClick = onDismiss) {
-                            Text(stringResource(R.string.main_cancel))
-                        }
-                        Spacer(Modifier.width(12.dp))
-                        Button(
-                            onClick = { onSetTimer(minutes) },
-                            enabled = minutes > 0
-                        ) {
-                            Text(stringResource(R.string.main_set_timer))
-                        }
-                    }
-                },
-                dismissButton = {}
-            )
+            SleepTimerAction.QUIT -> {
+                Logger.i(TAG, "sleep timer expired: quitting app")
+                webView?.evaluateJavascript("actPlayPause(false)", null)
+                AppQuit.quit(this)
+            }
         }
+    }
+
+    private fun publishTimerHighlight(active: Boolean) {
+        webView?.evaluateJavascript(
+            """
+            (function(a){
+                window.sleepTimerActive={value:a};
+                if(window.timerBtn) timerBtn.style.color=a?'var(--spl-accent,#2d6)':'';
+                var t=document.getElementById('spl-timer');
+                if(t) t.classList.toggle('spl-active',a);
+            })($active)
+            """.trimIndent(),
+            null
+        )
     }
 
     @Composable
@@ -1312,6 +1182,14 @@ class MainActivity : ComponentActivity() {
         try {
             val obj = JSONObject(json)
             pipPlaying = obj.optBoolean("playing", false)
+
+            SleepTimerManager.onTrackInfo(
+                obj.optString("track").ifBlank { null },
+                obj.optLong("duration", 0L),
+                obj.optLong("position", 0L),
+                obj.optBoolean("playing", false)
+            )
+
             Logger.v(TAG, "media status: playing=$pipPlaying title=${obj.optString("title", "").take(48)}")
             val coverUrl = obj.optString("cover", "")
             if (coverUrl.isNotEmpty() && coverUrl != "null" && coverUrl != lastPipCoverUrl) {
@@ -1628,7 +1506,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         Logger.i(TAG, "activity destroyed, tearing down webview")
-        cancelSleepTimer()
         pipVideoView = null
         pipVideoCallback = null
         pipVideoActive.value = false

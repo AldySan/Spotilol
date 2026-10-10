@@ -265,6 +265,19 @@
     <string name="main_pip_play">Play</string>
     <string name="main_pip_pause">Pause</string>
     <string name="main_pip_next">Next</string>
+
+    <string name="timer_quick_select">Quick select</string>
+    <string name="timer_preset_minutes">%1$d min</string>
+    <string name="timer_end_of_song">End Song</string>
+    <string name="timer_end_of_song_subtitle">Stop once the current song finishes</string>
+    <string name="timer_waiting_end_of_song">After the current song</string>
+    <string name="timer_when_timer_ends">When the timer ends</string>
+    <string name="timer_action_pause">Pause music</string>
+    <string name="timer_action_quit">Quit app</string>
+    <string name="timer_action_summary_pause">Music will pause when the timer ends</string>
+    <string name="timer_action_summary_quit">The app will quit when the timer ends</string>
+    <string name="timer_desc_open">Sleep timer</string>
+
     <string name="splash_title">Spotilol</string>
     <string name="splash_version_label">v%1$s · %2$s</string>
     <string name="splash_onboarding_welcome">Welcome</string>

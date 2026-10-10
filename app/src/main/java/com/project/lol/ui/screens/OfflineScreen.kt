@@ -108,7 +108,11 @@ import com.project.lol.R
 import com.project.lol.offline.OfflineSong
 import com.project.lol.offline.OfflineStore
 import com.project.lol.service.OfflineMediaService
+import com.project.lol.timer.AppQuit
+import com.project.lol.timer.SleepTimerAction
+import com.project.lol.timer.SleepTimerManager
 import com.project.lol.ui.components.SettingsDialog
+import com.project.lol.ui.components.SleepTimerDialog
 import com.project.lol.util.BuildInfo
 import compose.icons.TablerIcons
 import compose.icons.tablericons.ChevronDown
@@ -186,6 +190,9 @@ fun OfflineScreen(
     var shuffleOrder by remember { mutableStateOf<List<String>>(emptyList()) }
     var shufflePos by remember { mutableIntStateOf(-1) }
     var playerExpanded by remember { mutableStateOf(false) }
+    var showSleepTimerDialog by remember { mutableStateOf(false) }
+    var sleepTimerInput by remember { mutableStateOf("") }
+    var sleepTimerState by remember { mutableStateOf(SleepTimerManager.state()) }
 
     val mediaPlayer = remember { MediaPlayer() }
     val audioFocus = remember { OfflineAudioFocus(context) }
@@ -235,6 +242,22 @@ fun OfflineScreen(
                     putExtra("shuffle", shuffleOn)
                 }
             )
+        }
+    }
+
+    fun handleSleepTimerExpire() {
+        when (SleepTimerManager.action) {
+            SleepTimerAction.PAUSE -> {
+                runCatching {
+                    if (mediaPlayer.isPlaying) mediaPlayer.pause()
+                }
+                isPlaying = false
+                positionMs = runCatching { mediaPlayer.currentPosition }.getOrDefault(positionMs)
+                syncService()
+                OfflineMediaService.instance?.updatePlaying(false, positionMs.toLong())
+            }
+
+            SleepTimerAction.QUIT -> AppQuit.quit(context)
         }
     }
 
@@ -435,8 +458,21 @@ fun OfflineScreen(
         }
     }
 
+    DisposableEffect(Unit) {
+        SleepTimerManager.loadAction(context)
+        val releaseHost = SleepTimerManager.registerHost(
+            stateChange = { sleepTimerState = SleepTimerManager.state() },
+            expire = { handleSleepTimerExpire() }
+        )
+        onDispose { releaseHost() }
+    }
+
     DisposableEffect(mediaPlayer) {
         mediaPlayer.setOnCompletionListener {
+            if (SleepTimerManager.isEndOfSongArmed) {
+                SleepTimerManager.onTrackCompleted()
+                return@setOnCompletionListener
+            }
             if (shuffleOn) {
                 ensureShuffleOrder()
                 if (shufflePos in 0 until shuffleOrder.size - 1) {
@@ -540,6 +576,14 @@ fun OfflineScreen(
                             }
                         },
                         actions = {
+                            IconButton(onClick = { showSleepTimerDialog = true }) {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_timer),
+                                    contentDescription = stringResource(R.string.timer_desc_open),
+                                    tint = if (sleepTimerState.active) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.onSurface
+                                )
+                            }
                             IconButton(onClick = onExit) {
                                 Icon(
                                     imageVector = TablerIcons.Logout,
@@ -954,6 +998,28 @@ fun OfflineScreen(
                     Text(stringResource(R.string.offline_dialog_cancel), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
+        )
+    }
+
+    if (showSleepTimerDialog) {
+        SleepTimerDialog(
+            state = sleepTimerState,
+            inputText = sleepTimerInput,
+            onInputChange = { sleepTimerInput = it },
+            onStartCountdown = { minutes ->
+                showSleepTimerDialog = false
+                SleepTimerManager.startCountdown(minutes)
+            },
+            onStartEndOfSong = {
+                showSleepTimerDialog = false
+                SleepTimerManager.startEndOfSong()
+            },
+            onActionChange = { SleepTimerManager.setAction(context, it) },
+            onCancelTimer = {
+                showSleepTimerDialog = false
+                SleepTimerManager.cancel()
+            },
+            onDismiss = { showSleepTimerDialog = false }
         )
     }
 }

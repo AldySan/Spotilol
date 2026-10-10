@@ -89,7 +89,7 @@ download the `.apk` and install it on your device. you may need to toggle **"Ins
 ## Requirements
 
 - Android 9.0+ (API 28)
-- a Spotify account (free or premium)
+- a Spotify account
 - Google Chrome / WebView (comes with your phone)
 
 ---

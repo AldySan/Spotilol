@@ -44,7 +44,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -114,8 +113,7 @@ class SplashActivity : ComponentActivity() {
             var onboarding by remember { mutableStateOf(false) }
             var checkDone by remember { mutableStateOf(false) }
             var checking by remember { mutableStateOf(false) }
-            var checkTrigger by remember { mutableIntStateOf(0) }
-            var exiting by remember { mutableStateOf(false) }
+            var preparing by remember { mutableStateOf(false) }
             var contentAlpha by remember { mutableFloatStateOf(1f) }
             val onboardingAppear = remember { Animatable(0f) }
             var onboardingLeaving by remember { mutableStateOf(false) }
@@ -128,8 +126,7 @@ class SplashActivity : ComponentActivity() {
                     scope.launch {
                         onboardingAppear.animateTo(0f, tween(200, easing = LinearEasing))
                         onboarding = false
-                        checking = true
-                        checkTrigger++
+                        preparing = true
                     }
                 }
             }
@@ -155,38 +152,38 @@ class SplashActivity : ComponentActivity() {
                 }
                 intro = false
                 if (prefs.getBoolean("OnboardingDone", false)) {
-                    checking = true
-                    checkTrigger++
+                    preparing = true
                 } else {
                     onboarding = true
                 }
             }
 
-            LaunchedEffect(checkTrigger) {
-                if (checkTrigger == 0) return@LaunchedEffect
+            LaunchedEffect(preparing) {
+                if (!preparing) return@LaunchedEffect
+                checking = true
                 checkDone = true
-                checking = false
             }
 
             LaunchedEffect(checkDone) {
-                if (checkDone && !exiting) {
-                    exiting = true
+                if (!checkDone) return@LaunchedEffect
+                scope.launch {
                     animate(
                         initialValue = 1f,
                         targetValue = 0f,
-                        animationSpec = tween(150, easing = LinearEasing)
-                    ) { value, _ -> contentAlpha = value }
-                    val linkIntent = intent?.takeIf { it.action == Intent.ACTION_VIEW && it.data != null }
-                    startActivity(
-                        if (linkIntent != null) {
-                            Intent(linkIntent).setClass(this@SplashActivity, MainActivity::class.java)
-                        } else {
-                            Intent(this@SplashActivity, MainActivity::class.java)
-                        }
+                        animationSpec = tween(150, easing = LinearEasing),
+                        block = { value, _ -> contentAlpha = value }
                     )
-                    overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
-                    finish()
                 }
+                val linkIntent = intent?.takeIf { it.action == Intent.ACTION_VIEW && it.data != null }
+                startActivity(
+                    if (linkIntent != null) {
+                        Intent(linkIntent).setClass(this@SplashActivity, MainActivity::class.java)
+                    } else {
+                        Intent(this@SplashActivity, MainActivity::class.java)
+                    }
+                )
+                overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+                finish()
             }
 
             SpotifyTheme {

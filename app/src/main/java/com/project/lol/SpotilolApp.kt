@@ -11,9 +11,22 @@ class SpotilolApp : Application() {
     override fun onCreate() {
         super.onCreate()
         Logger.init(this)
+        migrateProxyEraPrefs()
         CrashHandler.install(this)
         CipherDeobfuscator.initialize(this)
         Thread { runCatching { PlaybackDiagnostics.log(this@SpotilolApp) } }.start()
         Logger.s("app", "started")
+    }
+
+    private fun migrateProxyEraPrefs() {
+        val prefs = getSharedPreferences("spotilol_prefs", MODE_PRIVATE)
+        if (prefs.getBoolean("ProxyEraMigrated", false)) return
+        val fromProxyEra = prefs.contains("ConnectionMode")
+        val edit = prefs.edit()
+        edit.remove("ConnectionMode")
+        if (fromProxyEra) edit.putBoolean("ServiceOn", true)
+        edit.putBoolean("ProxyEraMigrated", true)
+        edit.apply()
+        if (fromProxyEra) Logger.i("app", "proxy era prefs migrated")
     }
 }

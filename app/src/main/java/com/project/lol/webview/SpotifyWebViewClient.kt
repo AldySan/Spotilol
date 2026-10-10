@@ -8,11 +8,13 @@ import com.project.lol.bridge.OriginScopedBridge
 import com.project.lol.util.Logger
 import android.webkit.CookieManager
 import android.webkit.RenderProcessGoneDetail
+import android.webkit.SslErrorHandler
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.net.http.SslError
 import androidx.webkit.ScriptHandler
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
@@ -121,6 +123,7 @@ class SpotifyWebViewClient(
         super.onPageStarted(view, url, favicon)
         navigationEpoch++
         if (!WebSecurityPolicy.isNavigation(url)) {
+            Logger.w(TAG, "navigation blocked: $url")
             view?.stopLoading()
             onWebViewError?.invoke(-1, "Untrusted navigation blocked")
             return
@@ -128,7 +131,6 @@ class SpotifyWebViewClient(
         pageStartedAt = System.currentTimeMillis()
         val prefs = view?.context?.getSharedPreferences("spotilol_prefs", 0)
 
-        val useProxy = prefs?.getString("ConnectionMode", "normal") == "proxy"
         val powerSave = prefs?.getBoolean("PowerSave", false) ?: false
         val blockSW = prefs?.getBoolean("BlockServiceWorker", true) ?: true
         val hideEmptyPlayer = prefs?.getBoolean("HideEmptyPlayer", false) ?: false
@@ -137,7 +139,7 @@ class SpotifyWebViewClient(
 
         Logger.i(
             TAG,
-            "page started: $url proxy=$useProxy powerSave=$powerSave blockSW=$blockSW " +
+            "page started: $url powerSave=$powerSave blockSW=$blockSW " +
                 "hideEmpty=$hideEmptyPlayer playlistSort=$playlistSort scrollbar=$showScrollbar"
         )
 
@@ -175,7 +177,6 @@ class SpotifyWebViewClient(
     }
 
     private fun buildEarlyJs(prefs: android.content.SharedPreferences, isGoogle: Boolean): String {
-        val useProxy = prefs.getString("ConnectionMode", "normal") == "proxy"
         val powerSave = prefs.getBoolean("PowerSave", false)
         val blockSW = prefs.getBoolean("BlockServiceWorker", true)
         val hideEmptyPlayer = prefs.getBoolean("HideEmptyPlayer", false)
@@ -185,7 +186,6 @@ class SpotifyWebViewClient(
         // was a separate evaluateJavascript call and one failure didn't stop the rest.
         val parts = buildList {
             add("window.__splShowScrollbar=$showScrollbar;")
-            add("window.__spotilolUseProxy=$useProxy;")
             add("window.__splPowerSavePref=$powerSave;")
             add("window.__splHideEmpty=$hideEmptyPlayer;")
             add("window.__splPlaylistSortEnabled=$playlistSort;")
@@ -220,10 +220,15 @@ class SpotifyWebViewClient(
         error: WebResourceError?
     ) {
         super.onReceivedError(view, request, error)
-        if (request?.isForMainFrame != true) return
         val code = try { error?.errorCode ?: -1 } catch (_: Exception) { -1 }
         val desc = try { error?.description?.toString() ?: "" } catch (_: Exception) { "" }
-        Logger.e(TAG, "main frame error $code ($desc) ${request.url} method=${request.method}")
+        val url = request?.url?.toString().orEmpty()
+        if (request?.isForMainFrame != true) {
+            val line = "sub resource error $code ($desc) $url method=${request?.method}"
+            if (WebSecurityPolicy.isSpotifyHost(url)) Logger.w(TAG, line) else Logger.d(TAG, line)
+            return
+        }
+        Logger.e(TAG, "main frame error $code ($desc) $url method=${request.method}")
         onWebViewError?.invoke(code, desc)
     }
 
@@ -233,12 +238,31 @@ class SpotifyWebViewClient(
         errorResponse: WebResourceResponse?
     ) {
         super.onReceivedHttpError(view, request, errorResponse)
-        if (request?.isForMainFrame != true) return
         val status = try { errorResponse?.statusCode ?: 0 } catch (_: Exception) { 0 }
-        Logger.e(TAG, "main frame http $status ${request.url}")
+        val url = request?.url?.toString().orEmpty()
+        if (request?.isForMainFrame != true) {
+            if (status >= 400) {
+                val line = "sub resource http $status $url"
+                if (WebSecurityPolicy.isSpotifyHost(url)) Logger.w(TAG, line) else Logger.d(TAG, line)
+            }
+            return
+        }
+        Logger.e(TAG, "main frame http $status $url")
         if (status >= 400) {
             onWebViewError?.invoke(status, "HTTP $status")
         }
+    }
+
+    override fun onReceivedSslError(
+        view: WebView?,
+        handler: SslErrorHandler?,
+        error: SslError?
+    ) {
+        val url = try { error?.url } catch (_: Exception) { null }
+        val primary = try { error?.primaryError ?: -1 } catch (_: Exception) { -1 }
+        val cert = try { error?.certificate?.toString() } catch (_: Exception) { null }
+        Logger.e(TAG, "ssl error $primary $url cert=$cert")
+        handler?.cancel()
     }
 
     override fun shouldInterceptRequest(
@@ -259,74 +283,60 @@ class SpotifyWebViewClient(
             return WebResourceResponse("audio/mpeg", null, silent)
         }
 
-        val useProxy = view.context.getSharedPreferences("spotilol_prefs", 0)
-            .getString("ConnectionMode", "normal") == "proxy"
-
-        if (!useProxy) {
-            // Only ad-audio candidates and Google auth URLs need the native sniff below.
-            // Everything else goes straight to the WebView, which would otherwise fetch
-            // it a second time after this blocking request returns null.
-            if ((!isAdAudioUrl(url) && !isGoogleAuthUrl(url)) ||
-                WebSecurityPolicy.httpsHost(url) == null || request.method !in setOf("GET", "HEAD")) return null
+        // Only ad-audio candidates and Google auth URLs need the native sniff below.
+        // Everything else goes straight to the WebView, which would otherwise fetch
+        // it a second time after this blocking request returns null.
+        if ((!isAdAudioUrl(url) && !isGoogleAuthUrl(url)) ||
+            WebSecurityPolicy.httpsHost(url) == null || request.method !in setOf("GET", "HEAD")) return null
+        try {
+            val conn = URL(url).openConnection() as HttpURLConnection
             try {
-                val conn = URL(url).openConnection() as HttpURLConnection
-                try {
-                    conn.requestMethod = request.method
-                    conn.instanceFollowRedirects = false
-                    conn.connectTimeout = 5000
-                    conn.readTimeout = 5000
-                    val isGoogle = isGoogleAuthUrl(url)
-                    for ((k, v) in request.requestHeaders) {
-                        val lk = k.lowercase(Locale.ROOT)
-                        if (lk != "x-requested-with" && lk != "sec-gpc" && !lk.startsWith("sec-ch-ua") &&
-                            !(isGoogle && lk == "user-agent")
-                        ) {
-                            conn.setRequestProperty(k, v)
-                        }
-                    }
-                    if (isGoogle) {
-                        conn.setRequestProperty("User-Agent", DESKTOP_UA)
-                        val cookie = CookieManager.getInstance().getCookie(url)
-                        if (!cookie.isNullOrEmpty()) conn.setRequestProperty("Cookie", cookie)
-                    }
-                    conn.setRequestProperty("sec-gpc", "1")
-                    conn.setRequestProperty("sec-ch-ua-platform", "\"Windows\"")
-                    conn.setRequestProperty("sec-ch-ua-mobile", "?0")
-                    conn.setRequestProperty("sec-ch-ua", "\"Not;A=Brand\";v=\"8\", \"Chromium\";v=\"150\", \"Google Chrome\";v=\"150\"")
-                    conn.connect()
-                    if (isGoogle) {
-                        conn.headerFields.forEach { (key, values) ->
-                            if (key != null && key.equals("Set-Cookie", ignoreCase = true)) {
-                                values.forEach { CookieManager.getInstance().setCookie(url, it) }
-                            }
-                        }
-                        CookieManager.getInstance().flush()
-                    }
-                    val contentType = conn.contentType
-                    if (contentType == "audio/mpeg" &&
-                        !url.contains("podz-content") && !url.contains("gew4-spclient") &&
-                        isAdAudioUrl(url)
+                conn.requestMethod = request.method
+                conn.instanceFollowRedirects = false
+                conn.connectTimeout = 5000
+                conn.readTimeout = 5000
+                val isGoogle = isGoogleAuthUrl(url)
+                for ((k, v) in request.requestHeaders) {
+                    val lk = k.lowercase(Locale.ROOT)
+                    if (lk != "x-requested-with" && lk != "sec-gpc" && !lk.startsWith("sec-ch-ua") &&
+                        !(isGoogle && lk == "user-agent")
                     ) {
-                        view.post { view.evaluateJavascript("AndBridge.deferMessage('adblock')", null) }
-                        val silent = view.context.assets?.open("silent.mp3") ?: return null
-                        return WebResourceResponse("audio/mpeg", null, silent)
+                        conn.setRequestProperty(k, v)
                     }
-                } finally {
-                    conn.disconnect()
                 }
-            } catch (_: Exception) {
-                return null
+                if (isGoogle) {
+                    conn.setRequestProperty("User-Agent", DESKTOP_UA)
+                    val cookie = CookieManager.getInstance().getCookie(url)
+                    if (!cookie.isNullOrEmpty()) conn.setRequestProperty("Cookie", cookie)
+                }
+                conn.setRequestProperty("sec-gpc", "1")
+                conn.setRequestProperty("sec-ch-ua-platform", "\"Windows\"")
+                conn.setRequestProperty("sec-ch-ua-mobile", "?0")
+                conn.setRequestProperty("sec-ch-ua", "\"Not;A=Brand\";v=\"8\", \"Chromium\";v=\"150\", \"Google Chrome\";v=\"150\"")
+                conn.connect()
+                if (isGoogle) {
+                    conn.headerFields.forEach { (key, values) ->
+                        if (key != null && key.equals("Set-Cookie", ignoreCase = true)) {
+                            values.forEach { CookieManager.getInstance().setCookie(url, it) }
+                        }
+                    }
+                    CookieManager.getInstance().flush()
+                }
+                val contentType = conn.contentType
+                if (contentType == "audio/mpeg" &&
+                    !url.contains("podz-content") && !url.contains("gew4-spclient") &&
+                    isAdAudioUrl(url)
+                ) {
+                    view.post { view.evaluateJavascript("AndBridge.deferMessage('adblock')", null) }
+                    val silent = view.context.assets?.open("silent.mp3") ?: return null
+                    return WebResourceResponse("audio/mpeg", null, silent)
+                }
+            } finally {
+                conn.disconnect()
             }
+        } catch (_: Exception) {
             return null
         }
-
-        val adMatch = matchAdCdn(url)
-        if (adMatch != null) {
-            view.post { view.evaluateJavascript("AndBridge.deferMessage('adblock')", null) }
-            val silent = view.context.assets?.open("silent.mp3") ?: return null
-            return WebResourceResponse("audio/mpeg", null, silent)
-        }
-
         return null
     }
 
@@ -340,7 +350,6 @@ class SpotifyWebViewClient(
         val amoledEnabled = prefs.getBoolean("AmoledTheme", false)
         val customCss = prefs.getString("CustomCss", "") ?: ""
         val playerMode = prefs.getString("PlayerMode", "spotilol") ?: "spotilol"
-        val useProxy = prefs.getString("ConnectionMode", "normal") == "proxy"
         val debugOverlay = Logger.isEnabled()
         val takeControl = prefs.getBoolean("TakeControl", true)
         val hideEmptyPlayer = prefs.getBoolean("HideEmptyPlayer", false)
@@ -354,14 +363,13 @@ class SpotifyWebViewClient(
         Logger.s(
             TAG,
             "inject: engine=$playerMode autoPlay=$autoPlayMode closeNp=$closeNowPlay amoled=$amoledEnabled " +
-                "proxy=$useProxy logging=$debugOverlay takeControl=$takeControl sort=$playlistSortEnabled " +
+                "logging=$debugOverlay takeControl=$takeControl sort=$playlistSortEnabled " +
                 "spicy=$spicyLyricsEnabled scrollbar=$showScrollbar css=${customCss.length}chars lyrics=$lyricsStyle"
         )
 
         val js = buildString {
             append("window.autoPlayMode='$autoPlayMode';\n")
             append("window.closeNpPref=$closeNowPlay;\n")
-            append("window.__spotilolUseProxy=$useProxy;\n")
             append("window.__splTakeControl=$takeControl;\n")
             append("window.__splHideEmpty=$hideEmptyPlayer;\n")
             append("window.__splPlaylistSortEnabled=$playlistSortEnabled;\n")

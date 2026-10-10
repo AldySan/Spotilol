@@ -103,8 +103,6 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
-import androidx.webkit.ProxyConfig
-import androidx.webkit.ProxyController
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
 import com.google.firebase.analytics.FirebaseAnalytics
@@ -114,7 +112,6 @@ import com.project.lol.security.WebSecurityPolicy
 import com.project.lol.bridge.SpotifyBridge
 import com.project.lol.offline.DownloadManager
 import com.project.lol.profile.ProfileManager
-import com.project.lol.proxy.LocalProxyManager
 import com.project.lol.service.MediaNotificationService
 import com.project.lol.ui.components.ChangelogDialog
 import com.project.lol.ui.components.SettingsDialog
@@ -136,7 +133,6 @@ import compose.icons.tablericons.Settings
 import java.lang.ref.WeakReference
 import java.net.HttpURLConnection
 import java.net.URL
-import java.util.concurrent.Executors
 import kotlin.math.min
 import org.json.JSONObject
 import androidx.core.content.edit
@@ -227,14 +223,6 @@ class MainActivity : ComponentActivity() {
 
         prefs = getSharedPreferences("spotilol_prefs", MODE_PRIVATE)
         changelogOnUpdate = ChangelogPrefs.shouldShowOnUpdate(this)
-        val useProxy = prefs.getString("ConnectionMode", "normal") == "proxy"
-
-        // After an OOM kill, Android can resume directly at MainActivity
-        if (useProxy && !LocalProxyManager.isRunning) {
-            startActivity(Intent(this, SplashActivity::class.java))
-            finish()
-            return
-        }
 
         if ((applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
             WebView.setWebContentsDebuggingEnabled(true)
@@ -271,8 +259,8 @@ class MainActivity : ComponentActivity() {
 
         Logger.s(
             TAG,
-            "session: loggedIn=$loggedIn service=${serviceEnabledState.value} mode=${prefs.getString("ConnectionMode", "normal")} " +
-                "engine=${prefs.getString("PlayerMode", "spotilol")} proxyRunning=${LocalProxyManager.isRunning} " +
+            "session: loggedIn=$loggedIn service=${serviceEnabledState.value} " +
+                "engine=${prefs.getString("PlayerMode", "spotilol")} " +
                 "deeplink=${pendingLink ?: "none"} logging=${com.project.lol.util.Logger.isEnabled()}"
         )
 
@@ -382,7 +370,6 @@ class MainActivity : ComponentActivity() {
                             prefs.edit().putString("PaletteSeed", hex).apply()
                         }
                     },
-                    onConnectionModeChange = { switchConnectionMode(it) },
                     onOfflineModeChange = { switchOfflineMode(it) },
                     onSaveProfile = { name, cookies -> saveProfile(name, cookies) },
                     onLoadProfile = { cookies -> loadProfile(cookies) },
@@ -593,25 +580,6 @@ class MainActivity : ComponentActivity() {
                                         // Before the first loadUrl, so it applies to the first page.
                                         spotifyClient.installDocumentStartScripts(this)
 
-                                        if (WebViewFeature.isFeatureSupported(WebViewFeature.PROXY_OVERRIDE)) {
-                                            val executor = Executors.newSingleThreadExecutor()
-                                            if (useProxy && LocalProxyManager.isRunning) {
-                                                val proxyConfig = ProxyConfig.Builder()
-                                                    .addProxyRule("localhost:${LocalProxyManager.port}")
-                                                    .build()
-                                                ProxyController.getInstance().setProxyOverride(
-                                                    proxyConfig, executor, { executor.shutdown() }
-                                                )
-                                            } else {
-                                                ProxyController.getInstance().clearProxyOverride(
-                                                    executor, { executor.shutdown() }
-                                                )
-                                            }
-                                        } else if (useProxy) {
-                                            webViewError.value = -1 to "Update Android System WebView to use proxy mode"
-                                            return@apply
-                                        }
-
                                         val target = pendingLink
                                             ?: if (loggedIn) "https://open.spotify.com/"
                                             else "https://accounts.spotify.com/login"
@@ -620,7 +588,7 @@ class MainActivity : ComponentActivity() {
                                             TAG,
                                             "webview ready: js=on dom=on multiWindow=on bfcache=" +
                                                 WebViewFeature.isFeatureSupported(WebViewFeature.BACK_FORWARD_CACHE) +
-                                                " proxy=$useProxy target=$target"
+                                                " target=$target"
                                         )
                                         loadUrl(target)
                                     }
@@ -756,19 +724,6 @@ class MainActivity : ComponentActivity() {
                 putString("enabled", "on")
             })
         }
-    }
-
-    private fun switchConnectionMode(mode: String) {
-        Logger.i(TAG, "connection mode -> $mode, restarting app")
-        prefs.edit().putString("ConnectionMode", mode).apply()
-        prefs.edit().putBoolean("ServiceOn", false).apply()
-        stopService(Intent(this, MediaNotificationService::class.java))
-        LocalProxyManager.stop()
-        val intent = Intent(this, SplashActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-        }
-        startActivity(intent)
-        finish()
     }
 
     private fun switchOfflineMode(enabled: Boolean) {

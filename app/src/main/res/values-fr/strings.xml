@@ -265,6 +265,19 @@
     <string name="main_pip_play">Lecture</string>
     <string name="main_pip_pause">Pause</string>
     <string name="main_pip_next">Suivant</string>
+
+    <string name="timer_quick_select">Sélection rapide</string>
+    <string name="timer_preset_minutes">%1$d min</string>
+    <string name="timer_end_of_song">Fin du morceau</string>
+    <string name="timer_end_of_song_subtitle">S\'arrête à la fin du morceau en cours</string>
+    <string name="timer_waiting_end_of_song">Après le morceau en cours</string>
+    <string name="timer_when_timer_ends">À la fin du minuteur</string>
+    <string name="timer_action_pause">Mettre la musique en pause</string>
+    <string name="timer_action_quit">Quitter l\'application</string>
+    <string name="timer_action_summary_pause">La musique se mettra en pause à la fin du minuteur</string>
+    <string name="timer_action_summary_quit">L\'application se fermera à la fin du minuteur</string>
+    <string name="timer_desc_open">Mise en veille</string>
+
     <string name="splash_title">Spotilol</string>
     <string name="splash_version_label">v%1$s · %2$s</string>
     <string name="splash_onboarding_welcome">Bienvenue</string>

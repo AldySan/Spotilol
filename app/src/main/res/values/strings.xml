@@ -27,9 +27,7 @@
     <string name="settings_section_offline">OFFLINE</string>
     <string name="settings_section_downloads">DOWNLOADS</string>
     <string name="settings_section_accounts">ACCOUNTS</string>
-    <string name="settings_section_connection_mode">CONNECTION MODE</string>
     <string name="settings_section_system">SYSTEM</string>
-    <string name="settings_section_security_network">SECURITY AND NETWORK</string>
     <string name="settings_section_about">ABOUT</string>
     <string name="settings_section_experimental">EXPERIMENTAL</string>
 
@@ -127,10 +125,6 @@
     <string name="settings_profile_saved">Saved %1$s</string>
     <string name="settings_delete">Delete</string>
 
-    <string name="settings_connection_mode">MITM Proxy Mode</string>
-    <string name="settings_connection_proxy">MITM Proxy (Certificate)</string>
-    <string name="settings_connection_normal">Normal (No Certificate)</string>
-    <string name="settings_connection_mode_subtitle">%1$s, restarts the app</string>
     <string name="settings_swipe_to_stop">Swipe to Stop Service</string>
     <string name="settings_swipe_to_stop_subtitle">Kill background service from recents</string>
     <string name="settings_empty_cache">Empty Cache</string>
@@ -145,9 +139,6 @@
     <string name="settings_open_links_subtitle">Enable link handling to open shared links here</string>
     <string name="settings_open_links_always_hint">Use \'Always\' when opening a Spotify link</string>
     <string name="settings_open_links_unsupported">Not supported on this device</string>
-    <string name="settings_ca_certificate">CA Certificate</string>
-    <string name="settings_ca_certificate_subtitle">Re-export proxy certificate to Downloads</string>
-    <string name="settings_cert_exported">Exported to %1$s</string>
     <string name="settings_github_repository">GitHub Repository</string>
     <string name="settings_github_subtitle">github.com/lyssadev/Spotilol</string>
     <string name="settings_discord_server">Discord Server</string>
@@ -274,20 +265,8 @@
     <string name="main_pip_play">Play</string>
     <string name="main_pip_pause">Pause</string>
     <string name="main_pip_next">Next</string>
-    <string name="splash_exported_to">Exported to: %1$s</string>
     <string name="splash_title">Spotilol</string>
     <string name="splash_version_label">v%1$s · %2$s</string>
-    <string name="splash_cert_title">Certificate Required</string>
-    <string name="splash_cert_subtitle">Install the Spotilol CA certificate to continue.</string>
-    <string name="splash_cert_step_1">Export the .pem certificate below</string>
-    <string name="splash_cert_step_2">Settings > Security > Install a certificate > CA certificate</string>
-    <string name="splash_cert_step_3">Select the exported file and tap \"Install anyway\"</string>
-    <string name="splash_cert_step_4">Return here and tap \"Check\"</string>
-    <string name="splash_cert_export_button">Export</string>
-    <string name="splash_cert_check_button">Check</string>
-    <string name="splash_cert_switch_normal">Switch to Normal</string>
-    <string name="splash_proxy_init_failed">Secure proxy initialization failed; using normal mode</string>
-    <string name="splash_onboarding_step">Step %1$d of %2$d</string>
     <string name="splash_onboarding_welcome">Welcome</string>
     <string name="splash_onboarding_permissions_subtitle">Spotilol needs these permissions to work properly.</string>
     <string name="splash_onboarding_notifications_title">Notifications</string>
@@ -295,13 +274,6 @@
     <string name="splash_onboarding_bluetooth_title">Nearby devices</string>
     <string name="splash_onboarding_bluetooth_desc">Keeps Spotify Connect working on your Bluetooth devices.</string>
     <string name="splash_onboarding_accept">Accept</string>
-    <string name="splash_onboarding_mode_title">How do you want to start?</string>
-    <string name="splash_onboarding_mode_subtitle">You can change this later in Settings.</string>
-    <string name="splash_onboarding_mode_normal_title">Normal Mode</string>
-    <string name="splash_onboarding_mode_normal_desc">Direct connection, no certificate.</string>
-    <string name="splash_onboarding_mode_cert_title">Certificate Mode</string>
-    <string name="splash_onboarding_mode_cert_desc">Local proxy, needs the CA installed.</string>
-    <string name="splash_onboarding_go">Go</string>
     <string name="settings_dialog_title">Settings</string>
     <string name="settings_dialog_version">Spotilol v%1$s · %2$s</string>
     <string name="settings_dialog_close">Close</string>

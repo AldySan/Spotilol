@@ -61,6 +61,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import com.project.lol.searchEngine.GenericSearchEngine
 import com.project.lol.searchEngine.SearchableFieldExtractor
+import com.project.lol.util.Logger
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -151,7 +152,6 @@ fun OfflineScreen(
     onKeepScreenOnChange: (Boolean) -> Unit,
     paletteSeed: String?,
     onPaletteSeedChange: (String?) -> Unit,
-    onConnectionModeChange: (String) -> Unit,
     onOfflineModeChange: (Boolean) -> Unit,
     onSaveProfile: (String, String) -> Unit,
     onLoadProfile: (String) -> Unit,
@@ -497,7 +497,6 @@ fun OfflineScreen(
         onKeepScreenOnChange = onKeepScreenOnChange,
         paletteSeed = paletteSeed,
         onPaletteSeedChange = onPaletteSeedChange,
-        onConnectionModeChange = onConnectionModeChange,
         onOfflineModeChange = onOfflineModeChange,
         onSaveProfile = onSaveProfile,
         onLoadProfile = onLoadProfile,
@@ -990,6 +989,10 @@ private fun playAt(
 }
 
 private class OfflineAudioFocus(context: Context) {
+    private companion object {
+        const val TAG = "offline.focus"
+    }
+
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     private val handler = Handler(Looper.getMainLooper())
     private var request: AudioFocusRequest? = null
@@ -1000,6 +1003,14 @@ private class OfflineAudioFocus(context: Context) {
     var onResume: (() -> Unit)? = null
 
     private val listener = AudioManager.OnAudioFocusChangeListener { change ->
+        val name = when (change) {
+            AudioManager.AUDIOFOCUS_GAIN -> "gain"
+            AudioManager.AUDIOFOCUS_LOSS -> "loss"
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> "loss transient"
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> "loss transient can duck"
+            else -> "unknown $change"
+        }
+        Logger.i(TAG, "focus change: $name")
         when (change) {
             AudioManager.AUDIOFOCUS_GAIN -> if (suspended) {
                 suspended = false
@@ -1033,10 +1044,13 @@ private class OfflineAudioFocus(context: Context) {
             .build()
             .also { request = it }
         held = audioManager.requestAudioFocus(req) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        Logger.i(TAG, "focus acquire: granted=$held")
         return held
     }
 
     fun abandon() {
+        if (!held && request == null) return
+        Logger.i(TAG, "focus abandon: held=$held")
         held = false
         val req = request ?: return
         runCatching { audioManager.abandonAudioFocusRequest(req) }

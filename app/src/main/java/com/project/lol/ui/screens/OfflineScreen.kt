@@ -106,7 +106,6 @@ import androidx.compose.ui.window.Popup
 import androidx.core.content.ContextCompat
 import com.project.lol.R
 import com.project.lol.offline.DownloadFolder
-import com.project.lol.offline.DownloadPrefs
 import com.project.lol.offline.OfflineSong
 import com.project.lol.offline.OfflineStore
 import com.project.lol.service.OfflineMediaService
@@ -604,21 +603,6 @@ fun OfflineScreen(
                             }
                         },
                         actions = {
-                            IconButton(onClick = {
-                                if (!DownloadFolder.openInFileManager(context)) {
-                                    Toast.makeText(
-                                        context,
-                                        DownloadPrefs.folderDisplayPath(context),
-                                        Toast.LENGTH_LONG
-                                    ).show()
-                                }
-                            }) {
-                                Icon(
-                                    imageVector = TablerIcons.Folder,
-                                    contentDescription = stringResource(R.string.offline_desc_open_folder),
-                                    tint = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
                             IconButton(onClick = { showSleepTimerDialog = true }) {
                                 Icon(
                                     painter = painterResource(R.drawable.ic_timer),
@@ -789,6 +773,11 @@ fun OfflineScreen(
                                             }
                                         } else {
                                             play(index)
+                                        }
+                                    },
+                                    onLocate = {
+                                        if (!DownloadFolder.openTrack(context, song.uri)) {
+                                            Toast.makeText(context, song.uri.lastPathSegment ?: song.title, Toast.LENGTH_LONG).show()
                                         }
                                     },
                                     onDelete = { pendingDelete = song }
@@ -1404,6 +1393,7 @@ private fun OfflineSongRow(
     song: OfflineSong,
     isCurrent: Boolean,
     onClick: () -> Unit,
+    onLocate: () -> Unit,
     onDelete: () -> Unit
 ) {
     Row(
@@ -1441,6 +1431,14 @@ private fun OfflineSongRow(
                 overflow = TextOverflow.Ellipsis
             )
         }
+        CompactIconButton(
+            icon = TablerIcons.Folder,
+            contentDescription = stringResource(R.string.offline_desc_locate_track),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            onClick = onLocate,
+            boxSize = 30.dp,
+            iconSize = 17.dp
+        )
         CompactIconButton(
             icon = TablerIcons.Trash,
             contentDescription = stringResource(R.string.offline_desc_delete),
@@ -1606,14 +1604,6 @@ private fun NowPlayingBar(
                     iconSize = 16.dp
                 )
                 CompactIconButton(
-                    painter = painterResource(repeatIcon(repeatMode)),
-                    contentDescription = stringResource(repeatDescription(repeatMode)),
-                    tint = if (repeatMode == RepeatMode.OFF) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary,
-                    onClick = onCycleRepeat,
-                    boxSize = 30.dp,
-                    iconSize = 16.dp
-                )
-                CompactIconButton(
                     icon = TablerIcons.PlayerSkipBack,
                     contentDescription = stringResource(R.string.offline_desc_previous),
                     tint = MaterialTheme.colorScheme.onSurface,
@@ -1634,6 +1624,14 @@ private fun NowPlayingBar(
                     tint = MaterialTheme.colorScheme.onSurface,
                     onClick = onNext,
                     iconSize = 17.dp
+                )
+                CompactIconButton(
+                    painter = painterResource(repeatIcon(repeatMode)),
+                    contentDescription = stringResource(repeatDescription(repeatMode)),
+                    tint = if (repeatMode == RepeatMode.OFF) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary,
+                    onClick = onCycleRepeat,
+                    boxSize = 30.dp,
+                    iconSize = 16.dp
                 )
                 CompactIconButton(
                     icon = TablerIcons.X,

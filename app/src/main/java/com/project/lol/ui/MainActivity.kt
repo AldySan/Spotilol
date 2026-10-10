@@ -785,7 +785,7 @@ class MainActivity : ComponentActivity() {
     private fun saveProfile(name: String, cookies: String) {
         Logger.i(TAG, "saving account profile")
         if (runCatching { ProfileManager.saveProfile(this, name, cookies) }.isFailure) {
-            Toast.makeText(this, "Could not save encrypted profile", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.main_profile_save_failed), Toast.LENGTH_LONG).show()
             return
         }
         Toast.makeText(this, getString(R.string.main_account_saved), Toast.LENGTH_SHORT).show()
@@ -808,7 +808,7 @@ class MainActivity : ComponentActivity() {
     private fun deleteProfile(name: String) {
         Logger.i(TAG, "deleting account profile")
         if (runCatching { ProfileManager.deleteProfile(this, name) }.isFailure) {
-            Toast.makeText(this, "Could not update encrypted profiles", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.main_profile_delete_failed), Toast.LENGTH_LONG).show()
             return
         }
         Toast.makeText(this, getString(R.string.main_profile_deleted), Toast.LENGTH_SHORT).show()

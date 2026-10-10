@@ -182,7 +182,7 @@ class SplashActivity : ComponentActivity() {
                             certInstalled = true
                             runOnUiThread {
                                 android.widget.Toast.makeText(this@SplashActivity,
-                                    "Secure proxy initialization failed; using normal mode", android.widget.Toast.LENGTH_LONG).show()
+                                    this@SplashActivity.getString(R.string.splash_proxy_init_failed), android.widget.Toast.LENGTH_LONG).show()
                             }
                         }
                     } else {

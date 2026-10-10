@@ -35,7 +35,7 @@
 </p>
 
 <p align="center">
-  an Android app that wraps Spotify's web player with built-in adblocking — no root, no shady mods, just your Spotify account on a slick WebView.
+  an Android app that wraps Spotify's web player with built-in adblocking. no root, no shady mods, just your Spotify account on a slick WebView.
 </p>
 
 <p align="center">
@@ -70,20 +70,19 @@ download the `.apk` and install it on your device. you may need to toggle **"Ins
 
 ## Features
 
-- blocks audio ads & telemetry
-- media notification: play/pause, skip, seek, like/unlike, shuffle, repeat with custom actions
-- **Android Auto**: browse your playlists, albums, artists, and podcasts; search and play from the car dashboard
-- **offline downloads**: download songs and play them offline — audio is sourced via the InnerTube API
-- lock screen, Bluetooth, and Wear OS controls
-- autoplay modes: off, once at start, or permanent
-- mobile-friendly CSS/JS layout tweaks
-- AMOLED dark mode (pure black)
-- sleep timer
-- update checker (auto & manual)
-- multiple account profiles
-- browse your library through Spotify's pathfinder API
-- picture-in-picture (PiP) support
-- wake lock controls & power save mode
+- blocks audio ads, trackers and telemetry
+- media notification with play, pause, skip, seek, like, shuffle and repeat
+- lock screen, Bluetooth and headset controls
+- home screen widgets for the player and album art
+- Android Auto: browse and search your library from the car
+- offline downloads via the InnerTube API, with tags and cover art
+- multiple account profiles and a sleep timer
+- lyrics with five styles and a picture in picture view
+- AMOLED dark mode, Material You and accent color themes
+- custom CSS, canvas and video podcasts
+- mobile layout tweaks and playlist sorting
+- wake lock and power save mode
+- automatic and manual update checker
 
 ---
 
@@ -97,7 +96,7 @@ download the `.apk` and install it on your device. you may need to toggle **"Ins
 
 ## Quick Start
 
-install the APK, open it, done. no setup, no certificates, no fuss — it just works out of the box.
+install the APK, open it, done. no setup, no certificates, no fuss. it just works out of the box.
 
 ---
 
@@ -123,7 +122,7 @@ this project uses Firebase (analytics, crash reporting, performance). to build, 
 
 ## Contributing
 
-contributions are welcome. open issues, throw PRs, suggest stuff — free for all.
+contributions are welcome. open issues, throw PRs, suggest stuff. free for all.
 
 ---
 
@@ -131,4 +130,4 @@ contributions are welcome. open issues, throw PRs, suggest stuff — free for al
 
 **deviato** reverse-engineered the original Spotifuck. **lyssadev** ported the core logic from smali to Kotlin and maintains this project.
 
-all rights reserved — lyssadev & deviato.
+all rights reserved. lyssadev and deviato.

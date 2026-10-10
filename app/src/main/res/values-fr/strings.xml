@@ -187,6 +187,7 @@
     <string name="offline_version">v%1$s · %2$s</string>
     <string name="offline_desc_settings">Paramètres</string>
     <string name="offline_desc_exit_offline_mode">Quitter le mode hors-ligne</string>
+    <string name="offline_desc_open_folder">Ouvrir le dossier des téléchargements</string>
     <string name="offline_status_loading">Chargement…</string>
     <string name="offline_status_no_results_for">Aucun résultat pour \"%1$s\"</string>
     <string name="offline_status_one_result_for">1 résultat pour \"%1$s\"</string>
@@ -222,6 +223,9 @@
     <string name="offline_desc_close_player">Fermer le lecteur</string>
     <string name="offline_desc_shuffle_enable">Activer la lecture aléatoire</string>
     <string name="offline_desc_shuffle_disable">Désactiver la lecture aléatoire</string>
+    <string name="offline_desc_repeat_off">Répétition désactivée</string>
+    <string name="offline_desc_repeat_all">Répéter tout</string>
+    <string name="offline_desc_repeat_one">Répéter le titre</string>
     <string name="offline_now_playing">En cours de lecture</string>
     <string name="offline_desc_collapse_player">Réduire le lecteur</string>
     <string name="offline_desc_enter_pip">Image dans l\'image (PiP)</string>

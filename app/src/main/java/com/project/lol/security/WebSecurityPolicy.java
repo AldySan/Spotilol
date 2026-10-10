@@ -52,6 +52,10 @@ public final class WebSecurityPolicy {
     }
     public static boolean isPlayer(String url) { return "open.spotify.com".equals(httpsHost(url)); }
     public static boolean isAccounts(String url) { return "accounts.spotify.com".equals(httpsHost(url)); }
+    public static boolean isSpotifyHost(String url) {
+        String host = orEmpty(httpsHost(url));
+        return host.equals("spotify.com") || host.endsWith(".spotify.com");
+    }
     public static boolean isBridgeOrigin(String origin) {
         if (!isPlayer(origin) && !isAccounts(origin)) return false;
         try {
@@ -65,11 +69,5 @@ public final class WebSecurityPolicy {
     }
     public static boolean isCookieHost(String url) { return isPlayer(url); }
     public static boolean isTrackId(String id) { return id != null && id.matches("[A-Za-z0-9]{22}"); }
-    public static boolean isProxyHost(String host) {
-        return host != null && (host.equals("www.google.com") || host.equals("spotify.com") || host.endsWith(".spotify.com") || isNavigation("https://" + host) || isNativeFetch("https://" + host) ||
-            host.equals("scdn.co") || host.endsWith(".scdn.co") || host.equals("spotifycdn.com") ||
-            host.endsWith(".spotifycdn.com") || host.equals("spotifycdn.net") || host.endsWith(".spotifycdn.net") ||
-            host.equals("gstatic.com") || host.endsWith(".gstatic.com") || host.equals("googleusercontent.com") || host.endsWith(".googleusercontent.com"));
-    }
     private static String orEmpty(String s) { return s == null ? "" : s; }
 }

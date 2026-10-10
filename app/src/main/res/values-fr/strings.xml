@@ -37,6 +37,7 @@
     <string name="settings_gui_mode_css_js">CSS + JS Mobile</string>
     <string name="settings_gui_mode_wide">Fenêtre large</string>
     <string name="settings_gui_mode_none">Aucun</string>
+    <string name="settings_gui_hack_mode_info">Fenêtre large et Aucun sont désactivés pour le moment. Ils nécessitent une refonte importante des injections de la WebView, c\'est pourquoi seul CSS + JS Mobile est disponible.</string>
     <string name="settings_custom_css">CSS personnalisé</string>
     <string name="settings_custom_css_none">Aucun configuré</string>
     <string name="settings_custom_css_hint">Injecter des règles CSS personnalisées dans la WebView Spotify</string>

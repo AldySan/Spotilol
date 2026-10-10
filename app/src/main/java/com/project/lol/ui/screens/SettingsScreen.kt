@@ -235,7 +235,8 @@ fun SettingsContent(
     var takeControl by remember { mutableStateOf(prefs.getBoolean("TakeControl", true)) }
     var andAuto by remember { mutableStateOf(prefs.getBoolean("AndAuto", true)) }
     var closeNowPlay by remember { mutableStateOf(prefs.getBoolean("CloseNowPlay", true)) }
-    var guiMode by remember { mutableStateOf(prefs.getString("GuiMode", "csshack") ?: "csshack") }
+    // dead code: gui mode is fixed to mobile css and js, see the appearance section
+    // var guiMode by remember { mutableStateOf(prefs.getString("GuiMode", "csshack") ?: "csshack") }
     var customCss by remember { mutableStateOf(prefs.getString("CustomCss", "") ?: "") }
     var amoledTheme by remember { mutableStateOf(amoledThemeState) }
     var swipeStop by remember { mutableStateOf(prefs.getBoolean("SwipeStop", true)) }
@@ -267,7 +268,8 @@ fun SettingsContent(
     var showClearDataDialog by remember { mutableStateOf(false) }
     var showAutoPlayDialog by remember { mutableStateOf(false) }
     var showPlayerModeDialog by remember { mutableStateOf(false) }
-    var showGuiModeDialog by remember { mutableStateOf(false) }
+    // dead code: the gui mode selector was removed, keep the flag for the wide window refactor
+    // var showGuiModeDialog by remember { mutableStateOf(false) }
     var showCustomCssDialog by remember { mutableStateOf(false) }
     var showPaletteDialog by remember { mutableStateOf(false) }
     var showChangelogDialog by remember { mutableStateOf(false) }
@@ -389,17 +391,20 @@ fun SettingsContent(
                     title = stringResource(R.string.settings_section_appearance),
                     icon = TablerIcons.Palette
                 ) {
-                    val guiLabel = when (guiMode) {
-                        "csshack" -> stringResource(R.string.settings_gui_mode_css_js)
-                        "bigwindow" -> stringResource(R.string.settings_gui_mode_wide)
-                        "none" -> stringResource(R.string.settings_gui_mode_none)
-                        else -> stringResource(R.string.settings_gui_mode_css_js)
-                    }
+                    // dead code: gui mode selector. only mobile css and js is implemented,
+                    // wide window and none need a refactor across the webview injections,
+                    // so the value is fixed and the label is no longer read from prefs.
+                    // val guiLabel = when (guiMode) {
+                    //     "csshack" -> stringResource(R.string.settings_gui_mode_css_js)
+                    //     "bigwindow" -> stringResource(R.string.settings_gui_mode_wide)
+                    //     "none" -> stringResource(R.string.settings_gui_mode_none)
+                    //     else -> stringResource(R.string.settings_gui_mode_css_js)
+                    // }
                     SettingTile(
                         title = stringResource(R.string.settings_gui_hack_mode),
-                        subtitle = guiLabel,
+                        subtitle = stringResource(R.string.settings_gui_mode_css_js),
                         icon = TablerIcons.Palette,
-                        onClick = { showGuiModeDialog = true }
+                        info = stringResource(R.string.settings_gui_hack_mode_info)
                     )
 
                     HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
@@ -1185,22 +1190,24 @@ fun SettingsContent(
         )
     }
 
-    if (showGuiModeDialog) {
-        SingleChoiceDialog(
-            title = stringResource(R.string.settings_gui_hack_mode),
-            options = listOf(
-                "csshack" to stringResource(R.string.settings_gui_mode_css_js),
-                "bigwindow" to stringResource(R.string.settings_gui_mode_wide),
-                "none" to stringResource(R.string.settings_gui_mode_none)
-            ),
-            selected = guiMode,
-            onSelect = { value ->
-                guiMode = value
-                prefs.edit().putString("GuiMode", value).apply()
-            },
-            onDismiss = { showGuiModeDialog = false }
-        )
-    }
+    // dead code: gui mode selector dialog. wide window and none were never implemented,
+    // the webview is always injected with the mobile css and js hack.
+    // if (showGuiModeDialog) {
+    //     SingleChoiceDialog(
+    //         title = stringResource(R.string.settings_gui_hack_mode),
+    //         options = listOf(
+    //             "csshack" to stringResource(R.string.settings_gui_mode_css_js),
+    //             "bigwindow" to stringResource(R.string.settings_gui_mode_wide),
+    //             "none" to stringResource(R.string.settings_gui_mode_none)
+    //         ),
+    //         selected = guiMode,
+    //         onSelect = { value ->
+    //             guiMode = value
+    //             prefs.edit().putString("GuiMode", value).apply()
+    //         },
+    //         onDismiss = { showGuiModeDialog = false }
+    //     )
+    // }
 
     if (showCustomCssDialog) {
         CustomCssDialog(
@@ -1534,19 +1541,26 @@ fun SettingTile(
     subtitle: String,
     icon: ImageVector? = null,
     painter: Painter? = null,
-    onClick: () -> Unit,
+    onClick: (() -> Unit)? = null,
     onLongClick: (() -> Unit)? = null,
     isDestructive: Boolean = false,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    info: String? = null
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .then(if (enabled) Modifier else Modifier.alpha(0.38f))
-            .combinedClickable(
-                enabled = enabled,
-                onClick = onClick,
-                onLongClick = onLongClick
+            .then(
+                if (onClick != null || onLongClick != null) {
+                    Modifier.combinedClickable(
+                        enabled = enabled,
+                        onClick = { onClick?.invoke() },
+                        onLongClick = onLongClick
+                    )
+                } else {
+                    Modifier
+                }
             )
             .padding(horizontal = 14.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -1573,14 +1587,21 @@ fun SettingTile(
         }
         if (painter != null || icon != null) Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium,
-                color = if (isDestructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = if (isDestructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+                if (info != null) {
+                    Spacer(Modifier.width(6.dp))
+                    InfoTooltip(text = info)
+                }
+            }
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodySmall,
@@ -1589,13 +1610,15 @@ fun SettingTile(
                 overflow = TextOverflow.Ellipsis
             )
         }
-        Spacer(Modifier.width(8.dp))
-        Icon(
-            imageVector = TablerIcons.ChevronRight,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-            modifier = Modifier.size(16.dp)
-        )
+        if (onClick != null) {
+            Spacer(Modifier.width(8.dp))
+            Icon(
+                imageVector = TablerIcons.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                modifier = Modifier.size(16.dp)
+            )
+        }
     }
 }
 

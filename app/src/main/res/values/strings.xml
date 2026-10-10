@@ -37,6 +37,7 @@
     <string name="settings_gui_mode_css_js">Mobile CSS + JS</string>
     <string name="settings_gui_mode_wide">Wide Window</string>
     <string name="settings_gui_mode_none">None</string>
+    <string name="settings_gui_hack_mode_info">Wide Window and None are disabled for now. They need a large refactor across the WebView injections, so only Mobile CSS and JS is available.</string>
     <string name="settings_custom_css">Custom CSS</string>
     <string name="settings_custom_css_none">None configured</string>
     <string name="settings_custom_css_hint">Injected custom CSS rules into Spotify webview</string>

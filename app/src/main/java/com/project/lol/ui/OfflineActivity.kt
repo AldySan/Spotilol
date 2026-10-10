@@ -107,10 +107,6 @@ class OfflineActivity : ComponentActivity() {
                             prefs.edit().putString("PaletteSeed", hex).apply()
                         }
                     },
-                    onConnectionModeChange = { mode ->
-                        prefs.edit().putString("ConnectionMode", mode).apply()
-                        restartToSplash()
-                    },
                     onOfflineModeChange = { enabled ->
                         prefs.edit().putBoolean("OfflineMode", enabled).apply()
                         restartToSplash()

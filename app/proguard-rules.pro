@@ -4,7 +4,6 @@
 -keep class com.project.lol.webview.injections.** { *; }
 -keep class com.project.lol.webview.helpers.** { *; }
 -keep class com.project.lol.service.MediaNotificationService { *; }
--keep class com.project.lol.proxy.LocalProxyManager { *; }
 -keep class com.project.lol.ui.SplashActivity { *; }
 -keep class com.project.lol.ui.MainActivity { *; }
 -keep class org.bouncycastle.** { *; }

@@ -5,9 +5,13 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.media.AudioAttributes
+import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.media.MediaMetadataRetriever
 import android.media.MediaPlayer
+import android.os.Handler
+import android.os.Looper
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -184,6 +188,8 @@ fun OfflineScreen(
     var playerExpanded by remember { mutableStateOf(false) }
 
     val mediaPlayer = remember { MediaPlayer() }
+    val audioFocus = remember { OfflineAudioFocus(context) }
+    var resumeAfterFocus by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     var searchFocused by remember { mutableStateOf(false) }
     var searchResults by remember { mutableStateOf<List<OfflineSong>?>(null) }
@@ -233,6 +239,7 @@ fun OfflineScreen(
     }
 
     fun play(index: Int) {
+        audioFocus.acquire()
         playAt(mediaPlayer, context, songs, index, { currentIndex = it }, { playerSong = it }, { isPlaying = it }, { durationMs = it }, { positionMs = it })
         if (shuffleOn) {
             val key = songs.getOrNull(index)?.let { songKey(it) }
@@ -248,11 +255,41 @@ fun OfflineScreen(
                 mediaPlayer.pause()
                 isPlaying = false
             } else if (durationMs > 0) {
+                audioFocus.acquire()
                 mediaPlayer.start()
                 isPlaying = true
             }
         }
         syncService()
+    }
+
+    DisposableEffect(audioFocus) {
+        audioFocus.onSuspend = {
+            resumeAfterFocus = isPlaying
+            if (isPlaying) {
+                runCatching { mediaPlayer.pause() }
+                isPlaying = false
+                syncService()
+            }
+        }
+        audioFocus.onResume = {
+            if (resumeAfterFocus) {
+                resumeAfterFocus = false
+                runCatching {
+                    if (durationMs > 0) {
+                        mediaPlayer.start()
+                        isPlaying = true
+                    }
+                }
+                syncService()
+            }
+        }
+        onDispose {
+            audioFocus.onSuspend = null
+            audioFocus.onResume = null
+            resumeAfterFocus = false
+            audioFocus.abandon()
+        }
     }
 
     fun ensureShuffleOrder() {
@@ -306,6 +343,8 @@ fun OfflineScreen(
             if (mediaPlayer.isPlaying) mediaPlayer.pause()
             mediaPlayer.reset()
         }
+        audioFocus.abandon()
+        resumeAfterFocus = false
         isPlaying = false
         currentIndex = -1
         positionMs = 0
@@ -947,6 +986,60 @@ private fun playAt(
         setPosition(0)
     }.onFailure {
         setPlaying(false)
+    }
+}
+
+private class OfflineAudioFocus(context: Context) {
+    private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    private val handler = Handler(Looper.getMainLooper())
+    private var request: AudioFocusRequest? = null
+    private var held = false
+    private var suspended = false
+
+    var onSuspend: (() -> Unit)? = null
+    var onResume: (() -> Unit)? = null
+
+    private val listener = AudioManager.OnAudioFocusChangeListener { change ->
+        when (change) {
+            AudioManager.AUDIOFOCUS_GAIN -> if (suspended) {
+                suspended = false
+                onResume?.invoke()
+            }
+
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                suspended = true
+                onSuspend?.invoke()
+            }
+
+            AudioManager.AUDIOFOCUS_LOSS -> {
+                suspended = false
+                abandon()
+                onSuspend?.invoke()
+            }
+        }
+    }
+
+    fun acquire(): Boolean {
+        if (held) return true
+        val req = request ?: AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+            .setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                    .build()
+            )
+            .setWillPauseWhenDucked(false)
+            .setOnAudioFocusChangeListener(listener, handler)
+            .build()
+            .also { request = it }
+        held = audioManager.requestAudioFocus(req) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        return held
+    }
+
+    fun abandon() {
+        held = false
+        val req = request ?: return
+        runCatching { audioManager.abandonAudioFocusRequest(req) }
     }
 }
 

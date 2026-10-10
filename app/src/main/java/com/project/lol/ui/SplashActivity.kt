@@ -207,6 +207,7 @@ class SplashActivity : ComponentActivity() {
                                 }
                             }
                         )
+                        else -> LoadingScreen()
                     }
                 }
             }

@@ -15,7 +15,6 @@ import java.io.File
  */
 object DownloadFolder {
     private const val TAG = "Spl-DL"
-    private const val EXTERNAL_STORAGE_AUTHORITY = "com.android.externalstorage.documents"
 
     data class Entry(val uri: Uri, val name: String)
 
@@ -130,31 +129,11 @@ object DownloadFolder {
     private fun treeDocumentId(treeUri: Uri): String =
         runCatching { DocumentsContract.getTreeDocumentId(treeUri) }.getOrDefault("")
 
-    fun openInFileManager(context: Context): Boolean {
-        val uri = DownloadPrefs.folder(context)?.let { documentUri(it) } ?: defaultDocumentUri(context)
-        return launch(context, uri, DocumentsContract.Document.MIME_TYPE_DIR) ||
-            launch(context, uri, "resource/folder") ||
-            launchPicker(context, uri)
-    }
-
-    private fun defaultDocumentUri(context: Context): Uri =
-        DocumentsContract.buildDocumentUri(
-            EXTERNAL_STORAGE_AUTHORITY,
-            "primary:${Environment.DIRECTORY_MUSIC}/${DownloadPrefs.subfolder(context)}",
-        )
-
-    private fun launch(context: Context, uri: Uri, mime: String): Boolean {
+    fun openTrack(context: Context, uri: Uri): Boolean {
+        val mime = runCatching { context.contentResolver.getType(uri) }.getOrNull() ?: "audio/*"
         val intent = Intent(Intent.ACTION_VIEW).apply {
             setDataAndType(uri, mime)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-        return runCatching { context.startActivity(intent) }.isSuccess
-    }
-
-    private fun launchPicker(context: Context, uri: Uri): Boolean {
-        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
-            putExtra(DocumentsContract.EXTRA_INITIAL_URI, uri)
         }
         return runCatching { context.startActivity(intent) }.isSuccess
     }

@@ -14,7 +14,10 @@ object DownloadButton {
                     title: m.name || window.track || window.__curTrackName || '',
                     artist: m.artist || window.artist || window.__curTrackArtist || '',
                     album: m.album || window.__curTrackAlbum || '',
-                    cover: m.cover || window.__curTrackCover || window.cover || ''
+                    cover: m.cover || window.__curTrackCover || window.cover || '',
+                    trackNumber: m.trackNumber || 0,
+                    discNumber: m.discNumber || 0,
+                    year: m.year || 0
                 });
                 AndBridge.downloadTrack(payload);
             };

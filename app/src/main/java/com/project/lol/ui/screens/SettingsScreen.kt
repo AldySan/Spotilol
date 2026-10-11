@@ -2106,6 +2106,7 @@ fun LoggerDialog(onDismiss: () -> Unit) {
     LaunchedEffect(Unit) {
         while (true) {
             delay(350)
+            if (Logger.count() == entries.size) continue
             val next = Logger.entries()
             val changed = next.size != entries.size || next.lastOrNull()?.id != entries.lastOrNull()?.id
             if (changed) entries = next

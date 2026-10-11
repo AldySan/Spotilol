@@ -20,7 +20,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.ui.graphics.Color
+import androidx.compose.runtime.setValue
 import androidx.core.view.WindowCompat
 import com.project.lol.R
 import com.project.lol.profile.ProfileManager
@@ -28,6 +28,8 @@ import com.project.lol.service.OfflineMediaService
 import com.project.lol.timer.SleepTimerManager
 import com.project.lol.ui.screens.OfflineScreen
 import com.project.lol.ui.theme.SpotifyTheme
+import com.project.lol.ui.theme.ThemeController
+import com.project.lol.ui.theme.ThemePresets
 import com.project.lol.util.AppLocale
 
 class OfflineActivity : ComponentActivity() {
@@ -39,7 +41,7 @@ class OfflineActivity : ComponentActivity() {
     private val hideTopBarState = mutableStateOf(false)
     private val landscapeState = mutableStateOf(false)
     private val keepScreenOnState = mutableStateOf(false)
-    private val paletteSeedState = mutableStateOf<String?>(null)
+    private val themePresetState = mutableStateOf(ThemePresets.DEFAULT_ID)
     private val pipActiveState = mutableStateOf(false)
 
     private var pipPlaying = false
@@ -59,30 +61,24 @@ class OfflineActivity : ComponentActivity() {
         hideTopBarState.value = prefs.getBoolean("HideTopBar", false)
         landscapeState.value = prefs.getBoolean("LandscapeMode", false)
         keepScreenOnState.value = prefs.getBoolean("KeepScreenOn", false)
-        paletteSeedState.value = prefs.getString("PaletteSeed", null)
+        themePresetState.value = prefs.getString("ThemePreset", ThemePresets.DEFAULT_ID) ?: ThemePresets.DEFAULT_ID
 
         applyOrientation()
         applyKeepScreenOn()
 
         setContent {
-            SpotifyTheme(
-                useDynamicColor = materialYouState.value,
-                amoled = amoledState.value,
-                seedColor = paletteSeedState.value?.let { hex ->
-                    runCatching { Color(android.graphics.Color.parseColor(hex)) }.getOrNull()
-                }
-            ) {
+            SpotifyTheme {
                 OfflineScreen(
                     prefs = prefs,
                     materialYou = materialYouState.value,
                     onMaterialYouChange = { enabled ->
                         materialYouState.value = enabled
-                        prefs.edit().putBoolean("MaterialYou", enabled).apply()
+                        ThemeController.updateDynamicColor(enabled)
                     },
                     amoledTheme = amoledState.value,
                     onAmoledThemeChange = { enabled ->
                         amoledState.value = enabled
-                        prefs.edit().putBoolean("AmoledTheme", enabled).apply()
+                        ThemeController.updateAmoled(enabled)
                     },
                     hideTopBar = hideTopBarState.value,
                     onHideTopBarChange = { enabled ->
@@ -101,14 +97,10 @@ class OfflineActivity : ComponentActivity() {
                         prefs.edit().putBoolean("KeepScreenOn", enabled).apply()
                         applyKeepScreenOn()
                     },
-                    paletteSeed = paletteSeedState.value,
-                    onPaletteSeedChange = { hex ->
-                        paletteSeedState.value = hex
-                        if (hex.isNullOrBlank()) {
-                            prefs.edit().remove("PaletteSeed").apply()
-                        } else {
-                            prefs.edit().putString("PaletteSeed", hex).apply()
-                        }
+                    themePreset = themePresetState.value,
+                    onThemePresetChange = { id ->
+                        themePresetState.value = id
+                        ThemeController.updatePreset(id)
                     },
                     onOfflineModeChange = { enabled ->
                         prefs.edit().putBoolean("OfflineMode", enabled).apply()

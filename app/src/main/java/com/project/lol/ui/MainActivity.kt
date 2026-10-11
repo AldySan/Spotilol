@@ -108,6 +108,8 @@ import com.project.lol.timer.SleepTimerManager
 import com.project.lol.ui.components.SettingsDialog
 import com.project.lol.ui.components.SleepTimerDialog
 import com.project.lol.ui.theme.SpotifyTheme
+import com.project.lol.ui.theme.ThemeController
+import com.project.lol.ui.theme.ThemePresets
 import com.project.lol.util.BuildInfo
 import com.project.lol.util.Logger
 import com.project.lol.util.UpdateChecker
@@ -131,7 +133,6 @@ import androidx.core.graphics.toColorInt
 import com.project.lol.ui.components.ErrorScreen
 import com.project.lol.ui.components.mapWebViewError
 import com.project.lol.util.AppLocale
-import com.project.lol.webview.helpers.AccentTheme
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -167,7 +168,7 @@ class MainActivity : ComponentActivity(), WebViewHost.UiHost {
     private val wideVideoState = mutableStateOf(false)
     private val videoFullscreenState = mutableStateOf(false)
     private val keepScreenOnState = mutableStateOf(false)
-    private val paletteSeedState = mutableStateOf<String?>(null)
+    private val themePresetState = mutableStateOf(ThemePresets.DEFAULT_ID)
 
     private val showSleepTimerDialog = mutableStateOf(false)
     private val sleepTimerInputText = mutableStateOf("")
@@ -241,7 +242,7 @@ class MainActivity : ComponentActivity(), WebViewHost.UiHost {
         hideTopBarState.value = prefs.getBoolean("HideTopBar", false)
         landscapeModeState.value = prefs.getBoolean("LandscapeMode", false)
         keepScreenOnState.value = prefs.getBoolean("KeepScreenOn", false)
-        paletteSeedState.value = prefs.getString("PaletteSeed", null)
+        themePresetState.value = prefs.getString("ThemePreset", ThemePresets.DEFAULT_ID) ?: ThemePresets.DEFAULT_ID
         blockServiceWorkerState.value = prefs.getBoolean("BlockServiceWorker", true)
         applyOrientation()
         applyKeepScreenOn()
@@ -266,7 +267,7 @@ class MainActivity : ComponentActivity(), WebViewHost.UiHost {
             val hideTopBar = hideTopBarState.value
             val landscapeMode = landscapeModeState.value
             val keepScreenOn = keepScreenOnState.value
-            val paletteSeed = paletteSeedState.value
+            val themePreset = themePresetState.value
             val showDialog = showSleepTimerDialog.value
             val loadProgress = loadingProgress.intValue
             val blockServiceWorker = blockServiceWorkerState.value
@@ -293,12 +294,7 @@ class MainActivity : ComponentActivity(), WebViewHost.UiHost {
                 runCatching { packageManager.getPackageInfo(packageName, 0).versionName }
                     .getOrNull() ?: ""
             }
-            val seedColor = paletteSeed?.let { hex ->
-                runCatching { Color(android.graphics.Color.parseColor(hex)) }.getOrNull()
-            }
-            val accentColor = remember(materialYou, paletteSeed) {
-                AccentTheme.resolveColor(this@MainActivity)
-            }
+            val accentColor = MaterialTheme.colorScheme.primary
 
             BackHandler(
                 enabled = settingsDialogOpen || ctxSheetOpen || videoFullscreenState.value || playerExpanded || webView?.canGoBack() == true
@@ -321,7 +317,7 @@ class MainActivity : ComponentActivity(), WebViewHost.UiHost {
                 }
             }
 
-            SpotifyTheme(useDynamicColor = materialYou, amoled = amoled, seedColor = seedColor) {
+            SpotifyTheme {
                 SettingsDialog(
                     visible = settingsDialogOpen,
                     onClose = { settingsDialogOpen = false },
@@ -329,12 +325,12 @@ class MainActivity : ComponentActivity(), WebViewHost.UiHost {
                     materialYou = materialYou,
                     onMaterialYouChange = { enabled ->
                         materialYouState.value = enabled
-                        prefs.edit().putBoolean("MaterialYou", enabled).apply()
+                        ThemeController.updateDynamicColor(enabled)
                     },
                     amoledThemeState = amoled,
                     onAmoledThemeChange = { enabled ->
                         amoledState.value = enabled
-                        prefs.edit().putBoolean("AmoledTheme", enabled).apply()
+                        ThemeController.updateAmoled(enabled)
                     },
                     hideTopBar = hideTopBar,
                     onHideTopBarChange = { enabled ->
@@ -353,14 +349,10 @@ class MainActivity : ComponentActivity(), WebViewHost.UiHost {
                         prefs.edit().putBoolean("KeepScreenOn", enabled).apply()
                         applyKeepScreenOn()
                     },
-                    paletteSeed = paletteSeed,
-                    onPaletteSeedChange = { hex ->
-                        paletteSeedState.value = hex
-                        if (hex.isNullOrBlank()) {
-                            prefs.edit().remove("PaletteSeed").apply()
-                        } else {
-                            prefs.edit().putString("PaletteSeed", hex).apply()
-                        }
+                    themePreset = themePreset,
+                    onThemePresetChange = { id ->
+                        themePresetState.value = id
+                        ThemeController.updatePreset(id)
                     },
                     onOfflineModeChange = { switchOfflineMode(it) },
                     onSaveProfile = { name, cookies -> saveProfile(name, cookies) },
@@ -1307,7 +1299,7 @@ class MainActivity : ComponentActivity(), WebViewHost.UiHost {
         hideTopBarState.value = prefs.getBoolean("HideTopBar", false)
         landscapeModeState.value = prefs.getBoolean("LandscapeMode", false)
         keepScreenOnState.value = prefs.getBoolean("KeepScreenOn", false)
-        paletteSeedState.value = prefs.getString("PaletteSeed", null)
+        themePresetState.value = prefs.getString("ThemePreset", ThemePresets.DEFAULT_ID) ?: ThemePresets.DEFAULT_ID
         blockServiceWorkerState.value = prefs.getBoolean("BlockServiceWorker", true)
         applyOrientation()
         applyKeepScreenOn()
@@ -1332,7 +1324,7 @@ class MainActivity : ComponentActivity(), WebViewHost.UiHost {
 
             val js = buildString {
                 append(buildAmoledJs(amoledEnabled))
-                append(AccentTheme.buildAccentJs(this@MainActivity))
+                append(ThemeController.buildAccentJs(this@MainActivity))
                 append(buildCustomCssJs(customCss))
                 append(LyricsTheme.buildLyricsStyleJs(prefs.getString("LyricsStyle", LyricsTheme.DEFAULT_STYLE) ?: LyricsTheme.DEFAULT_STYLE))
             }

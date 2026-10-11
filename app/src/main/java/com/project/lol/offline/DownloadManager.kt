@@ -41,6 +41,9 @@ private data class TrackMeta(
     val artist: String,
     val album: String,
     val cover: String?,
+    val trackNumber: Int? = null,
+    val discNumber: Int? = null,
+    val year: Int? = null,
 )
 
 private data class YtMeta(
@@ -98,6 +101,8 @@ private sealed class DownloadJob {
         val tracks: List<TrackMeta>,
     ) : DownloadJob()
 }
+
+private fun JSONObject.positiveInt(key: String): Int? = optInt(key, 0).takeIf { it > 0 }
 
 object DownloadManager {
     private const val TAG = "Spl-DL"
@@ -253,6 +258,9 @@ object DownloadManager {
             artist = parsed.optString("artist"),
             album = parsed.optString("album"),
             cover = parsed.optString("cover").ifBlank { null },
+            trackNumber = parsed.positiveInt("trackNumber"),
+            discNumber = parsed.positiveInt("discNumber"),
+            year = parsed.positiveInt("year"),
         )
         markStatus(
             active = true,
@@ -297,6 +305,9 @@ object DownloadManager {
                     artist = o.optString("artist"),
                     album = o.optString("album"),
                     cover = o.optString("cover").ifBlank { null },
+                    trackNumber = o.positiveInt("trackNumber"),
+                    discNumber = o.positiveInt("discNumber"),
+                    year = o.positiveInt("year"),
                 )
             )
         }
@@ -716,7 +727,10 @@ object DownloadManager {
                 effectiveTitle,
                 effectiveArtist,
                 effectiveAlbum,
-                fetchCoverForTags(context, trackId, track.cover ?: resolved.chosen.thumbnail)
+                fetchCoverForTags(context, trackId, track.cover ?: resolved.chosen.thumbnail),
+                trackNumber = track.trackNumber,
+                discNumber = track.discNumber,
+                year = track.year,
             )
         }
 

@@ -9,6 +9,7 @@ object ContextMenuSheet {
             var STYLE_ID = 'spl-ctxsheet-style';
             var HEAD_CLS = 'spl-sheet-head';
             var S = '[data-tippy-root]:has(ul[role="menu"])';
+            var LIKE = S + ' ul[role="menu"] button.spl-sheet-like';
             var menuObserver = null;
             var menuTarget = null;
             var activeTrigger = null;
@@ -31,8 +32,8 @@ object ContextMenuSheet {
                     '.spl-sheet-meta{flex:1;min-width:0}' +
                     '.spl-sheet-title{font-size:15px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3}' +
                     '.spl-sheet-artist{font-size:12px;color:rgba(255,255,255,.6);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3}' +
-                    '.spl-sheet-like{width:40px;height:40px;flex-shrink:0;border:0;background:none;padding:0;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.7);cursor:pointer}' +
-                    '.spl-sheet-like svg{width:22px;height:22px}' +
+                    LIKE + '{width:40px!important;height:40px!important;min-height:0!important;max-height:none!important;flex-shrink:0;border:0;background:none;padding:0!important;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.7);cursor:pointer}' +
+                    LIKE + ' svg{width:24px!important;height:24px!important;flex-shrink:0}' +
                     '.spl-sheet-like svg path{fill:none;stroke:currentColor;stroke-width:1.8;stroke-linejoin:round}' +
                     '.spl-sheet-like.spl-on{color:var(--spl-accent,#1db954)}' +
                     '.spl-sheet-like.spl-on svg path{fill:currentColor;stroke:none}' +

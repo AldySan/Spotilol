@@ -26,7 +26,7 @@ import androidx.media.session.MediaButtonReceiver
 import com.project.lol.R
 import com.project.lol.ui.OfflineActivity
 import com.project.lol.util.Logger
-import com.project.lol.webview.helpers.AccentTheme
+import com.project.lol.ui.theme.ThemeController
 import com.project.lol.widget.WidgetSource
 import com.project.lol.widget.WidgetState
 import com.project.lol.widget.WidgetUpdater
@@ -310,7 +310,7 @@ class OfflineMediaService : Service() {
     }
 
     private fun widgetAccent(): Int = runCatching {
-        AccentTheme.resolveHex(this).toColorInt()
+        ThemeController.accentHex(this).toColorInt()
     }.getOrDefault(NOTIF_COLOR)
 
     private fun pushWidgetState(force: Boolean = false) {

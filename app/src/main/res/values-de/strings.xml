@@ -12,16 +12,6 @@
     <string name="settings_tab_about">Über</string>
     <string name="settings_language">Sprache</string>
     <string name="settings_language_system">Standard (Gerät)</string>
-    <string name="settings_palette_default">Standard</string>
-    <string name="settings_palette_spotify_green">Spotify-Grün</string>
-    <string name="settings_palette_purple">Violett</string>
-    <string name="settings_palette_blue">Blau</string>
-    <string name="settings_palette_red">Rot</string>
-    <string name="settings_palette_orange">Orange</string>
-    <string name="settings_palette_pink">Pink</string>
-    <string name="settings_palette_teal">Petrol</string>
-    <string name="settings_palette_yellow">Gelb</string>
-    <string name="settings_palette_cyan">Cyan</string>
     <string name="settings_section_appearance">DARSTELLUNG</string>
     <string name="settings_section_player">PLAYER</string>
     <string name="settings_section_bluetooth">BLUETOOTH</string>
@@ -42,16 +32,6 @@
     <string name="settings_custom_css_placeholder">/* Schreibe deine CSS-Regeln hier (nutze !important falls nötig) */\naside[data-testid=now-playing-bar] { display: none !important; }</string>
     <string name="settings_material_you">Material-You-Design</string>
     <string name="settings_material_you_subtitle">Dynamische Android-Systemfarben verwenden</string>
-    <string name="settings_accent_color">Akzentfarbe</string>
-    <string name="settings_accent_dynamic">Dynamisch (Systemfarben)</string>
-    <string name="settings_accent_default">Standard</string>
-    <string name="settings_accent_custom">Benutzerdefiniert %1$s</string>
-    <string name="settings_custom_accent_color">Benutzerdefinierte Akzentfarbe</string>
-    <string name="settings_default_scheme">Standardschema</string>
-    <string name="settings_color_red">Rot</string>
-    <string name="settings_color_green">Grün</string>
-    <string name="settings_color_blue">Blau</string>
-    <string name="settings_apply">Anwenden</string>
     <string name="settings_amoled_theme">AMOLED-Design</string>
     <string name="settings_amoled_theme_subtitle">Rein schwarzer Hintergrund zum Akkusparen</string>
     <string name="settings_hide_top_bar">Obere Leiste ausblenden</string>
@@ -405,4 +385,10 @@
     <string name="dl_error_http">Stream lieferte HTTP %1$d</string>
     <string name="dl_error_connection_reset">Verbindung zurückgesetzt</string>
     <string name="dl_error_download">Downloadfehler</string>
+
+    <string name="settings_fast_startup">Schnellstart</string>
+    <string name="settings_fast_startup_subtitle">Sofort starten, ohne auf die Startanimation zu warten</string>
+
+    <string name="settings_theme">Design</string>
+    <string name="settings_theme_dynamic">Dynamisch (Systemfarben)</string>
 </resources>

@@ -272,9 +272,24 @@ class SpotifyWebViewClient(
         val url = request.url.toString()
 
         if (isAnalyticsDomain(url)) {
-            val headers = mapOf("Access-Control-Allow-Origin" to "*")
-            return WebResourceResponse("text/plain", "utf-8", 200, "OK", headers,
-                ByteArrayInputStream(ByteArray(0)))
+            val origin = request.requestHeaders.entries
+                .firstOrNull { it.key.equals("Origin", ignoreCase = true) }?.value
+                ?: WEB_PLAYER_ORIGIN
+            val headers = HashMap<String, String>(8)
+            headers["Access-Control-Allow-Origin"] = origin
+            headers["Access-Control-Allow-Credentials"] = "true"
+            if (request.method.equals("OPTIONS", ignoreCase = true)) {
+                headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+                headers["Access-Control-Allow-Headers"] = request.requestHeaders.entries
+                    .firstOrNull { it.key.equals("Access-Control-Request-Headers", ignoreCase = true) }?.value
+                    ?: DEFAULT_ALLOWED_HEADERS
+                headers["Access-Control-Max-Age"] = "600"
+                return WebResourceResponse("text/plain", "utf-8", 200, "OK", headers,
+                    ByteArrayInputStream(ByteArray(0)))
+            }
+            headers["Content-Type"] = "application/json"
+            return WebResourceResponse("application/json", "utf-8", 200, "OK", headers,
+                ByteArrayInputStream(EMPTY_JSON))
         }
 
         if (AdIdStore.matches(url)) {
@@ -561,6 +576,9 @@ class SpotifyWebViewClient(
         private const val TAG = "wv"
         private const val WEB_PLAYER_ORIGIN = "https://open.spotify.com"
         private val LOGIN_PATH = Regex("^/(?:[a-zA-Z0-9]{2,8}(?:-[a-zA-Z0-9]{2,8})?/)?login/?$")
+        private val EMPTY_JSON = "{}".toByteArray()
+        private const val DEFAULT_ALLOWED_HEADERS =
+            "content-type, client-token, authorization, accept, app-platform, spotify-app-version"
         private const val DESKTOP_UA =
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
 

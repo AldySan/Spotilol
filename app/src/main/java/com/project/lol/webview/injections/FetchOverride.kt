@@ -114,7 +114,10 @@ object FetchOverride {
                                                 name: j.name || null,
                                                 artist: (j.artist && j.artist.length) ? j.artist[0].name : null,
                                                 album: (j.album) ? j.album.name : null,
-                                                cover: (cg && cg.length) ? 'https://i.scdn.co/image/' + cg[0].file_id : null
+                                                cover: (cg && cg.length) ? 'https://i.scdn.co/image/' + cg[0].file_id : null,
+                                                trackNumber: (typeof j.number === 'number' && j.number > 0) ? j.number : null,
+                                                discNumber: (typeof j.disc_number === 'number' && j.disc_number > 0) ? j.disc_number : null,
+                                                year: (j.album && j.album.date && j.album.date.year) ? j.album.date.year : null
                                             };
                                             window.__curTrackUri = j.canonical_uri;
                                             window.__curTrackId = tid;

@@ -1,6 +1,7 @@
 package com.project.lol.ui
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
@@ -71,6 +72,7 @@ import compose.icons.TablerIcons
 import compose.icons.tablericons.Bell
 import compose.icons.tablericons.Bluetooth
 import androidx.lifecycle.lifecycleScope
+import com.project.lol.util.AppLocale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
@@ -226,6 +228,10 @@ class SplashActivity : ComponentActivity() {
             permissions += Manifest.permission.BLUETOOTH_CONNECT
         }
         return permissions
+    }
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(AppLocale.wrap(newBase))
     }
 }
 

@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.app.PictureInPictureParams
 import android.app.RemoteAction
+import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.ActivityInfo
@@ -132,6 +133,7 @@ import androidx.core.graphics.scale
 import androidx.core.graphics.toColorInt
 import com.project.lol.ui.components.ErrorScreen
 import com.project.lol.ui.components.mapWebViewError
+import com.project.lol.util.AppLocale
 import com.project.lol.webview.helpers.AccentTheme
 import java.util.Locale
 
@@ -1510,6 +1512,10 @@ class MainActivity : ComponentActivity() {
         MediaNotificationService.webView = null
         serviceStarted = false
         super.onDestroy()
+    }
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(AppLocale.wrap(newBase))
     }
 }
 

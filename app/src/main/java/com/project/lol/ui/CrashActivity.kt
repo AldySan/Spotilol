@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import com.project.lol.R
 import com.project.lol.ui.theme.SpotifyTheme
+import com.project.lol.util.AppLocale
 import com.project.lol.util.CrashHandler
 import com.project.lol.util.CrashStore
 import compose.icons.TablerIcons
@@ -96,6 +97,10 @@ class CrashActivity : ComponentActivity() {
 
     private fun parseSeed(hex: String?): Color? =
         hex?.let { runCatching { Color(android.graphics.Color.parseColor(it)) }.getOrNull() }
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(AppLocale.wrap(newBase))
+    }
 }
 
 @Composable

@@ -3,6 +3,7 @@ package com.project.lol.ui
 import android.app.PendingIntent
 import android.app.PictureInPictureParams
 import android.app.RemoteAction
+import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.ActivityInfo
@@ -27,6 +28,7 @@ import com.project.lol.service.OfflineMediaService
 import com.project.lol.timer.SleepTimerManager
 import com.project.lol.ui.screens.OfflineScreen
 import com.project.lol.ui.theme.SpotifyTheme
+import com.project.lol.util.AppLocale
 
 class OfflineActivity : ComponentActivity() {
 
@@ -250,5 +252,9 @@ class OfflineActivity : ComponentActivity() {
     private fun exitOfflineMode() {
         prefs.edit().putBoolean("OfflineMode", false).apply()
         restartToSplash()
+    }
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(AppLocale.wrap(newBase))
     }
 }

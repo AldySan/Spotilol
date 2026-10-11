@@ -31,6 +31,7 @@ import com.project.lol.widget.WidgetSource
 import com.project.lol.widget.WidgetState
 import com.project.lol.widget.WidgetUpdater
 import androidx.core.graphics.toColorInt
+import com.project.lol.util.AppLocale
 import java.io.File
 import kotlin.math.min
 import kotlinx.coroutines.CoroutineScope
@@ -487,5 +488,9 @@ class OfflineMediaService : Service() {
             this, action.hashCode(), intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
+    }
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(AppLocale.wrap(newBase))
     }
 }

@@ -9,6 +9,8 @@
     <string name="settings_tab_content">Content</string>
     <string name="settings_tab_advanced">Advanced</string>
     <string name="settings_tab_about">About</string>
+    <string name="settings_language">Language</string>
+    <string name="settings_language_system">Default (device)</string>
 
     <string name="settings_palette_default">Default</string>
     <string name="settings_palette_spotify_green">Spotify Green</string>
@@ -348,12 +350,12 @@
     <string name="dl_notif_failed">%1$d failed</string>
     <string name="dl_notif_skipped">%1$d skipped</string>
     <string name="dl_notif_queued">%1$d queued</string>
-    <string name="dl_notif_preparing">Preparing download...</string>
+    <string name="dl_notif_preparing">Preparing download…</string>
     <string name="dl_notif_action_skip">Skip</string>
     <string name="dl_notif_action_cancel">Cancel</string>
 
     <string name="bridge_player_unlocked">Player unlocked</string>
-    <string name="bridge_reloading">Reloading...</string>
+    <string name="bridge_reloading">Reloading…</string>
 
     <string name="service_disabled_message">Service is not enabled</string>
 

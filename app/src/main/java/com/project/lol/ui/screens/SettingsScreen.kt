@@ -108,8 +108,11 @@ import com.project.lol.offline.DownloadFormat
 import com.project.lol.offline.DownloadPrefs
 import com.project.lol.profile.ProfileManager
 import com.project.lol.service.MediaNotificationService
+import com.project.lol.service.OfflineMediaService
+import com.project.lol.ui.SplashActivity
 import com.project.lol.ui.components.ChangelogDialog
 import com.project.lol.ui.theme.SpotifyTheme
+import com.project.lol.util.AppLocale
 import com.project.lol.util.BuildInfo
 import com.project.lol.util.GitHubApi
 import com.project.lol.util.GitHubRelease
@@ -255,6 +258,8 @@ fun SettingsContent(
 
     val context = LocalContext.current
     val resources = LocalResources.current
+    var appLanguage by remember { mutableStateOf(AppLocale.current(context)) }
+    var showLanguageDialog by remember { mutableStateOf(false) }
     var profiles by remember { mutableStateOf(ProfileManager.getProfiles(context)) }
 
     var showSaveAccountDialog by remember { mutableStateOf(false) }
@@ -288,6 +293,14 @@ fun SettingsContent(
     fun refreshFolderState() {
         dlFolderPath = DownloadPrefs.folderDisplayPath(context)
         dlFolderLabel = DownloadPrefs.folderLabel(context)
+    }
+    fun applyLanguageRestart() {
+        runCatching { context.stopService(Intent(context, MediaNotificationService::class.java)) }
+        runCatching { context.stopService(Intent(context, OfflineMediaService::class.java)) }
+        val intent = Intent(context, SplashActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+        runCatching { context.startActivity(intent) }
     }
     val folderPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree()
@@ -387,6 +400,15 @@ fun SettingsContent(
                     title = stringResource(R.string.settings_section_appearance),
                     icon = TablerIcons.Palette
                 ) {
+                    val systemLanguageLabel = stringResource(R.string.settings_language_system)
+                    SettingTile(
+                        title = stringResource(R.string.settings_language),
+                        subtitle = AppLocale.nativeName(appLanguage) ?: systemLanguageLabel,
+                        icon = TablerIcons.Language,
+                        onClick = { showLanguageDialog = true }
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
                     // dead code: gui mode selector. only mobile css and js is implemented,
                     // wide window and none need a refactor across the webview injections,
                     // so the value is fixed and the label is no longer read from prefs.
@@ -988,6 +1010,22 @@ fun SettingsContent(
                 showPaletteDialog = false
             },
             onDismiss = { showPaletteDialog = false }
+        )
+    }
+
+    if (showLanguageDialog) {
+        LanguageDialog(
+            current = appLanguage,
+            systemLabel = stringResource(R.string.settings_language_system),
+            onSelect = { tag ->
+                showLanguageDialog = false
+                if (tag != appLanguage) {
+                    appLanguage = tag
+                    AppLocale.set(context, tag)
+                    applyLanguageRestart()
+                }
+            },
+            onDismiss = { showLanguageDialog = false }
         )
     }
 
@@ -1716,6 +1754,75 @@ fun SingleChoiceDialog(
                                     onSelect(value)
                                     onDismiss()
                                 },
+                                colors = RadioButtonDefaults.colors(
+                                    selectedColor = MaterialTheme.colorScheme.primary,
+                                    unselectedColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            )
+                            Spacer(Modifier.width(10.dp))
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.bodyLarge.copy(
+                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+                                ),
+                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.settings_cancel), color = MaterialTheme.colorScheme.primary)
+            }
+        }
+    )
+}
+
+@Composable
+fun LanguageDialog(
+    current: String,
+    systemLabel: String,
+    onSelect: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(28.dp),
+        title = {
+            Text(
+                text = stringResource(R.string.settings_language),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                AppLocale.AVAILABLE.forEach { tag ->
+                    val label = AppLocale.nativeName(tag) ?: systemLabel
+                    val isSelected = current == tag
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .clickable { onSelect(tag) },
+                        color = if (isSelected) {
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
+                        } else {
+                            Color.Transparent
+                        }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = isSelected,
+                                onClick = { onSelect(tag) },
                                 colors = RadioButtonDefaults.colors(
                                     selectedColor = MaterialTheme.colorScheme.primary,
                                     unselectedColor = MaterialTheme.colorScheme.onSurfaceVariant

@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Spotilol</string>
     <string name="aa_playlists">Playlists</string>
@@ -9,6 +10,8 @@
     <string name="settings_tab_content">Contenu</string>
     <string name="settings_tab_advanced">Avancé</string>
     <string name="settings_tab_about">À propos</string>
+    <string name="settings_language">Langue</string>
+    <string name="settings_language_system">Par défaut (appareil)</string>
 
     <string name="settings_palette_default">Par défaut</string>
     <string name="settings_palette_spotify_green">Vert Spotify</string>
@@ -348,12 +351,12 @@
     <string name="dl_notif_failed">%1$d échoué(s)</string>
     <string name="dl_notif_skipped">%1$d ignoré(s)</string>
     <string name="dl_notif_queued">%1$d en attente</string>
-    <string name="dl_notif_preparing">Préparation du téléchargement...</string>
+    <string name="dl_notif_preparing">Préparation du téléchargement…</string>
     <string name="dl_notif_action_skip">Passer</string>
     <string name="dl_notif_action_cancel">Annuler</string>
 
     <string name="bridge_player_unlocked">Lecteur déverrouillé</string>
-    <string name="bridge_reloading">Rechargement...</string>
+    <string name="bridge_reloading">Rechargement…</string>
 
     <string name="service_disabled_message">Le service n\'est pas activé</string>
 

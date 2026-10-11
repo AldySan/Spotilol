@@ -1,6 +1,8 @@
 package com.project.lol
 
 import android.app.Application
+import android.content.Context
+import com.project.lol.util.AppLocale
 import com.project.lol.util.CrashHandler
 import com.project.lol.util.Logger
 import com.project.lol.util.PlaybackDiagnostics
@@ -28,5 +30,9 @@ class SpotilolApp : Application() {
         edit.putBoolean("ProxyEraMigrated", true)
         edit.apply()
         if (fromProxyEra) Logger.i("app", "proxy era prefs migrated")
+    }
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(AppLocale.wrap(newBase))
     }
 }

@@ -43,6 +43,7 @@ import androidx.core.graphics.createBitmap
 import androidx.core.graphics.drawable.IconCompat
 import androidx.core.graphics.scale
 import androidx.core.graphics.toColorInt
+import com.project.lol.util.AppLocale
 import com.project.lol.webview.helpers.AccentTheme
 import com.project.lol.util.Logger
 import com.project.lol.widget.WidgetSource
@@ -1029,5 +1030,9 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
             stopSelf()
         }
         super.onTaskRemoved(rootIntent)
+    }
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(AppLocale.wrap(newBase))
     }
 }

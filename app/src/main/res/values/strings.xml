@@ -12,16 +12,6 @@
     <string name="settings_language">Language</string>
     <string name="settings_language_system">Default (device)</string>
 
-    <string name="settings_palette_default">Default</string>
-    <string name="settings_palette_spotify_green">Spotify Green</string>
-    <string name="settings_palette_purple">Purple</string>
-    <string name="settings_palette_blue">Blue</string>
-    <string name="settings_palette_red">Red</string>
-    <string name="settings_palette_orange">Orange</string>
-    <string name="settings_palette_pink">Pink</string>
-    <string name="settings_palette_teal">Teal</string>
-    <string name="settings_palette_yellow">Yellow</string>
-    <string name="settings_palette_cyan">Cyan</string>
 
     <string name="settings_section_appearance">APPEARANCE</string>
     <string name="settings_section_player">PLAYER</string>
@@ -44,16 +34,6 @@
     <string name="settings_custom_css_placeholder">/* Write your CSS overrides here (use !important if needed) */\naside[data-testid=now-playing-bar] { display: none !important; }</string>
     <string name="settings_material_you">Material You Theme</string>
     <string name="settings_material_you_subtitle">Use Android system dynamic colors</string>
-    <string name="settings_accent_color">Accent Color</string>
-    <string name="settings_accent_dynamic">Dynamic (system colors)</string>
-    <string name="settings_accent_default">Default</string>
-    <string name="settings_accent_custom">Custom %1$s</string>
-    <string name="settings_custom_accent_color">Custom accent color</string>
-    <string name="settings_default_scheme">Default scheme</string>
-    <string name="settings_color_red">Red</string>
-    <string name="settings_color_green">Green</string>
-    <string name="settings_color_blue">Blue</string>
-    <string name="settings_apply">Apply</string>
     <string name="settings_amoled_theme">AMOLED Theme</string>
     <string name="settings_amoled_theme_subtitle">Pure black background to save battery</string>
     <string name="settings_hide_top_bar">Hide Top Bar</string>
@@ -420,4 +400,10 @@
     <string name="dl_error_http">Stream returned HTTP %1$d</string>
     <string name="dl_error_connection_reset">Connection reset</string>
     <string name="dl_error_download">Download error</string>
+
+    <string name="settings_fast_startup">Fast Startup</string>
+    <string name="settings_fast_startup_subtitle">Start instantly instead of waiting for the splash animation</string>
+
+    <string name="settings_theme">Theme</string>
+    <string name="settings_theme_dynamic">Dynamic (system colors)</string>
 </resources>

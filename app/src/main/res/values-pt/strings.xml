@@ -12,16 +12,6 @@
     <string name="settings_tab_about">Sobre</string>
     <string name="settings_language">Idioma</string>
     <string name="settings_language_system">Padrão (dispositivo)</string>
-    <string name="settings_palette_default">Padrão</string>
-    <string name="settings_palette_spotify_green">Verde Spotify</string>
-    <string name="settings_palette_purple">Roxo</string>
-    <string name="settings_palette_blue">Azul</string>
-    <string name="settings_palette_red">Vermelho</string>
-    <string name="settings_palette_orange">Laranja</string>
-    <string name="settings_palette_pink">Rosa</string>
-    <string name="settings_palette_teal">Verde-água</string>
-    <string name="settings_palette_yellow">Amarelo</string>
-    <string name="settings_palette_cyan">Ciano</string>
     <string name="settings_section_appearance">APARÊNCIA</string>
     <string name="settings_section_player">REPRODUTOR</string>
     <string name="settings_section_bluetooth">BLUETOOTH</string>
@@ -42,16 +32,6 @@
     <string name="settings_custom_css_placeholder">/* Escreva suas regras CSS aqui (use !important se necessário) */\naside[data-testid=now-playing-bar] { display: none !important; }</string>
     <string name="settings_material_you">Tema Material You</string>
     <string name="settings_material_you_subtitle">Usar as cores dinâmicas do Android</string>
-    <string name="settings_accent_color">Cor de destaque</string>
-    <string name="settings_accent_dynamic">Dinâmica (cores do sistema)</string>
-    <string name="settings_accent_default">Padrão</string>
-    <string name="settings_accent_custom">Personalizada %1$s</string>
-    <string name="settings_custom_accent_color">Cor de destaque personalizada</string>
-    <string name="settings_default_scheme">Esquema padrão</string>
-    <string name="settings_color_red">Vermelho</string>
-    <string name="settings_color_green">Verde</string>
-    <string name="settings_color_blue">Azul</string>
-    <string name="settings_apply">Aplicar</string>
     <string name="settings_amoled_theme">Tema AMOLED</string>
     <string name="settings_amoled_theme_subtitle">Fundo preto puro para economizar bateria</string>
     <string name="settings_hide_top_bar">Ocultar a barra superior</string>
@@ -405,4 +385,10 @@
     <string name="dl_error_http">O stream retornou HTTP %1$d</string>
     <string name="dl_error_connection_reset">Conexão redefinida</string>
     <string name="dl_error_download">Erro de download</string>
+
+    <string name="settings_fast_startup">Inicialização rápida</string>
+    <string name="settings_fast_startup_subtitle">Iniciar instantaneamente sem esperar a animação de abertura</string>
+
+    <string name="settings_theme">Tema</string>
+    <string name="settings_theme_dynamic">Dinâmico (cores do sistema)</string>
 </resources>

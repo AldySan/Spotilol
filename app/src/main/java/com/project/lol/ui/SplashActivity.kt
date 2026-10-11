@@ -76,7 +76,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private val MonochromeAccent = Color(0xFFE0E0E0)
-private const val SPLASH_MIN_MS = 800L
+private const val SPLASH_MIN_MS = 4000L
 
 class SplashActivity : ComponentActivity() {
 

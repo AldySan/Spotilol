@@ -2,6 +2,8 @@ package com.project.lol.webview
 
 import android.graphics.Bitmap
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
 import com.project.lol.util.Logger
 import android.webkit.CookieManager
 import android.webkit.RenderProcessGoneDetail
@@ -78,7 +80,7 @@ class SpotifyWebViewClient(
 
         Logger.s(TAG, "logged in, injecting player control in 500ms")
 
-        view.postDelayed({
+        Handler(Looper.getMainLooper()).postDelayed({
             injectPlayerControl(view)
         }, 500)
 

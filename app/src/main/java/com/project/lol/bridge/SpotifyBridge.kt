@@ -138,9 +138,9 @@ class SpotifyBridge(activityRef: WeakReference<Activity>) {
 
     @JavascriptInterface
     fun playLoaded() {
-        val activity = activityRef.get() ?: return
         Logger.i(TAG, "play loaded, web player ready")
-        activity.runOnUiThread {
+        MediaNotificationService.onPlayerLoaded()
+        activityRef.get()?.runOnUiThread {
             onPlayLoaded?.invoke()
         }
     }

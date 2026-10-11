@@ -86,6 +86,22 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
         private val pendingSearchCallbacks =
             ConcurrentHashMap<String, Result<MutableList<MediaBrowserCompat.MediaItem>>>()
 
+        @Volatile
+        var playerLoaded = false
+            private set
+
+        fun onPlayerLoaded() {
+            playerLoaded = true
+            val parents = pendingCallbacks.keys.toList()
+            if (parents.isEmpty()) return
+            Logger.i(TAG, "player ready: retrying ${parents.size} pending media loads")
+            parents.forEach { parentId ->
+                instance?.wakeAndRun(
+                    "if (typeof window.fetchMediaItems === 'function') window.fetchMediaItems('$parentId');"
+                )
+            }
+        }
+
         private const val MEDIA_ID_PLAYLISTS = "playlists"
         private const val MEDIA_ID_ALBUMS = "albums"
         private const val MEDIA_ID_ARTISTS = "artists"
@@ -484,7 +500,7 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
         wakeAndRun("if (typeof window.fetchMediaItems === 'function') window.fetchMediaItems('$parentId');")
         Handler(Looper.getMainLooper()).postDelayed({
             pendingCallbacks.remove(parentId)?.sendResult(mutableListOf())
-        }, 20000L)
+        }, if (playerLoaded) 20000L else 60000L)
     }
 
     private fun createBrowsableItem(id: String, title: String): MediaBrowserCompat.MediaItem {
@@ -539,9 +555,6 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
     override fun onDestroy() {
         releaseWakeLock()
         instance = null
-        if (com.project.lol.webview.WebViewHost.uiHost == null) {
-            com.project.lol.webview.WebViewHost.release()
-        }
         try { unregisterReceiver(actionReceiver) } catch (_: Exception) {}
         try { unregisterReceiver(bluetoothReceiver) } catch (_: Exception) {}
         try { unregisterReceiver(audioBecomingNoisyReceiver) } catch (_: Exception) {}

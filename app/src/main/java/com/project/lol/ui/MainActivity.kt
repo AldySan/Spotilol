@@ -68,6 +68,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -95,8 +96,6 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.webkit.WebViewCompat
-import androidx.webkit.WebViewFeature
-import androidx.webkit.WebSettingsCompat
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.project.lol.R
 import com.project.lol.bridge.SpotifyBridge
@@ -112,8 +111,7 @@ import com.project.lol.ui.theme.SpotifyTheme
 import com.project.lol.util.BuildInfo
 import com.project.lol.util.Logger
 import com.project.lol.util.UpdateChecker
-import com.project.lol.webview.SpotifyWebChromeClient
-import com.project.lol.webview.SpotifyWebViewClient
+import com.project.lol.webview.WebViewHost
 import com.project.lol.webview.helpers.DevLogPrelude
 import com.project.lol.webview.helpers.LyricsTheme
 import com.project.lol.webview.helpers.buildAmoledJs
@@ -137,13 +135,16 @@ import com.project.lol.webview.helpers.AccentTheme
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
-class MainActivity : ComponentActivity() {
+class MainActivity : ComponentActivity(), WebViewHost.UiHost {
 
     companion object {
         private const val TAG = "main"
     }
 
-    private var webView: WebView? = null
+    private val webView: WebView?
+        get() = WebViewHost.webView
+
+    private val webViewGeneration = mutableIntStateOf(0)
     private var serviceStarted = false
     @Volatile private var pipCoverBitmap: Bitmap? = null
     @Volatile private var pipPlaying = false
@@ -445,9 +446,8 @@ class MainActivity : ComponentActivity() {
                                 .padding(if (videoFullscreen) PaddingValues(0.dp) else innerPadding)
                         ) {
                             if (serviceEnabled) {
-                            val bridge = remember {
-                                SpotifyBridge(WeakReference(this@MainActivity))
-                            }
+                            val bridge = WebViewHost.bridgeFor(this@MainActivity)
+                            bridge.rebind(WeakReference(this@MainActivity))
 
                             bridge.onTimerDialogRequest = {
                                 showSleepTimerDialog.value = true
@@ -525,97 +525,33 @@ class MainActivity : ComponentActivity() {
                                 DownloadManager.downloadCollection(this@MainActivity, payload)
                             }
 
-                            AndroidView(
-                                factory = { context ->
-                                    WebView(context).apply {
-                                        layoutParams = ViewGroup.LayoutParams(
-                                            ViewGroup.LayoutParams.MATCH_PARENT,
-                                            ViewGroup.LayoutParams.MATCH_PARENT
-                                        )
-
-                                        webView = this
-
-                                        CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
-
-                                        setLayerType(View.LAYER_TYPE_HARDWARE, null)
-
-                                        settings.apply {
-                                            userAgentString = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
-                                            javaScriptEnabled = true
-                                            domStorageEnabled = true
-                                            useWideViewPort = true
-                                            loadWithOverviewMode = true
-                                            setSupportZoom(true)
-                                            builtInZoomControls = true
-                                            displayZoomControls = false
-                                            allowFileAccess = false
-                                            allowContentAccess = false
-                                            mediaPlaybackRequiresUserGesture = false
-                                            setSupportMultipleWindows(true)
-                                            javaScriptCanOpenWindowsAutomatically = true
-                                            cacheMode = android.webkit.WebSettings.LOAD_DEFAULT
-                                            setGeolocationEnabled(false)
-                                            @Suppress("DEPRECATION")
-                                            saveFormData = false
-                                            mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_NEVER_ALLOW
+                            key(webViewGeneration.intValue) {
+                                AndroidView(
+                                    factory = { context ->
+                                        FrameLayout(context).apply {
+                                            layoutParams = ViewGroup.LayoutParams(
+                                                ViewGroup.LayoutParams.MATCH_PARENT,
+                                                ViewGroup.LayoutParams.MATCH_PARENT
+                                            )
+                                            val hosted = WebViewHost.ensure(context)
+                                            (hosted.parent as? ViewGroup)?.removeView(hosted)
+                                            addView(
+                                                hosted,
+                                                ViewGroup.LayoutParams(
+                                                    ViewGroup.LayoutParams.MATCH_PARENT,
+                                                    ViewGroup.LayoutParams.MATCH_PARENT
+                                                )
+                                            )
                                         }
-
-                                        setInitialScale(100)
-                                        setBackgroundColor(0xFF000000.toInt())
-
-                                        if (WebViewFeature.isFeatureSupported(WebViewFeature.BACK_FORWARD_CACHE)) {
-                                            WebSettingsCompat.setBackForwardCacheEnabled(settings, true)
-                                        }
-
-                                        addJavascriptInterface(bridge, "AndBridge")
-                                        webChromeClient = SpotifyWebChromeClient(
-                                            onProgressChanged = { progress ->
-                                                loadingProgress.intValue = progress
-                                            },
-                                            onShowCustomView = { view, callback ->
-                                                handleCustomViewShown(view, callback)
-                                            },
-                                            onHideCustomView = {
-                                                handleCustomViewHidden()
-                                            }
-                                        )
-
-                                        val spotifyClient = SpotifyWebViewClient(
-                                            onPlayerReady = { playPendingSearch(it) },
-                                            onLoginRequired = {
-                                                loadUrl("https://accounts.spotify.com/login")
-                                            },
-                                            onRenderProcessGone = {
-                                                runOnUiThread {
-                                                    webViewError.value = null
-                                                    destroyWebView()
-                                                }
-                                            },
-                                            onWebViewError = { code, desc ->
-                                                webViewError.value = code to desc
-                                            }
-                                        )
-                                        webViewClient = spotifyClient
-                                        // Before the first loadUrl, so it applies to the first page.
-                                        spotifyClient.installDocumentStartScripts(this)
-
-                                        val target = pendingLink
-                                            ?: if (loggedIn) "https://open.spotify.com/"
-                                            else "https://accounts.spotify.com/login"
-                                        pendingLink = null
-                                        Logger.i(
-                                            TAG,
-                                            "webview ready: js=on dom=on multiWindow=on bfcache=" +
-                                                WebViewFeature.isFeatureSupported(WebViewFeature.BACK_FORWARD_CACHE) +
-                                                " target=$target"
-                                        )
-                                        loadUrl(target)
-                                    }
-                                },
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(MaterialTheme.colorScheme.background)
-                            )
+                                    },
+                                    onRelease = { frame ->
+                                        frame.removeAllViews()
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(MaterialTheme.colorScheme.background)
+                                )
+                            }
 
                             LaunchedEffect(webView) {
                                 webView?.let { startMediaService() }
@@ -1269,28 +1205,14 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun destroyWebView() {
-        Logger.i(TAG, "destroying webview")
+        Logger.i(TAG, "releasing webview")
         pipVideoView = null
         pipVideoCallback = null
         pipVideoActive.value = false
         pipLyricsRequested = false
         hidePipOverlay()
-        webView?.let {
-            it.stopLoading()
-            it.removeJavascriptInterface("AndBridge")
-            if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_VIEW_RENDERER_TERMINATE)) {
-                try {
-                    WebViewCompat.getWebViewRenderProcess(it)?.terminate()
-                } catch (_: Exception) {}
-            }
-            // Must detach from its parent before destroy()
-            // Otherwise the WebView and its renderer will be left in a bad state;
-            (it.parent as? ViewGroup)?.removeView(it)
-            it.removeAllViews()
-            it.destroy()
-        }
-        webView = null
-        MediaNotificationService.webView = null
+        WebViewHost.release()
+        webViewGeneration.intValue++
     }
 
     private fun applyOrientation() {
@@ -1341,13 +1263,11 @@ class MainActivity : ComponentActivity() {
     private fun startMediaService() {
         Logger.d(TAG, "startMediaService requested")
         if (MediaNotificationService.instance != null) {
-            Logger.d(TAG, "media service already running, rebinding webview")
-            MediaNotificationService.webView = webView
+            Logger.d(TAG, "media service already running")
             return
         }
         if (serviceStarted) return
         serviceStarted = true
-        MediaNotificationService.webView = webView
         val intent = Intent(this, MediaNotificationService::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             startForegroundService(intent)
@@ -1359,6 +1279,7 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         super.onStop()
         Logger.i(TAG, "activity stopped: suspending webview loops")
+        WebViewHost.detach(this)
         webView?.evaluateJavascript("""
             try {
                 window.__splBg = true;
@@ -1372,6 +1293,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         Logger.i(TAG, "activity resumed: restoring webview loops")
+        WebViewHost.attach(this)
 
         analytics.logEvent(FirebaseAnalytics.Event.SCREEN_VIEW, Bundle().apply {
             putString(FirebaseAnalytics.Param.SCREEN_NAME, "MainActivity")
@@ -1507,25 +1429,44 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
-        Logger.i(TAG, "activity destroyed, tearing down webview")
+        Logger.i(TAG, "activity destroyed, detaching from the webview")
         pipVideoView = null
         pipVideoCallback = null
         pipVideoActive.value = false
         pipLyricsRequested = false
         hidePipOverlay()
-        webView?.let {
-            it.stopLoading()
-            it.clearHistory()
-            it.clearFormData()
-            it.removeJavascriptInterface("AndBridge")
-            (it.parent as? ViewGroup)?.removeView(it)
-            it.removeAllViews()
-            it.destroy()
-        }
-        webView = null
-        MediaNotificationService.webView = null
+        WebViewHost.detach(this)
+        WebViewHost.bridge?.rebind(WeakReference(null))
+        if (MediaNotificationService.instance == null) WebViewHost.release()
         serviceStarted = false
         super.onDestroy()
+    }
+
+    override fun onProgress(progress: Int) {
+        loadingProgress.intValue = progress
+    }
+
+    override fun onShowCustomView(view: View?, callback: android.webkit.WebChromeClient.CustomViewCallback?) {
+        handleCustomViewShown(view, callback)
+    }
+
+    override fun onHideCustomView() {
+        handleCustomViewHidden()
+    }
+
+    override fun onWebViewError(code: Int, description: String) {
+        webViewError.value = code to description
+    }
+
+    override fun onRenderProcessGone() {
+        runOnUiThread {
+            webViewError.value = null
+            webViewGeneration.intValue++
+        }
+    }
+
+    override fun onPlayerReady(view: WebView) {
+        playPendingSearch(view)
     }
 
     override fun attachBaseContext(newBase: Context) {

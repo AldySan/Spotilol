@@ -37,7 +37,11 @@ class SpotifyBridge(activityRef: WeakReference<Activity>) {
         private const val CALL = "bridge.call"
     }
 
-    private val activityRef = activityRef
+    private var activityRef = activityRef
+
+    fun rebind(ref: WeakReference<Activity>) {
+        activityRef = ref
+    }
     var onLoginDetected: (() -> Unit)? = null
     var onPlayLoaded: (() -> Unit)? = null
     var onMediaStatus: ((String) -> Unit)? = null
@@ -84,7 +88,7 @@ class SpotifyBridge(activityRef: WeakReference<Activity>) {
 
     @JavascriptInterface
     fun isWoke(): Boolean {
-        val activity = activityRef.get() ?: return false
+        val activity = activityRef.get() ?: return true
         val visible = activity.window?.decorView?.visibility == View.VISIBLE
         Logger.v(CALL, "isWoke -> $visible")
         return visible

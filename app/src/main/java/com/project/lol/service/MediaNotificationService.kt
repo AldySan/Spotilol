@@ -102,7 +102,8 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
 
         private const val NOTIF_COLOR = 0xFFE0E0E0.toInt()
 
-        var webView: WebView? = null
+        val webView: WebView?
+            get() = com.project.lol.webview.WebViewHost.webView
         var instance: MediaNotificationService? = null
         private var appContext: Context? = null
 
@@ -450,6 +451,7 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
         val andAuto = getSharedPreferences("spotilol_prefs", MODE_PRIVATE)
             .getBoolean("AndAuto", true)
         if (!andAuto) return null
+        com.project.lol.webview.WebViewHost.ensure(this)
         val extras = Bundle().apply {
             putBoolean("android.media.browse.SEARCH_SUPPORTED", true)
             putBoolean("android.media.browse.CONTENT_STYLE_SUPPORTED", true)
@@ -537,6 +539,9 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
     override fun onDestroy() {
         releaseWakeLock()
         instance = null
+        if (com.project.lol.webview.WebViewHost.uiHost == null) {
+            com.project.lol.webview.WebViewHost.release()
+        }
         try { unregisterReceiver(actionReceiver) } catch (_: Exception) {}
         try { unregisterReceiver(bluetoothReceiver) } catch (_: Exception) {}
         try { unregisterReceiver(audioBecomingNoisyReceiver) } catch (_: Exception) {}

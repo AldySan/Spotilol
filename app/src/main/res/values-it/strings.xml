@@ -131,6 +131,9 @@
     <string name="settings_empty_cache_data_subtitle">Cancella tutto e disconnetti</string>
     <string name="settings_empty_cache_data_message">Tutti i cookie e i dati di accesso verranno eliminati. Al riavvio dovrai accedere di nuovo. Continuare?</string>
     <string name="settings_clear_all_data">Cancella tutti i dati</string>
+    <string name="settings_clear_third_party">Cancella accessi di terze parti</string>
+    <string name="settings_clear_third_party_subtitle">Disconnettiti da Google, Facebook e Apple</string>
+    <string name="settings_clear_third_party_message">Questo ti disconnette da Google, Facebook e Apple nella vista web. La tua sessione Spotify viene mantenuta. Continuare?</string>
     <string name="settings_open_links">Apri i link di Spotify</string>
     <string name="settings_open_links_subtitle">Attiva la gestione dei link per aprire qui i link condivisi</string>
     <string name="settings_open_links_always_hint">Usa \'Sempre\' quando apri un link di Spotify</string>
@@ -234,6 +237,7 @@
     <string name="offline_act_toast_profile_deleted">Profilo eliminato</string>
     <string name="offline_act_toast_cache_cleared">Cache svuotata correttamente</string>
     <string name="offline_act_toast_all_data_cleared">Tutti i dati sono stati cancellati</string>
+    <string name="offline_act_toast_third_party_cleared">Accessi di terze parti cancellati</string>
     <string name="main_update_available">È disponibile un nuovo aggiornamento</string>
     <string name="main_version_label">v%1$s · %2$s</string>
     <string name="main_settings_content_description">Impostazioni</string>
@@ -246,6 +250,7 @@
     <string name="main_profile_delete_failed">Impossibile aggiornare i profili cifrati</string>
     <string name="main_cache_cleared">Cache svuotata correttamente</string>
     <string name="main_all_data_cleared">Tutti i dati cancellati, accedi di nuovo</string>
+    <string name="main_third_party_cleared">Accessi di terze parti cancellati</string>
     <string name="main_timer_remaining">%1$d:%2$02d min rimanenti</string>
     <string name="main_sleep_timer_title">Timer di sospensione</string>
     <string name="main_sleep_timer_emoji">⏰</string>

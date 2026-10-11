@@ -12,16 +12,6 @@
     <string name="settings_language">Dil</string>
     <string name="settings_language_system">Varsayılan (cihaz)</string>
 
-    <string name="settings_palette_default">Varsayılan</string>
-    <string name="settings_palette_spotify_green">Spotify Yeşili</string>
-    <string name="settings_palette_purple">Mor</string>
-    <string name="settings_palette_blue">Mavi</string>
-    <string name="settings_palette_red">Kırmızı</string>
-    <string name="settings_palette_orange">Turuncu</string>
-    <string name="settings_palette_pink">Pembe</string>
-    <string name="settings_palette_teal">Deniz mavisi</string>
-    <string name="settings_palette_yellow">Sarı</string>
-    <string name="settings_palette_cyan">Camgöbeği</string>
 
     <string name="settings_section_appearance">GÖRÜNÜM</string>
     <string name="settings_section_player">OYNATICI</string>
@@ -44,16 +34,6 @@
     <string name="settings_custom_css_placeholder">/* CSS geçersiz kılmalarınızı buraya yazın (gerekirse !important kullanın) */\naside[data-testid=now-playing-bar] { display: none !important; }</string>
     <string name="settings_material_you">Material You Teması</string>
     <string name="settings_material_you_subtitle">Android sistem dinamik renklerini kullan</string>
-    <string name="settings_accent_color">Vurgu Rengi</string>
-    <string name="settings_accent_dynamic">Dinamik (sistem renkleri)</string>
-    <string name="settings_accent_default">Varsayılan</string>
-    <string name="settings_accent_custom">Özel %1$s</string>
-    <string name="settings_custom_accent_color">Özel vurgu rengi</string>
-    <string name="settings_default_scheme">Varsayılan şema</string>
-    <string name="settings_color_red">Kırmızı</string>
-    <string name="settings_color_green">Yeşil</string>
-    <string name="settings_color_blue">Mavi</string>
-    <string name="settings_apply">Uygula</string>
     <string name="settings_amoled_theme">AMOLED Teması</string>
     <string name="settings_amoled_theme_subtitle">Pil tasarrufu için tamamen siyah arka plan</string>
     <string name="settings_hide_top_bar">Üst Çubuğu Gizle</string>
@@ -420,4 +400,10 @@
     <string name="dl_error_http">Akış HTTP %1$d döndürdü</string>
     <string name="dl_error_connection_reset">Bağlantı sıfırlandı</string>
     <string name="dl_error_download">İndirme hatası</string>
+
+    <string name="settings_fast_startup">Hızlı Başlatma</string>
+    <string name="settings_fast_startup_subtitle">Splash animasyonunu beklemeden anında başlat</string>
+
+    <string name="settings_theme">Tema</string>
+    <string name="settings_theme_dynamic">Dinamik (sistem renkleri)</string>
 </resources>

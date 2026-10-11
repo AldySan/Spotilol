@@ -46,7 +46,7 @@ import androidx.core.graphics.drawable.IconCompat
 import androidx.core.graphics.scale
 import androidx.core.graphics.toColorInt
 import com.project.lol.util.AppLocale
-import com.project.lol.webview.helpers.AccentTheme
+import com.project.lol.ui.theme.ThemeController
 import com.project.lol.util.Logger
 import com.project.lol.widget.WidgetSource
 import com.project.lol.widget.WidgetState
@@ -342,7 +342,7 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
     private var accentCache = 0
 
     private val prefsListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-        if (key == "PaletteSeed" || key == "MaterialYou") {
+        if (key == "ThemePreset" || key == "MaterialYou") {
             accentCache = 0
             mainHandler.post {
                 showNotification()
@@ -376,7 +376,7 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
     private fun accent(): Int {
         if (accentCache == 0) {
             accentCache = try {
-                AccentTheme.resolveHex(this).toColorInt()
+                ThemeController.accentHex(this).toColorInt()
             } catch (_: Exception) {
                 0xFFE0E0E0.toInt()
             }

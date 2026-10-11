@@ -116,12 +116,19 @@ object FetchOverride {
                                                 album: (j.album) ? j.album.name : null,
                                                 cover: (cg && cg.length) ? 'https://i.scdn.co/image/' + cg[0].file_id : null
                                             };
-                                            window.__curTrackUri = j.canonical_uri;
-                                            window.__curTrackId = tid;
-                                            window.__curTrackName = j.name || null;
-                                            window.__curTrackArtist = (j.artist && j.artist.length) ? j.artist[0].name : null;
-                                            window.__curTrackAlbum = (j.album) ? j.album.name : null;
-                                            if(cg && cg.length) window.__curTrackCover = 'https://i.scdn.co/image/' + cg[0].file_id;
+                                            var splPlayingId = (typeof window.splPlayingTrackId === 'function')
+                                                ? window.splPlayingTrackId()
+                                                : (window.splTrackId || null);
+                                            if(!splPlayingId || tid === splPlayingId) {
+                                                window.__curTrackUri = j.canonical_uri;
+                                                window.__curTrackId = tid;
+                                                window.__curTrackName = j.name || null;
+                                                window.__curTrackArtist = (j.artist && j.artist.length) ? j.artist[0].name : null;
+                                                window.__curTrackAlbum = (j.album) ? j.album.name : null;
+                                                if(cg && cg.length) window.__curTrackCover = 'https://i.scdn.co/image/' + cg[0].file_id;
+                                                window.lastState = null;
+                                                if(window.updMedia && typeof track !== 'undefined'){ try{ window.updMedia(); }catch(e){} }
+                                            }
                                         }
                                     } catch(e){}
                                 });

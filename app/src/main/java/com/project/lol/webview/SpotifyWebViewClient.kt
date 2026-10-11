@@ -83,7 +83,7 @@ class SpotifyWebViewClient(
             return
         }
 
-        if (WebSecurityPolicy.isAccounts(url) && Uri.parse(url).path == "/login") {
+        if (isLoginPageUrl(url)) {
             Logger.s(TAG, "route: classic login button")
             onPageFinishedClean(view, ClassicLoginButton.CONTENT)
         }
@@ -551,9 +551,16 @@ class SpotifyWebViewClient(
         view.evaluateJavascript(JsUtils.stripConsoleLogs(js), null)
     }
 
+    private fun isLoginPageUrl(url: String): Boolean {
+        if (!WebSecurityPolicy.isAccounts(url)) return false
+        val path = runCatching { Uri.parse(url).path }.getOrNull() ?: return false
+        return LOGIN_PATH.matches(path)
+    }
+
     companion object {
         private const val TAG = "wv"
         private const val WEB_PLAYER_ORIGIN = "https://open.spotify.com"
+        private val LOGIN_PATH = Regex("^/(?:[a-zA-Z0-9]{2,8}(?:-[a-zA-Z0-9]{2,8})?/)?login/?$")
         private const val DESKTOP_UA =
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
 

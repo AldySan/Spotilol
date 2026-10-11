@@ -8,7 +8,16 @@ import java.util.Set;
 public final class WebSecurityPolicy {
     private WebSecurityPolicy() {}
     private static final Set<String> LINKS = Set.of("open.spotify.com", "spotify.com", "www.spotify.com", "play.spotify.com", "spotify.link");
-    private static final Set<String> LOGIN = Set.of("accounts.spotify.com", "accounts.google.com", "consent.google.com", "www.facebook.com", "m.facebook.com", "appleid.apple.com");
+    private static final Set<String> LOGIN = Set.of(
+            "accounts.spotify.com",
+            "challenge.spotify.com",
+            "accounts.google.com",
+            "consent.google.com",
+            "www.facebook.com",
+            "m.facebook.com",
+            "web.facebook.com",
+            "appleid.apple.com"
+    );
     private static final Set<String> API = Set.of("open.spotify.com", "api.spotify.com", "api-partner.spotify.com", "clienttoken.spotify.com", "spclient.wg.spotify.com");
 
     private static final Set<String> PLAYER_METHODS = Set.of("nFetch", "spicyLyrics", "loginDetected", "deferMessage", "wakeUp", "wakeOff", "cssInjected", "dbg", "clearDebugLog", "recAdContentIds", "playLoaded", "recMediaPosition", "recMediaStatus", "onMediaItemsLoaded", "onSearchCompleted", "manageTShut", "manageTSleep", "recAccountName", "openTimerDialog", "enterPip", "enterPipVideo", "enterVideoFullscreen", "exitVideoFullscreen", "enterLyricsPip", "playerExpanded", "wideVideo", "downloadTrack", "downloadCollection", "skipDownload", "cancelDownload");

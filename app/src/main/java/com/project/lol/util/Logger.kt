@@ -67,7 +67,6 @@ object Logger {
 
     private const val PREF_KEY = "Logging"
     private const val LEGACY_PREF_KEY = "DebugOverlay"
-    private const val MAX_ENTRIES = 2000
     private const val MAX_MESSAGE = 4000
     private const val APP_TAG = "app"
 
@@ -126,7 +125,6 @@ object Logger {
             )
             synchronized(lock) {
                 buf.addLast(entry)
-                while (buf.size > MAX_ENTRIES) buf.removeFirst()
             }
         }
         val logcatText = text + (throwable?.stackTraceToString()?.let { "\n" + LogRedactor.redact(it) } ?: "")

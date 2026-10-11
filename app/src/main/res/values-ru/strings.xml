@@ -12,16 +12,6 @@
     <string name="settings_tab_about">О программе</string>
     <string name="settings_language">Язык</string>
     <string name="settings_language_system">По умолчанию (устройство)</string>
-    <string name="settings_palette_default">По умолчанию</string>
-    <string name="settings_palette_spotify_green">Зелёный Spotify</string>
-    <string name="settings_palette_purple">Фиолетовый</string>
-    <string name="settings_palette_blue">Синий</string>
-    <string name="settings_palette_red">Красный</string>
-    <string name="settings_palette_orange">Оранжевый</string>
-    <string name="settings_palette_pink">Розовый</string>
-    <string name="settings_palette_teal">Бирюзовый</string>
-    <string name="settings_palette_yellow">Жёлтый</string>
-    <string name="settings_palette_cyan">Циан</string>
     <string name="settings_section_appearance">ОФОРМЛЕНИЕ</string>
     <string name="settings_section_player">ПЛЕЕР</string>
     <string name="settings_section_bluetooth">BLUETOOTH</string>
@@ -42,16 +32,6 @@
     <string name="settings_custom_css_placeholder">/* Напишите свои CSS-правила здесь (используйте !important при необходимости) */\naside[data-testid=now-playing-bar] { display: none !important; }</string>
     <string name="settings_material_you">Тема Material You</string>
     <string name="settings_material_you_subtitle">Использовать динамические цвета Android</string>
-    <string name="settings_accent_color">Цвет акцента</string>
-    <string name="settings_accent_dynamic">Динамический (цвета системы)</string>
-    <string name="settings_accent_default">По умолчанию</string>
-    <string name="settings_accent_custom">Пользовательский %1$s</string>
-    <string name="settings_custom_accent_color">Пользовательский цвет акцента</string>
-    <string name="settings_default_scheme">Стандартная схема</string>
-    <string name="settings_color_red">Красный</string>
-    <string name="settings_color_green">Зелёный</string>
-    <string name="settings_color_blue">Синий</string>
-    <string name="settings_apply">Применить</string>
     <string name="settings_amoled_theme">Тема AMOLED</string>
     <string name="settings_amoled_theme_subtitle">Чистый чёрный фон для экономии заряда</string>
     <string name="settings_hide_top_bar">Скрыть верхнюю панель</string>
@@ -405,4 +385,10 @@
     <string name="dl_error_http">Поток вернул HTTP %1$d</string>
     <string name="dl_error_connection_reset">Соединение сброшено</string>
     <string name="dl_error_download">Ошибка загрузки</string>
+
+    <string name="settings_fast_startup">Быстрый запуск</string>
+    <string name="settings_fast_startup_subtitle">Запускать сразу, не дожидаясь анимации заставки</string>
+
+    <string name="settings_theme">Тема</string>
+    <string name="settings_theme_dynamic">Динамическая (системные цвета)</string>
 </resources>

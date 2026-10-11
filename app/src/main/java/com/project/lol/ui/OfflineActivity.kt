@@ -133,6 +133,7 @@ class OfflineActivity : ComponentActivity() {
                     },
                     onClearCache = { clearWebViewCache() },
                     onClearData = { clearAllData() },
+                    onClearThirdParty = { clearThirdPartyLogins() },
                     pipActive = pipActiveState.value,
                     onEnterPip = { enterPipMode() },
                     onPlaybackStateChange = { playing ->
@@ -237,6 +238,17 @@ class OfflineActivity : ComponentActivity() {
         CookieManager.getInstance().flush()
         prefs.edit().putBoolean("LoggedIn", false).apply()
         Toast.makeText(this, getString(R.string.offline_act_toast_all_data_cleared), Toast.LENGTH_SHORT).show()
+    }
+
+    private fun clearThirdPartyLogins() {
+        val session = ProfileManager.captureSession(this)
+        if (session != null) {
+            ProfileManager.applyProfile(this, session)
+        } else {
+            CookieManager.getInstance().removeAllCookies(null)
+            CookieManager.getInstance().flush()
+        }
+        Toast.makeText(this, getString(R.string.offline_act_toast_third_party_cleared), Toast.LENGTH_SHORT).show()
     }
 
     private fun restartToSplash() {

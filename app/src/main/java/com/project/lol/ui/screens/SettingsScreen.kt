@@ -228,6 +228,7 @@ fun SettingsContent(
     onDeleteProfile: (String) -> Unit,
     onClearCache: () -> Unit,
     onClearData: () -> Unit,
+    onClearThirdParty: () -> Unit,
     onDebugToggle: (Boolean) -> Unit = {},
     blockServiceWorker: Boolean,
     onBlockServiceWorkerChange: (Boolean) -> Unit
@@ -267,6 +268,7 @@ fun SettingsContent(
     var accountNameInput by remember { mutableStateOf("") }
     var showClearCacheDialog by remember { mutableStateOf(false) }
     var showClearDataDialog by remember { mutableStateOf(false) }
+    var showClearThirdPartyDialog by remember { mutableStateOf(false) }
     var showAutoPlayDialog by remember { mutableStateOf(false) }
     var showPlayerModeDialog by remember { mutableStateOf(false) }
     // dead code: the gui mode selector was removed, keep the flag for the wide window refactor
@@ -863,6 +865,15 @@ fun SettingsContent(
                     HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
                     SettingTile(
+                        title = stringResource(R.string.settings_clear_third_party),
+                        subtitle = stringResource(R.string.settings_clear_third_party_subtitle),
+                        icon = TablerIcons.User,
+                        onClick = { showClearThirdPartyDialog = true }
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+
+                    SettingTile(
                         title = stringResource(R.string.settings_empty_cache_data),
                         subtitle = stringResource(R.string.settings_empty_cache_data_subtitle),
                         icon = TablerIcons.TrashOff,
@@ -1229,6 +1240,19 @@ fun SettingsContent(
                 onClearData()
             },
             onDismiss = { showClearDataDialog = false }
+        )
+    }
+
+    if (showClearThirdPartyDialog) {
+        ConfirmationDialog(
+            title = stringResource(R.string.settings_clear_third_party),
+            message = stringResource(R.string.settings_clear_third_party_message),
+            confirmText = stringResource(R.string.settings_clear_third_party),
+            onConfirm = {
+                showClearThirdPartyDialog = false
+                onClearThirdParty()
+            },
+            onDismiss = { showClearThirdPartyDialog = false }
         )
     }
 
@@ -2058,6 +2082,7 @@ fun SettingsContentPreview() {
             onDeleteProfile = {},
             onClearCache = {},
             onClearData = {},
+            onClearThirdParty = {},
             blockServiceWorker = true,
             onBlockServiceWorkerChange = {}
         )

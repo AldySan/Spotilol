@@ -360,6 +360,7 @@ class MainActivity : ComponentActivity() {
                     onDeleteProfile = { name -> deleteProfile(name) },
                     onClearCache = { clearWebViewCache() },
                     onClearData = { clearAllData() },
+                    onClearThirdParty = { clearThirdPartyLogins() },
                     onDebugToggle = { enabled ->
                         webView?.evaluateJavascript(
                             if (enabled) DevLogPrelude.js()
@@ -810,6 +811,18 @@ class MainActivity : ComponentActivity() {
         }
         startActivity(intent)
         finish()
+    }
+
+    private fun clearThirdPartyLogins() {
+        Logger.w(TAG, "clearing third-party login sessions")
+        val session = ProfileManager.captureSession(this)
+        if (session != null) {
+            ProfileManager.applyProfile(this, session)
+        } else {
+            CookieManager.getInstance().removeAllCookies(null)
+            CookieManager.getInstance().flush()
+        }
+        Toast.makeText(this, getString(R.string.main_third_party_cleared), Toast.LENGTH_SHORT).show()
     }
 
     private fun handleSleepTimerExpire() {

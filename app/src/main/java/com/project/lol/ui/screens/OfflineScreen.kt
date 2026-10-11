@@ -176,6 +176,7 @@ fun OfflineScreen(
     onDeleteProfile: (String) -> Unit,
     onClearCache: () -> Unit,
     onClearData: () -> Unit,
+    onClearThirdParty: () -> Unit,
     pipActive: Boolean,
     onEnterPip: () -> Unit,
     onPlaybackStateChange: (Boolean) -> Unit,
@@ -576,6 +577,7 @@ fun OfflineScreen(
         onDeleteProfile = onDeleteProfile,
         onClearCache = onClearCache,
         onClearData = onClearData,
+        onClearThirdParty = onClearThirdParty,
         onDebugToggle = {},
         blockServiceWorker = prefs.getBoolean("BlockServiceWorker", true),
         onBlockServiceWorkerChange = { enabled ->

@@ -79,6 +79,7 @@ fun SettingsDialog(
     onDeleteProfile: (String) -> Unit,
     onClearCache: () -> Unit,
     onClearData: () -> Unit,
+    onClearThirdParty: () -> Unit,
     onDebugToggle: (Boolean) -> Unit = {},
     blockServiceWorker: Boolean,
     onBlockServiceWorkerChange: (Boolean) -> Unit,
@@ -163,6 +164,7 @@ fun SettingsDialog(
                                         onDeleteProfile = onDeleteProfile,
                                         onClearCache = onClearCache,
                                         onClearData = onClearData,
+                                        onClearThirdParty = onClearThirdParty,
                                         onDebugToggle = onDebugToggle,
                                         blockServiceWorker = blockServiceWorker,
                                         onBlockServiceWorkerChange = onBlockServiceWorkerChange

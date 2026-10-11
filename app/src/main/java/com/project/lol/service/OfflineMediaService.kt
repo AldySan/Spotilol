@@ -220,12 +220,12 @@ class OfflineMediaService : Service() {
                     MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS
             )
             setCallback(object : MediaSessionCompat.Callback() {
-                override fun onPlay() {
-                    if (!isPlaying) OfflineMediaService.controller?.onPlayPause()
-                }
-
                 override fun onPlayFromSearch(query: String?, extras: Bundle?) {
                     OfflineMediaService.controller?.onPlayFromSearch(query)
+                }
+
+                override fun onPlay() {
+                    if (!isPlaying) OfflineMediaService.controller?.onPlayPause()
                 }
 
                 override fun onPause() {
@@ -262,7 +262,11 @@ class OfflineMediaService : Service() {
             addAction(ACTION_WIDGET_REFRESH)
             addAction(Intent.ACTION_MEDIA_BUTTON)
         }
-        androidx.core.content.ContextCompat.registerReceiver(this, actionReceiver, filter, androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(actionReceiver, filter, RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(actionReceiver, filter)
+        }
 
         val noisyFilter = IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {

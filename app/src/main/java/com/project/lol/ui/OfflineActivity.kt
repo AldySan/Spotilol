@@ -115,9 +115,8 @@ class OfflineActivity : ComponentActivity() {
                         restartToSplash()
                     },
                     onSaveProfile = { name, cookies ->
-                        val saved = runCatching { ProfileManager.saveProfile(this, name, cookies) }.isSuccess
-                        Toast.makeText(this, if (saved) getString(R.string.offline_act_toast_account_saved)
-                            else "Could not save encrypted profile", Toast.LENGTH_SHORT).show()
+                        ProfileManager.saveProfile(this, name, cookies)
+                        Toast.makeText(this, getString(R.string.offline_act_toast_account_saved), Toast.LENGTH_SHORT).show()
                     },
                     onLoadProfile = { cookies ->
                         if (!ProfileManager.applyProfile(this, cookies)) {
@@ -127,9 +126,8 @@ class OfflineActivity : ComponentActivity() {
                         }
                     },
                     onDeleteProfile = { name ->
-                        val deleted = runCatching { ProfileManager.deleteProfile(this, name) }.isSuccess
-                        Toast.makeText(this, if (deleted) getString(R.string.offline_act_toast_profile_deleted)
-                            else "Could not update encrypted profiles", Toast.LENGTH_SHORT).show()
+                        ProfileManager.deleteProfile(this, name)
+                        Toast.makeText(this, getString(R.string.offline_act_toast_profile_deleted), Toast.LENGTH_SHORT).show()
                     },
                     onClearCache = { clearWebViewCache() },
                     onClearData = { clearAllData() },

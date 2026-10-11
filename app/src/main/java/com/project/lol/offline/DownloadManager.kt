@@ -1,7 +1,5 @@
 package com.project.lol.offline
 
-import com.project.lol.security.WebSecurityPolicy
-
 import android.content.ContentValues
 import android.content.Context
 import android.net.ConnectivityManager
@@ -242,7 +240,7 @@ object DownloadManager {
             return
         }
         val trackId = parsed.optString("trackId").trim()
-        if (!WebSecurityPolicy.isTrackId(trackId)) {
+        if (trackId.isBlank()) {
             Logger.e(TAG, "downloadCurrentTrack: empty trackId in payload")
             onStatus?.invoke("Could not identify the current track")
             return
@@ -297,7 +295,7 @@ object DownloadManager {
         for (i in 0 until tracksJson.length()) {
             val o = tracksJson.optJSONObject(i) ?: continue
             val id = o.optString("trackId").trim()
-            if (!WebSecurityPolicy.isTrackId(id) || !seen.add(id)) continue
+            if (id.isBlank() || !seen.add(id)) continue
             tracks.add(
                 TrackMeta(
                     trackId = id,
@@ -597,7 +595,6 @@ object DownloadManager {
         progress: (Int, String) -> Unit,
     ): TrackResult {
         val trackId = track.trackId
-        require(WebSecurityPolicy.isTrackId(trackId)) { "Invalid track ID" }
         val title = track.title
         val artist = track.artist
         val album = track.album

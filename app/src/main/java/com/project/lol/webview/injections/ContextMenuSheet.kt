@@ -13,8 +13,16 @@ object ContextMenuSheet {
             var menuObserver = null;
             var menuTarget = null;
             var activeTrigger = null;
+            var lastTrigger = null;
             var timer = null;
             var sheetOpen = false;
+
+            function rememberTrigger(e){
+                var t = e.target;
+                if (!t || !t.closest) return;
+                if (t.closest('[data-tippy-root]')) return;
+                lastTrigger = t.closest('button') || t;
+            }
 
             function notify(open){
                 if (open === sheetOpen) return;
@@ -54,6 +62,12 @@ object ContextMenuSheet {
                 if (!cm) return null;
                 return cm.querySelector('ul[role="menu"][data-depth="0"]');
             }
+            function openMenu(){
+                var subs = document.querySelectorAll('ul[role="menu"][data-depth="0"]');
+                if (subs.length) return subs[subs.length - 1];
+                var all = document.querySelectorAll('ul[role="menu"]');
+                return all.length ? all[all.length - 1] : null;
+            }
             function scrollerOf(panel){
                 if (!panel) return null;
                 var ul = panel.querySelector('ul[role="menu"][data-depth="0"]');
@@ -67,7 +81,7 @@ object ContextMenuSheet {
                 }
             }
             function triggerEl(){
-                return document.querySelector('button[data-context-menu-open="true"]');
+                return document.querySelector('[data-context-menu-open="true"]');
             }
             function trackRow(){
                 var t = triggerEl();
@@ -138,9 +152,10 @@ object ContextMenuSheet {
             }
             function ensure(){
                 var ul = sheetUl();
-                if (!ul) { removeHead(); activeTrigger = null; notify(false); return; }
+                if (!ul && !openMenu()) { removeHead(); activeTrigger = null; notify(false); return; }
                 notify(true);
-                activeTrigger = triggerEl();
+                activeTrigger = triggerEl() || lastTrigger;
+                if (!ul) { removeHead(); return; }
                 var d = trackInfo();
                 if (!d) { removeHead(); return; }
                 var head = ul.querySelector('.' + HEAD_CLS);
@@ -163,8 +178,9 @@ object ContextMenuSheet {
             }
 
             function closeSheet(){
-                var t = activeTrigger || triggerEl();
-                if (t) fire(t);
+                var t = activeTrigger || triggerEl() || lastTrigger;
+                if (t && document.contains(t)) { fire(t); return; }
+                notify(false);
             }
             function attachDrag(panel){
                 if (!panel || panel.__splDrag) return;
@@ -253,7 +269,8 @@ object ContextMenuSheet {
                 timer = setTimeout(function(){ timer = null; stampSubmenus(); ensure(); watchMenu(); }, 120);
             }
             function watchMenu(){
-                var cm = menuEl();
+                var m = openMenu();
+                var cm = menuEl() || (m ? m.closest('[data-tippy-root]') : null);
                 if (!cm) {
                     if (menuObserver) { menuObserver.disconnect(); menuObserver = null; menuTarget = null; }
                     return;
@@ -267,6 +284,7 @@ object ContextMenuSheet {
             }
 
             window.__splCloseCtxSheet = closeSheet;
+            document.addEventListener('pointerdown', rememberTrigger, true);
             injectStyle();
             if (window.MutationObserver) {
                 var bodyObserver = new MutationObserver(schedule);

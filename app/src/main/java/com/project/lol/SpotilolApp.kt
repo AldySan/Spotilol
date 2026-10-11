@@ -2,11 +2,13 @@ package com.project.lol
 
 import android.app.Application
 import android.content.Context
+import com.project.lol.innertube.YouTube
 import com.project.lol.util.AppLocale
 import com.project.lol.util.CrashHandler
 import com.project.lol.util.Logger
 import com.project.lol.util.PlaybackDiagnostics
 import com.project.lol.yt.cipher.CipherDeobfuscator
+import java.io.File
 
 class SpotilolApp : Application() {
 
@@ -16,6 +18,7 @@ class SpotilolApp : Application() {
         migrateProxyEraPrefs()
         CrashHandler.install(this)
         CipherDeobfuscator.initialize(this)
+        YouTube.setCacheDir(File(cacheDir, "innertube_http"))
         Thread { runCatching { PlaybackDiagnostics.log(this@SpotilolApp) } }.start()
         Logger.s("app", "started")
     }

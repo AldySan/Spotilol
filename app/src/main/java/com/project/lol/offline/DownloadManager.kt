@@ -779,14 +779,26 @@ object DownloadManager {
             if (artist.isNotBlank()) append(" $artist")
         }
 
-        val searchResult = runCatching {
-            YouTube.search(searchText, YouTube.SearchFilter.FILTER_SONG).getOrNull()
-        }.onFailure { Logger.e(TAG, "resolveStream: search failed: ${it.message}", it) }
-            .getOrNull()
+        Logger.d(
+            TAG,
+            "resolveStream: search '$searchText' gl=${YouTube.locale.gl} hl=${YouTube.locale.hl} " +
+                "visitor=${YouTube.visitorData != null} loggedIn=${YouTube.cookie != null}"
+        )
+        val searchOutcome = YouTube.search(searchText, YouTube.SearchFilter.FILTER_SONG)
+        val searchResult = searchOutcome.getOrElse { error ->
+            Logger.e(
+                TAG,
+                "resolveStream: search threw for '$searchText' — " +
+                    "${error::class.java.name}: ${error.message ?: "(no message)"}",
+                error,
+            )
+            null
+        }
         if (searchResult == null) {
-            Logger.w(TAG, "resolveStream: search failed for '$searchText'")
+            Logger.w(TAG, "resolveStream: search failed for '$searchText' (exception logged above)")
             return ResolveOutcome.Failure("Search failed on YouTube Music")
         }
+        Logger.d(TAG, "resolveStream: '$searchText' -> ${searchResult.items.size} item(s)")
         if (searchResult.items.isEmpty()) {
             Logger.w(TAG, "resolveStream: no results for '$searchText'")
             return ResolveOutcome.Failure("No results on YouTube Music")

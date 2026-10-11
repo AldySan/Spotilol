@@ -13,16 +13,6 @@
     <string name="settings_language">Langue</string>
     <string name="settings_language_system">Par défaut (appareil)</string>
 
-    <string name="settings_palette_default">Par défaut</string>
-    <string name="settings_palette_spotify_green">Vert Spotify</string>
-    <string name="settings_palette_purple">Violet</string>
-    <string name="settings_palette_blue">Bleu</string>
-    <string name="settings_palette_red">Rouge</string>
-    <string name="settings_palette_orange">Orange</string>
-    <string name="settings_palette_pink">Rose</string>
-    <string name="settings_palette_teal">Sarcelle</string>
-    <string name="settings_palette_yellow">Jaune</string>
-    <string name="settings_palette_cyan">Cyan</string>
 
     <string name="settings_section_appearance">APPARENCE</string>
     <string name="settings_section_player">LECTEUR</string>
@@ -45,16 +35,6 @@
     <string name="settings_custom_css_placeholder">/* Écrivez vos règles CSS ici (utilisez !important si nécessaire) */\naside[data-testid=now-playing-bar] { display: none !important; }</string>
     <string name="settings_material_you">Thème Material You</string>
     <string name="settings_material_you_subtitle">Utiliser les couleurs dynamiques du système Android</string>
-    <string name="settings_accent_color">Couleur d\'accentuation</string>
-    <string name="settings_accent_dynamic">Dynamique (couleurs système)</string>
-    <string name="settings_accent_default">Par défaut</string>
-    <string name="settings_accent_custom">Personnalisée %1$s</string>
-    <string name="settings_custom_accent_color">Couleur d\'accentuation personnalisée</string>
-    <string name="settings_default_scheme">Thème par défaut</string>
-    <string name="settings_color_red">Rouge</string>
-    <string name="settings_color_green">Vert</string>
-    <string name="settings_color_blue">Bleu</string>
-    <string name="settings_apply">Appliquer</string>
     <string name="settings_amoled_theme">Thème AMOLED</string>
     <string name="settings_amoled_theme_subtitle">Arrière-plan noir pur pour économiser la batterie</string>
     <string name="settings_hide_top_bar">Masquer la barre supérieure</string>
@@ -421,4 +401,10 @@
     <string name="dl_error_http">Le flux a renvoyé HTTP %1$d</string>
     <string name="dl_error_connection_reset">Connexion réinitialisée</string>
     <string name="dl_error_download">Erreur de téléchargement</string>
+
+    <string name="settings_fast_startup">Démarrage rapide</string>
+    <string name="settings_fast_startup_subtitle">Démarrer instantanément sans attendre l\'animation de démarrage</string>
+
+    <string name="settings_theme">Thème</string>
+    <string name="settings_theme_dynamic">Dynamique (couleurs du système)</string>
 </resources>

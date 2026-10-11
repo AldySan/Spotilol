@@ -17,6 +17,7 @@ import android.net.http.SslError
 import androidx.webkit.ScriptHandler
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
+import com.project.lol.ui.theme.ThemeController
 import com.project.lol.webview.helpers.*
 import com.project.lol.webview.injections.*
 import java.io.ByteArrayInputStream
@@ -425,7 +426,7 @@ class SpotifyWebViewClient(
         }
         val cleanJs = JsUtils.stripConsoleLogs(js) + "\n" +
                 buildAmoledJs(amoledEnabled) + "\n" +
-                AccentTheme.buildAccentJs(view.context) + "\n" +
+                ThemeController.buildAccentJs(view.context) + "\n" +
                 buildCustomCssJs(customCss) + "\n" +
                 LyricsTheme.buildLyricsStyleJs(lyricsStyle)
         if (playerMode == "original") {
@@ -470,8 +471,8 @@ class SpotifyWebViewClient(
                     wv.evaluateJavascript(js, null)
                     wv.evaluateJavascript(LyricsTheme.buildLyricsStyleJs(prefs.getString("LyricsStyle", LyricsTheme.DEFAULT_STYLE) ?: LyricsTheme.DEFAULT_STYLE), null)
                 }
-                "PaletteSeed", "MaterialYou" ->
-                    wv.evaluateJavascript(AccentTheme.buildAccentJs(wv.context), null)
+                "ThemePreset", "MaterialYou" ->
+                    wv.evaluateJavascript(ThemeController.buildAccentJs(wv.context), null)
                 "TakeControl" -> {
                     val on = prefs.getBoolean("TakeControl", true)
                     wv.evaluateJavascript("window.__splTakeControl=$on;", null)

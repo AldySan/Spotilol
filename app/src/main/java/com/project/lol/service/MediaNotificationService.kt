@@ -15,9 +15,11 @@ import android.content.pm.ServiceInfo
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
+import android.media.AudioAttributes
 import android.media.AudioDeviceCallback
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
+import android.media.AudioPlaybackConfiguration
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -426,6 +428,12 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
         } catch (e: Exception) {
             Logger.e(TAG, "Failed to register disconnect receivers", e)
         }
+        try {
+            getSystemService(AudioManager::class.java)
+                .registerAudioPlaybackCallback(navPromptCallback, mainHandler)
+        } catch (e: Exception) {
+            Logger.e(TAG, "Failed to register nav prompt callback", e)
+        }
         getSharedPreferences("spotilol_prefs", MODE_PRIVATE)
             .registerOnSharedPreferenceChangeListener(prefsListener)
         Logger.i(TAG, "media service ready: session, notification and receivers up")
@@ -560,6 +568,8 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
         try { unregisterReceiver(audioBecomingNoisyReceiver) } catch (_: Exception) {}
         try { unregisterReceiver(headsetReceiver) } catch (_: Exception) {}
         try { getSystemService(AudioManager::class.java).unregisterAudioDeviceCallback(audioRouteCallback) } catch (_: Exception) {}
+        try { getSystemService(AudioManager::class.java).unregisterAudioPlaybackCallback(navPromptCallback) } catch (_: Exception) {}
+        mainHandler.removeCallbacks(navUnduckRunnable)
         getSharedPreferences("spotilol_prefs", MODE_PRIVATE)
             .unregisterOnSharedPreferenceChangeListener(prefsListener)
         if (::mediaSession.isInitialized) {
@@ -706,6 +716,39 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
             am.registerAudioDeviceCallback(audioRouteCallback, mainHandler)
         } catch (e: Exception) {
             Logger.e(TAG, "Failed to register audio route callback", e)
+        }
+    }
+
+    private var navDucked = false
+    private val navUnduckRunnable = Runnable { setWebDuck(false) }
+
+    private val navPromptCallback = object : AudioManager.AudioPlaybackCallback() {
+        override fun onPlaybackConfigChanged(configs: MutableList<AudioPlaybackConfiguration>?) {
+            val promptActive = configs?.any { isPromptUsage(it.audioAttributes?.usage) } == true
+            if (promptActive) {
+                mainHandler.removeCallbacks(navUnduckRunnable)
+                if (!navDucked) {
+                    navDucked = true
+                    setWebDuck(true)
+                }
+            } else if (navDucked) {
+                navDucked = false
+                mainHandler.removeCallbacks(navUnduckRunnable)
+                mainHandler.postDelayed(navUnduckRunnable, 700L)
+            }
+        }
+    }
+
+    private fun isPromptUsage(usage: Int?): Boolean =
+        usage == AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE ||
+            usage == AudioAttributes.USAGE_ASSISTANT
+
+    private fun setWebDuck(on: Boolean) {
+        val wv = webView ?: return
+        try {
+            wv.evaluateJavascript("window.__splDuck&&window.__splDuck($on);", null)
+        } catch (e: Exception) {
+            Logger.e(TAG, "setWebDuck failed", e)
         }
     }
 

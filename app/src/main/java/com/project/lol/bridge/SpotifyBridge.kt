@@ -47,6 +47,7 @@ class SpotifyBridge(activityRef: WeakReference<Activity>) {
     var onDownloadCollection: ((String) -> Unit)? = null
     var onPlayerExpanded: ((Boolean) -> Unit)? = null
     var onWideVideo: ((Boolean) -> Unit)? = null
+    var onCtxMenuState: ((Boolean) -> Unit)? = null
 
     fun loginDetected() {
         val activity = activityRef.get() ?: return
@@ -190,6 +191,14 @@ class SpotifyBridge(activityRef: WeakReference<Activity>) {
         Logger.v(CALL, "wideVideo=$showing")
         activity.runOnUiThread {
             onWideVideo?.invoke(showing)
+        }
+    }
+
+    fun ctxMenuState(open: Boolean) {
+        val activity = activityRef.get() ?: return
+        Logger.v(CALL, "ctxMenuState=$open")
+        activity.runOnUiThread {
+            onCtxMenuState?.invoke(open)
         }
     }
 

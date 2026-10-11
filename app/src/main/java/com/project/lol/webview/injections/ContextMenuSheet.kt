@@ -14,6 +14,13 @@ object ContextMenuSheet {
             var menuTarget = null;
             var activeTrigger = null;
             var timer = null;
+            var sheetOpen = false;
+
+            function notify(open){
+                if (open === sheetOpen) return;
+                sheetOpen = open;
+                try { if (window.AndBridge && window.AndBridge.ctxMenuState) window.AndBridge.ctxMenuState(open); } catch(e){}
+            }
 
             function injectStyle(){
                 if (document.getElementById(STYLE_ID)) return;
@@ -131,7 +138,8 @@ object ContextMenuSheet {
             }
             function ensure(){
                 var ul = sheetUl();
-                if (!ul) { removeHead(); activeTrigger = null; return; }
+                if (!ul) { removeHead(); activeTrigger = null; notify(false); return; }
+                notify(true);
                 activeTrigger = triggerEl();
                 var d = trackInfo();
                 if (!d) { removeHead(); return; }
@@ -258,6 +266,7 @@ object ContextMenuSheet {
                 menuObserver.observe(cm, {childList: true, subtree: true});
             }
 
+            window.__splCloseCtxSheet = closeSheet;
             injectStyle();
             if (window.MutationObserver) {
                 var bodyObserver = new MutationObserver(schedule);

@@ -284,6 +284,7 @@ class MainActivity : ComponentActivity() {
 
             var settingsDialogOpen by remember { mutableStateOf(false) }
             var playerExpanded by remember { mutableStateOf(false) }
+            var ctxSheetOpen by remember { mutableStateOf(false) }
             var showMiniMenu by remember { mutableStateOf(false) }
             val versionName = remember {
                 runCatching { packageManager.getPackageInfo(packageName, 0).versionName }
@@ -297,10 +298,13 @@ class MainActivity : ComponentActivity() {
             }
 
             BackHandler(
-                enabled = settingsDialogOpen || videoFullscreenState.value || playerExpanded || webView?.canGoBack() == true
+                enabled = settingsDialogOpen || ctxSheetOpen || videoFullscreenState.value || playerExpanded || webView?.canGoBack() == true
             ) {
                 when {
                     settingsDialogOpen -> settingsDialogOpen = false
+                    ctxSheetOpen -> {
+                        webView?.evaluateJavascript("window.__splCloseCtxSheet&&window.__splCloseCtxSheet()", null)
+                    }
                     videoFullscreenState.value -> {
                         webView?.evaluateJavascript("window.__splVfsExit&&window.__splVfsExit()", null)
                         exitVideoFullscreenMode()
@@ -474,6 +478,8 @@ class MainActivity : ComponentActivity() {
                             }
 
                             bridge.onPlayerExpanded = { playerExpanded = it }
+
+                            bridge.onCtxMenuState = { ctxSheetOpen = it }
 
                             bridge.onWideVideo = {
                                 wideVideoState.value = it

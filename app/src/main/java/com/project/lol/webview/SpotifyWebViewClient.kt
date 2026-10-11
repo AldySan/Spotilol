@@ -361,7 +361,7 @@ class SpotifyWebViewClient(
         if (!WebSecurityPolicy.isPlayer(view.url)) return
         val prefs = view.context.getSharedPreferences("spotilol_prefs", 0)
         val autoPlayMode = prefs.getString("APlayMode", "disabled") ?: "disabled"
-        val closeNowPlay = prefs.getBoolean("CloseNowPlay", true)
+        val closeNowPlay = prefs.getBoolean("CloseNowPlay", false)
         val amoledEnabled = prefs.getBoolean("AmoledTheme", false)
         val customCss = prefs.getString("CustomCss", "") ?: ""
         val playerMode = prefs.getString("PlayerMode", "spotilol") ?: "spotilol"
@@ -481,7 +481,7 @@ class SpotifyWebViewClient(
                     wv.evaluateJavascript("if(window.__splApplyPowerSave) window.__splApplyPowerSave($on);", null)
                 }
                 "CloseNowPlay" -> {
-                    val closeNp = prefs.getBoolean("CloseNowPlay", true)
+                    val closeNp = prefs.getBoolean("CloseNowPlay", false)
                     wv.evaluateJavascript("window.closeNpPref=$closeNp;", null)
                 }
                 "APlayMode" -> {

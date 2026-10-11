@@ -525,6 +525,8 @@ class MainActivity : ComponentActivity() {
 
                                         webView = this
 
+                                        CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
+
                                         setLayerType(View.LAYER_TYPE_HARDWARE, null)
 
                                         settings.apply {

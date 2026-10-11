@@ -12,16 +12,6 @@
     <string name="settings_tab_about">Tentang</string>
     <string name="settings_language">Bahasa</string>
     <string name="settings_language_system">Default (perangkat)</string>
-    <string name="settings_palette_default">Default</string>
-    <string name="settings_palette_spotify_green">Hijau Spotify</string>
-    <string name="settings_palette_purple">Ungu</string>
-    <string name="settings_palette_blue">Biru</string>
-    <string name="settings_palette_red">Merah</string>
-    <string name="settings_palette_orange">Oranye</string>
-    <string name="settings_palette_pink">Merah muda</string>
-    <string name="settings_palette_teal">Hijau toska</string>
-    <string name="settings_palette_yellow">Kuning</string>
-    <string name="settings_palette_cyan">Cyan</string>
     <string name="settings_section_appearance">TAMPILAN</string>
     <string name="settings_section_player">PEMUTAR</string>
     <string name="settings_section_bluetooth">BLUETOOTH</string>
@@ -42,16 +32,6 @@
     <string name="settings_custom_css_placeholder">/* Tulis aturan CSS Anda di sini (gunakan !important bila perlu) */\naside[data-testid=now-playing-bar] { display: none !important; }</string>
     <string name="settings_material_you">Tema Material You</string>
     <string name="settings_material_you_subtitle">Gunakan warna dinamis sistem Android</string>
-    <string name="settings_accent_color">Warna aksen</string>
-    <string name="settings_accent_dynamic">Dinamis (warna sistem)</string>
-    <string name="settings_accent_default">Default</string>
-    <string name="settings_accent_custom">Kustom %1$s</string>
-    <string name="settings_custom_accent_color">Warna aksen kustom</string>
-    <string name="settings_default_scheme">Skema default</string>
-    <string name="settings_color_red">Merah</string>
-    <string name="settings_color_green">Hijau</string>
-    <string name="settings_color_blue">Biru</string>
-    <string name="settings_apply">Terapkan</string>
     <string name="settings_amoled_theme">Tema AMOLED</string>
     <string name="settings_amoled_theme_subtitle">Latar belakang hitam pekat untuk menghemat baterai</string>
     <string name="settings_hide_top_bar">Sembunyikan bilah atas</string>
@@ -405,4 +385,10 @@
     <string name="dl_error_http">Streaming mengembalikan HTTP %1$d</string>
     <string name="dl_error_connection_reset">Koneksi direset</string>
     <string name="dl_error_download">Kesalahan unduhan</string>
+
+    <string name="settings_fast_startup">Mulai Cepat</string>
+    <string name="settings_fast_startup_subtitle">Mulai seketika tanpa menunggu animasi splash</string>
+
+    <string name="settings_theme">Tema</string>
+    <string name="settings_theme_dynamic">Dinamis (warna sistem)</string>
 </resources>

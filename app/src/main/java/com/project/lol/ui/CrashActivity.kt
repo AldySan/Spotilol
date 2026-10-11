@@ -36,7 +36,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.Clipboard
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
@@ -70,17 +69,13 @@ class CrashActivity : ComponentActivity() {
         }
         super.onCreate(savedInstanceState)
 
-        val prefs = getSharedPreferences("spotilol_prefs", MODE_PRIVATE)
-        val amoled = prefs.getBoolean("AmoledTheme", false)
-        val materialYou = prefs.getBoolean("MaterialYou", false)
-        val seed = parseSeed(prefs.getString("PaletteSeed", null))
         val summary = intent?.getStringExtra(CrashHandler.extraSummary())
             ?: CrashStore.summary(this)
             ?: getString(R.string.crash_unknown)
         val report = CrashStore.report(this) ?: getString(R.string.crash_no_report)
 
         setContent {
-            SpotifyTheme(useDynamicColor = materialYou, amoled = amoled, seedColor = seed) {
+            SpotifyTheme {
                 CrashScreen(summary = summary, report = report, onRestart = { restart() })
             }
         }
@@ -94,9 +89,6 @@ class CrashActivity : ComponentActivity() {
         startActivity(intent)
         finish()
     }
-
-    private fun parseSeed(hex: String?): Color? =
-        hex?.let { runCatching { Color(android.graphics.Color.parseColor(it)) }.getOrNull() }
 
     override fun attachBaseContext(newBase: Context) {
         super.attachBaseContext(AppLocale.wrap(newBase))

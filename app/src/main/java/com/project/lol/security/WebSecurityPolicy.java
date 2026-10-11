@@ -13,6 +13,8 @@ public final class WebSecurityPolicy {
             "challenge.spotify.com",
             "accounts.google.com",
             "consent.google.com",
+            "myaccount.google.com",
+            "accounts.youtube.com",
             "www.facebook.com",
             "m.facebook.com",
             "web.facebook.com",

@@ -17,6 +17,7 @@ import androidx.core.app.ServiceCompat
 import androidx.core.graphics.toColorInt
 import com.project.lol.R
 import com.project.lol.offline.DownloadManager
+import com.project.lol.ui.theme.ThemeController
 import com.project.lol.util.AppLocale
 import com.project.lol.util.Logger
 import java.io.File
@@ -164,8 +165,7 @@ class DownloadService : Service() {
         }
 
         try {
-            builder.color = com.project.lol.webview.helpers.AccentTheme
-                .resolveHex(this).toColorIntOrNull() ?: 0xFF1DB954.toInt()
+            builder.color = ThemeController.accentHex(this).toColorIntOrNull() ?: 0xFF1DB954.toInt()
         } catch (_: Exception) {
             builder.color = 0xFF1DB954.toInt()
         }

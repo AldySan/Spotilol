@@ -159,6 +159,11 @@ class SpotifyWebViewClient(
             add("window.__splPowerSavePref=$powerSave;")
             add("window.__splHideEmpty=$hideEmptyPlayer;")
             add("window.__splPlaylistSortEnabled=$playlistSort;")
+            add("""
+                window.addEventListener('pageshow', function(e){
+                    if (e.persisted) { try { location.reload(); } catch(err) {} }
+                });
+            """)
             add(if (isGoogle) GoogleSpoof.CONTENT else BrowserSpoof.CONTENT)
             add(FetchOverride.CONTENT)
             add(AdStateHook.CONTENT)

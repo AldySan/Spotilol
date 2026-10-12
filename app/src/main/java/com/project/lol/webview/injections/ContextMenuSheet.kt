@@ -17,12 +17,38 @@ object ContextMenuSheet {
             var timer = null;
             var sheetOpen = false;
 
-            function rememberTrigger(e){
+            var tapDown = null;
+            var menuMutAt = 0;
+
+            function menuRootOf(el){
+                if (!el || !el.closest) return null;
+                return el.closest('[data-tippy-root], [role="menu"], #context-menu');
+            }
+
+            document.addEventListener('pointerdown', function(e){
+                if (!e.isTrusted) return;
+                tapDown = { el: e.target, root: menuRootOf(e.target), at: Date.now() };
                 var t = e.target;
                 if (!t || !t.closest) return;
                 if (t.closest('[data-tippy-root]')) return;
                 lastTrigger = t.closest('button') || t;
-            }
+            }, true);
+
+            document.addEventListener('click', function(e){
+                var d = tapDown;
+                tapDown = null;
+                if (!e.isTrusted || !e.detail) return;
+                if (!d || !e.target || !e.target.closest) return;
+                var root = menuRootOf(e.target);
+                if (!root) return;
+                var same = e.target === d.el ||
+                    (d.el && d.el.contains && d.el.contains(e.target)) ||
+                    (e.target.contains && e.target.contains(d.el));
+                if (same && root === d.root && menuMutAt <= d.at) return;
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+            }, true);
 
             function notify(open){
                 if (open === sheetOpen) return;
@@ -37,11 +63,16 @@ object ContextMenuSheet {
                 s.textContent =
                     S + '{position:fixed!important;inset:auto 0 0 0!important;transform:none!important;width:100%!important;max-width:100%!important;pointer-events:auto!important;z-index:2147483647!important;will-change:auto!important}' +
                     S + ' #context-menu{width:100%!important;max-width:100%!important;max-height:none!important;overflow:visible!important;padding:0!important;background:transparent!important;border-radius:0!important;box-shadow:none!important}' +
+                    S + ' #context-menu>*{width:100%!important;max-width:100%!important;box-sizing:border-box!important}' +
                     S + ' ul[role="menu"]{width:100%!important;max-width:100%!important;min-width:0!important;max-height:55vh!important;overflow-y:auto!important;overflow-x:hidden!important;border-radius:18px 18px 0 0!important;box-shadow:0 -10px 40px rgba(0,0,0,.65)!important;padding:4px 0 calc(14px + env(safe-area-inset-bottom,0px))!important;scrollbar-width:none!important;overscroll-behavior:contain!important}' +
                     S + ' ul[role="menu"]::-webkit-scrollbar{display:none!important;width:0!important;height:0!important}' +
                     S + ' ul[role="menu"]::before{content:"";display:block;position:sticky;top:0;z-index:2;width:36px;height:4px;border-radius:2px;background:rgba(255,255,255,.28);margin:8px auto 6px}' +
                     S + ' ul[role="menu"] button{padding:12px 16px!important;min-height:48px!important}' +
-                    S + ' > ul[role="menu"]{min-height:55vh!important}' +
+                    S + ' ul[role="menu"]:has(> .' + HEAD_CLS + '){min-height:55vh!important}' +
+                    S + ' [data-testid="user-widget-menu"]{width:100%!important;max-width:100%!important}' +
+                    S + ' [data-testid="user-widget-menu"]>*{width:100%!important;max-width:100%!important;box-sizing:border-box!important}' +
+                    S + ' [data-testid="user-widget-menu"] ul{width:100%!important;max-width:100%!important}' +
+                    S + ' [data-testid="user-widget-menu"] *{max-width:100%!important}' +
                     '.' + HEAD_CLS + '{display:flex;align-items:center;gap:12px;padding:0 16px 12px;margin-bottom:4px;border-bottom:1px solid rgba(255,255,255,.1)}' +
                     '.spl-sheet-cover{width:48px;height:48px;border-radius:6px;object-fit:cover;flex-shrink:0;background:rgba(255,255,255,.08)}' +
                     '.spl-sheet-meta{flex:1;min-width:0}' +
@@ -73,12 +104,6 @@ object ContextMenuSheet {
                 var ul = panel.querySelector('ul[role="menu"][data-depth="0"]');
                 if (ul && ul.scrollHeight > ul.clientHeight + 1) return ul;
                 return panel.scrollHeight > panel.clientHeight + 1 ? panel : null;
-            }
-            function stampSubmenus(){
-                var subs = document.querySelectorAll('ul[role="menu"][data-depth="1"]');
-                for (var i = 0; i < subs.length; i++) {
-                    if (!subs[i].__splSeen) subs[i].__splSeen = Date.now();
-                }
             }
             function triggerEl(){
                 return document.querySelector('[data-context-menu-open="true"]');
@@ -206,18 +231,8 @@ object ContextMenuSheet {
                     }
                 }
 
-                panel.addEventListener('click', function(e){
-                    var t = e.target;
-                    if (!t || !t.closest) return;
-                    var sub = t.closest('ul[role="menu"][data-depth="1"]');
-                    if (!sub || !sub.__splSeen) return;
-                    if (Date.now() - sub.__splSeen > 400) return;
-                    e.preventDefault();
-                    e.stopPropagation();
-                    e.stopImmediatePropagation();
-                }, {capture:true});
-
                 panel.addEventListener('pointerdown', function(e){
+                    if (!e.isTrusted) return;
                     if (e.pointerType === 'mouse' && e.button !== 0) return;
                     if (document.querySelectorAll('ul[role="menu"]').length > 1) { pid = null; return; }
                     var sc = scrollerOf(panel);
@@ -266,7 +281,7 @@ object ContextMenuSheet {
 
             function schedule(){
                 if (timer) return;
-                timer = setTimeout(function(){ timer = null; stampSubmenus(); ensure(); watchMenu(); }, 120);
+                timer = setTimeout(function(){ timer = null; ensure(); watchMenu(); }, 120);
             }
             function watchMenu(){
                 var m = openMenu();
@@ -279,15 +294,30 @@ object ContextMenuSheet {
                 if (menuObserver && menuTarget === cm) return;
                 if (menuObserver) menuObserver.disconnect();
                 menuTarget = cm;
-                menuObserver = new MutationObserver(function(){ stampSubmenus(); schedule(); });
+                menuObserver = new MutationObserver(function(){
+                    menuMutAt = Date.now();
+                    schedule();
+                });
                 menuObserver.observe(cm, {childList: true, subtree: true});
             }
 
             window.__splCloseCtxSheet = closeSheet;
-            document.addEventListener('pointerdown', rememberTrigger, true);
             injectStyle();
             if (window.MutationObserver) {
-                var bodyObserver = new MutationObserver(schedule);
+                var bodyObserver = new MutationObserver(function(muts){
+                    for (var i = 0; i < muts.length; i++) {
+                        var added = muts[i].addedNodes;
+                        for (var j = 0; j < added.length; j++) {
+                            var n = added[j];
+                            if (n.nodeType !== 1) continue;
+                            if ((n.matches && n.matches('[data-tippy-root]')) ||
+                                (n.querySelector && n.querySelector('ul[role="menu"], #context-menu'))) {
+                                menuMutAt = Date.now();
+                            }
+                        }
+                    }
+                    schedule();
+                });
                 bodyObserver.observe(document.body, {childList: true});
             }
             ensure();

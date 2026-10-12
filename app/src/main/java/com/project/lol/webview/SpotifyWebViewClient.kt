@@ -33,6 +33,7 @@ class SpotifyWebViewClient(
     private val onWebViewError: ((errorCode: Int, description: String) -> Unit)? = null
 ) : WebViewClient() {
 
+    private val mainHandler = Handler(Looper.getMainLooper())
     private var currentWebView: WebView? = null
     private var prefsListener: android.content.SharedPreferences.OnSharedPreferenceChangeListener? = null
     private var boundPrefs: android.content.SharedPreferences? = null
@@ -41,6 +42,14 @@ class SpotifyWebViewClient(
     private var docStartJs: String? = null
     private var docStartView: WebView? = null
     private var docStartJustRegistered = false
+
+    private var pendingPlayerInjection: Runnable? = null
+    private var lastInjectedToken = -1L
+
+    private fun cancelPendingPlayerInjection() {
+        pendingPlayerInjection?.let { mainHandler.removeCallbacks(it) }
+        pendingPlayerInjection = null
+    }
 
     override fun doUpdateVisitedHistory(view: WebView?, url: String?, isReload: Boolean) {
         super.doUpdateVisitedHistory(view, url, isReload)
@@ -53,6 +62,7 @@ class SpotifyWebViewClient(
         super.onPageFinished(view, url)
         if (view == null || url == null) return
 
+        val token = NavToken.current()
         val elapsed = if (pageStartedAt > 0) System.currentTimeMillis() - pageStartedAt else -1
         pageStartedAt = 0
         currentWebView = view
@@ -80,12 +90,10 @@ class SpotifyWebViewClient(
         }
 
         Logger.s(TAG, "logged in, injecting player control in 500ms")
-
-        Handler(Looper.getMainLooper()).postDelayed({
-            injectPlayerControl(view)
-        }, 500)
+        schedulePlayerInjection(view, token)
 
         view.evaluateJavascript(LogoutCheck.CONTENT) { result ->
+            if (token != NavToken.current()) return@evaluateJavascript
             Logger.d(TAG, "logout check: $result")
             if (result == "\"out\"") {
                 Logger.w(TAG, "session expired, back to login")
@@ -96,8 +104,24 @@ class SpotifyWebViewClient(
         }
     }
 
+    private fun schedulePlayerInjection(view: WebView, token: Long) {
+        cancelPendingPlayerInjection()
+        val task = Runnable {
+            pendingPlayerInjection = null
+            if (token != NavToken.current()) return@Runnable
+            if (lastInjectedToken == token) return@Runnable
+            if (currentWebView !== view) return@Runnable
+            lastInjectedToken = token
+            injectPlayerControl(view)
+        }
+        pendingPlayerInjection = task
+        mainHandler.postDelayed(task, 500)
+    }
+
     override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
         super.onPageStarted(view, url, favicon)
+        cancelPendingPlayerInjection()
+        NavToken.bump()
         pageStartedAt = System.currentTimeMillis()
         val prefs = view?.context?.getSharedPreferences("spotilol_prefs", 0)
 
@@ -169,7 +193,12 @@ class SpotifyWebViewClient(
             add(VideoPark.CONTENT)
             add(NavDuck.CONTENT)
         }
-        return parts.joinToString("\n") { "try{\n$it\n}catch(e){}" }
+
+        val body = parts.joinToString("\n") { "try{\n$it\n}catch(e){}" }
+        val version = body.hashCode()
+        return "(function(){var v=$version;" +
+                "if(window.__splEarlyJsVer===v)return;" +
+                "window.__splEarlyJsVer=v;\n$body\n})();"
     }
 
     private fun isWebPlayerUrl(url: String?): Boolean =
@@ -177,6 +206,14 @@ class SpotifyWebViewClient(
 
     override fun onRenderProcessGone(view: WebView?, detail: RenderProcessGoneDetail?): Boolean {
         Logger.e(TAG, "renderer process gone: crashed=${detail?.didCrash()}")
+        NavToken.bump()
+        cancelPendingPlayerInjection()
+        if (currentWebView === view) currentWebView = null
+        if (docStartView === view) {
+            docStartHandler = null
+            docStartView = null
+            docStartJs = null
+        }
         view?.let {
             it.stopLoading()
             it.destroy()
@@ -236,6 +273,11 @@ class SpotifyWebViewClient(
         handler?.cancel()
     }
 
+    private fun postToLiveView(view: WebView, block: () -> Unit) {
+        val token = NavToken.current()
+        view.post { if (token != NavToken.current()) block() }
+    }
+
     override fun shouldInterceptRequest(
         view: WebView,
         request: WebResourceRequest
@@ -264,7 +306,7 @@ class SpotifyWebViewClient(
         }
 
         if (AdIdStore.matches(url)) {
-            view.post { view.evaluateJavascript("AndBridge.deferMessage('adblock')", null) }
+            postToLiveView(view) { view.evaluateJavascript("AndBridge.deferMessage('adblock')", null) }
             val silent = view.context.assets?.open("silent.mp3") ?: return null
             return WebResourceResponse("audio/mpeg", null, silent)
         }
@@ -312,7 +354,7 @@ class SpotifyWebViewClient(
                     !url.contains("podz-content") && !url.contains("gew4-spclient") &&
                     isAdAudioUrl(url)
                 ) {
-                    view.post { view.evaluateJavascript("AndBridge.deferMessage('adblock')", null) }
+                    postToLiveView(view) { view.evaluateJavascript("AndBridge.deferMessage('adblock')", null) }
                     val silent = view.context.assets?.open("silent.mp3") ?: return null
                     return WebResourceResponse("audio/mpeg", null, silent)
                 }

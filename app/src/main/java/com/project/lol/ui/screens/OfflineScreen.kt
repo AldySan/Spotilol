@@ -14,6 +14,8 @@ import android.os.Handler
 import android.os.Looper
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -41,14 +43,17 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -59,6 +64,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -115,6 +121,9 @@ import androidx.compose.ui.window.Popup
 import androidx.core.content.ContextCompat
 import com.project.lol.R
 import com.project.lol.offline.DownloadFolder
+import com.project.lol.offline.LocalImportStore
+import com.project.lol.offline.OfflinePlaylist
+import com.project.lol.offline.OfflinePlaylistStore
 import com.project.lol.offline.OfflineSong
 import com.project.lol.offline.OfflineStore
 import com.project.lol.service.OfflineMediaService
@@ -127,16 +136,20 @@ import com.project.lol.ui.theme.schemeFromSeed
 import com.project.lol.util.BuildInfo
 import compose.icons.TablerIcons
 import compose.icons.tablericons.ChevronDown
+import compose.icons.tablericons.ChevronLeft
 import compose.icons.tablericons.CloudOff
 import compose.icons.tablericons.Folder
 import compose.icons.tablericons.Logout
 import compose.icons.tablericons.Menu2
 import compose.icons.tablericons.Music
+import compose.icons.tablericons.Pencil
 import compose.icons.tablericons.PictureInPicture
 import compose.icons.tablericons.PlayerPause
 import compose.icons.tablericons.PlayerPlay
 import compose.icons.tablericons.PlayerSkipBack
 import compose.icons.tablericons.PlayerSkipForward
+import compose.icons.tablericons.Playlist
+import compose.icons.tablericons.Plus
 import compose.icons.tablericons.Search
 import compose.icons.tablericons.Settings
 import compose.icons.tablericons.Trash
@@ -152,6 +165,7 @@ import kotlinx.coroutines.withContext
 import kotlin.time.Duration.Companion.milliseconds
 
 private enum class RepeatMode { OFF, ALL, ONE }
+private enum class OfflineLibraryTab { SONGS, PLAYLISTS }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -216,11 +230,64 @@ fun OfflineScreen(
     var searchQuery by remember { mutableStateOf("") }
     var searchFocused by remember { mutableStateOf(false) }
     var searchResults by remember { mutableStateOf<List<OfflineSong>?>(null) }
+    var libraryTab by remember { mutableStateOf(OfflineLibraryTab.SONGS) }
+    var playlists by remember { mutableStateOf<List<OfflinePlaylist>>(emptyList()) }
+    var openPlaylist by remember { mutableStateOf<OfflinePlaylist?>(null) }
+    var showNewPlaylistDialog by remember { mutableStateOf(false) }
+    var renamingPlaylist by remember { mutableStateOf<OfflinePlaylist?>(null) }
+    var deletingPlaylist by remember { mutableStateOf<OfflinePlaylist?>(null) }
+    var addToPlaylistSong by remember { mutableStateOf<OfflineSong?>(null) }
+    var newPlaylistName by remember { mutableStateOf("") }
+    var importing by remember { mutableStateOf(false) }
+    var importLabel by remember { mutableStateOf("") }
+    var queueSongs by remember { mutableStateOf<List<OfflineSong>>(emptyList()) }
 
     val searchEngine = remember { GenericSearchEngine<OfflineSong>(maxResult = 100) }
     val songExtractor = remember {
         SearchableFieldExtractor<OfflineSong> { song ->
             arrayOf(song.title, song.artist, song.album, song.ytAlbum, song.ytArtist)
+        }
+    }
+
+    val importLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris ->
+        if (uris.isEmpty()) return@rememberLauncherForActivityResult
+        importing = true
+        importLabel = ""
+        scope.launch {
+            val summary = withContext(Dispatchers.IO) {
+                LocalImportStore.importFiles(context, uris) { done, total, name ->
+                    importLabel = if (name.isBlank()) "" else "$done/$total · $name"
+                }
+            }
+            songs = withContext(Dispatchers.IO) { OfflineStore.loadSongs(context) }
+            importing = false
+            importLabel = ""
+            val message = buildString {
+                if (summary.imported > 0) {
+                    if (summary.imported == 1) append(resources.getString(R.string.offline_import_done_one))
+                    else append(resources.getString(R.string.offline_import_done_many, summary.imported))
+                }
+                if (summary.duplicates > 0) {
+                    if (isNotEmpty()) append(" · ")
+                    append(resources.getString(R.string.offline_import_skipped, summary.duplicates))
+                }
+                if (summary.failed > 0) {
+                    if (isNotEmpty()) append(" · ")
+                    append(resources.getString(R.string.offline_import_failed, summary.failed))
+                }
+            }
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun reloadPlaylists() {
+        scope.launch {
+            val fresh = withContext(Dispatchers.IO) { OfflinePlaylistStore.load(context) }
+            playlists = fresh
+            val currentId = openPlaylist?.id
+            openPlaylist = currentId?.let { id -> fresh.firstOrNull { it.id == id } }
         }
     }
 
@@ -236,6 +303,12 @@ fun OfflineScreen(
         }
     }
     val visibleSongs = searchResults ?: songs
+    val openPl = openPlaylist
+    val playlistSongs = remember(openPl, songs) {
+        openPl?.let { pl -> pl.songIds.mapNotNull { id -> songs.firstOrNull { it.id == id } } }
+            ?: emptyList()
+    }
+    val songIds = remember(songs) { songs.map { it.id }.toHashSet() }
 
     val versionName = remember {
         runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }
@@ -277,16 +350,25 @@ fun OfflineScreen(
         }
     }
 
-    fun play(index: Int) {
+    fun playQueueIndex(index: Int) {
+        val list = queueSongs
+        if (list.isEmpty()) return
         audioFocus.acquire()
-        playAt(mediaPlayer, context, songs, index, { currentIndex = it }, { playerSong = it }, { isPlaying = it }, { durationMs = it }, { positionMs = it })
+        playAt(mediaPlayer, context, list, index, { currentIndex = it }, { playerSong = it }, { isPlaying = it }, { durationMs = it }, { positionMs = it })
         if (shuffleOn) {
-            val key = songs.getOrNull(index)?.let { songKey(it) }
+            val key = list.getOrNull(index)?.let { songKey(it) }
             val pos = shuffleOrder.indexOf(key)
             if (pos >= 0) shufflePos = pos
         }
         syncService()
     }
+
+    fun playFrom(list: List<OfflineSong>, index: Int) {
+        queueSongs = list
+        playQueueIndex(index)
+    }
+
+    fun play(index: Int) = playFrom(songs, index)
 
     fun togglePlayPause() {
         runCatching {
@@ -332,9 +414,9 @@ fun OfflineScreen(
     }
 
     fun ensureShuffleOrder() {
-        val keys = songs.map { songKey(it) }
+        val keys = queueSongs.map { songKey(it) }
         if (shuffleOrder.size == keys.size && shuffleOrder.all { it in keys }) return
-        val currentKey = songs.getOrNull(currentIndex)?.let { songKey(it) }
+        val currentKey = queueSongs.getOrNull(currentIndex)?.let { songKey(it) }
         shuffleOrder = buildList {
             if (currentKey != null) add(currentKey)
             addAll(keys.filter { it != currentKey }.shuffled())
@@ -360,22 +442,23 @@ fun OfflineScreen(
     }
 
     fun step(delta: Int) {
-        if (songs.isEmpty()) return
+        val list = queueSongs
+        if (list.isEmpty()) return
         if (shuffleOn) {
             ensureShuffleOrder()
             val n = shuffleOrder.size
             if (n > 0) {
                 val pos = if (shufflePos < 0) 0 else ((shufflePos + delta) % n + n) % n
-                val index = songs.indexOfFirst { songKey(it) == shuffleOrder[pos] }
+                val index = list.indexOfFirst { songKey(it) == shuffleOrder[pos] }
                 if (index >= 0) {
                     shufflePos = pos
-                    play(index)
+                    playQueueIndex(index)
                     return
                 }
             }
         }
-        val next = ((currentIndex + delta) % songs.size + songs.size) % songs.size
-        play(next)
+        val next = ((currentIndex + delta) % list.size + list.size) % list.size
+        playQueueIndex(next)
     }
 
     fun seekTo(position: Long) {
@@ -396,20 +479,29 @@ fun OfflineScreen(
         currentIndex = -1
         positionMs = 0
         durationMs = 0
+        queueSongs = emptyList()
+        shuffleOrder = emptyList()
+        shufflePos = -1
         runCatching { context.stopService(Intent(context, OfflineMediaService::class.java)) }
     }
 
     fun performDelete(song: OfflineSong) {
-        val index = songs.indexOfFirst { it.id == song.id && it.uri == song.uri }
-        if (index == -1) return
-        if (index == currentIndex) {
+        if (songs.none { it.id == song.id && it.uri == song.uri }) return
+        val queueIndex = queueSongs.indexOfFirst { it.id == song.id && it.uri == song.uri }
+        if (queueIndex >= 0 && queueIndex == currentIndex) {
             stopAndClear()
-        } else if (index < currentIndex) {
-            currentIndex -= 1
+        } else if (queueIndex >= 0) {
+            queueSongs = queueSongs.filterNot { it.id == song.id && it.uri == song.uri }
+            if (queueIndex < currentIndex) currentIndex -= 1
+            shuffleOrder = emptyList()
+            shufflePos = -1
         }
         scope.launch {
-            val ok = withContext(Dispatchers.IO) { OfflineStore.deleteSong(context, song) }
-            songs = songs.filterNot { it.id == song.id && it.uri == song.uri }
+            val ok = withContext(Dispatchers.IO) {
+                if (LocalImportStore.isImported(song)) LocalImportStore.deleteSong(context, song.id)
+                else OfflineStore.deleteSong(context, song)
+            }
+            songs = withContext(Dispatchers.IO) { OfflineStore.loadSongs(context) }
             if (!ok) {
                 Toast.makeText(context, resources.getString(R.string.offline_toast_could_not_delete_file), Toast.LENGTH_SHORT).show()
             }
@@ -417,36 +509,38 @@ fun OfflineScreen(
     }
 
     fun performDeleteAll() {
-        val all = songs
+        val all = songs.filterNot { LocalImportStore.isImported(it) }
         if (all.isEmpty()) return
         stopAndClear()
         searchQuery = ""
         searchResults = null
-        songs = emptyList()
+        songs = songs.filter { LocalImportStore.isImported(it) }
         scope.launch {
             val failed = withContext(Dispatchers.IO) {
                 all.count { song -> !OfflineStore.deleteSong(context, song) }
             }
+            songs = withContext(Dispatchers.IO) { OfflineStore.loadSongs(context) }
             if (failed > 0) {
                 Toast.makeText(
                     context,
                     if (failed == 1) resources.getString(R.string.offline_toast_could_not_delete_one_file) else resources.getString(R.string.offline_toast_could_not_delete_files, failed),
                     Toast.LENGTH_SHORT
                 ).show()
-                songs = withContext(Dispatchers.IO) { OfflineStore.loadSongs(context) }
             }
         }
     }
 
-    BackHandler(enabled = settingsDialogOpen || playerExpanded || searchFocused || searchQuery.isNotBlank()) {
+    BackHandler(enabled = settingsDialogOpen || openPlaylist != null || playerExpanded || searchFocused || searchQuery.isNotBlank() || libraryTab == OfflineLibraryTab.PLAYLISTS) {
         when {
             settingsDialogOpen -> settingsDialogOpen = false
+            openPlaylist != null -> openPlaylist = null
             playerExpanded -> playerExpanded = false
             searchFocused -> {
                 focusManager.clearFocus()
                 keyboardController?.hide()
             }
-            else -> searchQuery = ""
+            searchQuery.isNotBlank() -> searchQuery = ""
+            else -> libraryTab = OfflineLibraryTab.SONGS
         }
     }
 
@@ -455,12 +549,12 @@ fun OfflineScreen(
             override fun onPlayFromSearch(query: String?) {
                 if (query.isNullOrBlank()) {
                     if (!isPlaying) {
-                        if (currentIndex >= 0) togglePlayPause() else if (songs.isNotEmpty()) play(0)
+                        if (currentIndex >= 0) togglePlayPause() else if (songs.isNotEmpty()) playFrom(songs, 0)
                     }
                 } else {
                     val match = searchEngine.filter(songs, query.take(1024), songExtractor).firstOrNull()
                     val index = songs.indexOf(match)
-                    if (index >= 0) play(index)
+                    if (index >= 0) playFrom(songs, index)
                 }
             }
             override fun onPlayPause() = togglePlayPause()
@@ -497,8 +591,8 @@ fun OfflineScreen(
                 SleepTimerManager.onTrackCompleted()
                 return@setOnCompletionListener
             }
-            if (repeatMode == RepeatMode.ONE && currentIndex in songs.indices) {
-                play(currentIndex)
+            if (repeatMode == RepeatMode.ONE && currentIndex in queueSongs.indices) {
+                playQueueIndex(currentIndex)
                 return@setOnCompletionListener
             }
             val advanced = if (shuffleOn) {
@@ -515,11 +609,11 @@ fun OfflineScreen(
                 }
             } else {
                 val index = currentIndex
-                if (index in 0 until songs.lastIndex) {
-                    play(index + 1)
+                if (index in 0 until queueSongs.lastIndex) {
+                    playQueueIndex(index + 1)
                     true
-                } else if (repeatMode == RepeatMode.ALL && songs.isNotEmpty()) {
-                    play(0)
+                } else if (repeatMode == RepeatMode.ALL && queueSongs.isNotEmpty()) {
+                    playQueueIndex(0)
                     true
                 } else {
                     false
@@ -536,6 +630,7 @@ fun OfflineScreen(
 
     LaunchedEffect(Unit) {
         songs = withContext(Dispatchers.IO) { OfflineStore.loadSongs(context) }
+        playlists = withContext(Dispatchers.IO) { OfflinePlaylistStore.load(context) }
         loading = false
     }
 
@@ -653,48 +748,127 @@ fun OfflineScreen(
                             .padding(start = 16.dp, end = 16.dp)
                             .padding(top = if (hideTopBar) 56.dp else 10.dp, bottom = 8.dp)
                     ) {
-                        Text(
-                            text = when {
-                                loading -> stringResource(R.string.offline_status_loading)
-                                searchQuery.isNotBlank() -> {
-                                    val n = visibleSongs.size
-                                    if (n == 0) {
-                                        stringResource(R.string.offline_status_no_results_for, searchQuery.trim())
-                                    } else if (n == 1) {
-                                        stringResource(R.string.offline_status_one_result_for, searchQuery.trim())
-                                    } else {
-                                        stringResource(R.string.offline_status_results_for, n, searchQuery.trim())
+                        if (openPl != null) {
+                            PlaylistDetailHeader(
+                                playlist = openPl,
+                                songCount = playlistSongs.size,
+                                onBack = { openPlaylist = null },
+                                onPlay = {
+                                    if (playlistSongs.isNotEmpty()) playFrom(playlistSongs, 0)
+                                },
+                                onShuffle = {
+                                    if (playlistSongs.isNotEmpty()) {
+                                        if (!shuffleOn) shuffleOn = true
+                                        playFrom(playlistSongs, 0)
                                     }
                                 }
-                                songs.isEmpty() -> stringResource(R.string.offline_status_no_downloads_yet)
-                                songs.size == 1 -> stringResource(R.string.offline_status_one_song_available_offline)
-                                else -> stringResource(R.string.offline_status_songs_available_offline, songs.size)
-                            },
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-
-                        if (!loading && songs.isNotEmpty()) {
-                            Spacer(Modifier.height(8.dp))
+                            )
+                        } else {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(modifier = Modifier.weight(1f)) {
-                                    OfflineSearchField(
-                                        value = searchQuery,
-                                        onValueChange = { searchQuery = it },
-                                        onSearchFocusChange = { searchFocused = it }
+                                OfflineTabPill(
+                                    label = stringResource(R.string.offline_tab_songs),
+                                    selected = libraryTab == OfflineLibraryTab.SONGS
+                                ) { libraryTab = OfflineLibraryTab.SONGS }
+                                Spacer(Modifier.width(8.dp))
+                                OfflineTabPill(
+                                    label = stringResource(R.string.offline_tab_playlists),
+                                    selected = libraryTab == OfflineLibraryTab.PLAYLISTS
+                                ) { libraryTab = OfflineLibraryTab.PLAYLISTS }
+                                Spacer(Modifier.weight(1f))
+                                if (importing) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(18.dp),
+                                        strokeWidth = 2.dp,
+                                        color = MaterialTheme.colorScheme.primary
                                     )
                                 }
-                                Spacer(Modifier.width(8.dp))
-                                CompactIconButton(
-                                    icon = TablerIcons.Trash,
-                                    contentDescription = stringResource(R.string.offline_desc_delete_all_downloads),
-                                    tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
-                                    onClick = { confirmDeleteAll = true },
-                                    boxSize = 40.dp,
-                                    iconSize = 20.dp
-                                )
+                            }
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                text = when {
+                                    loading -> stringResource(R.string.offline_status_loading)
+                                    libraryTab == OfflineLibraryTab.PLAYLISTS -> when {
+                                        playlists.isEmpty() -> stringResource(R.string.offline_playlists_status_none)
+                                        playlists.size == 1 -> stringResource(R.string.offline_playlists_status_one)
+                                        else -> stringResource(R.string.offline_playlists_status_many, playlists.size)
+                                    }
+                                    searchQuery.isNotBlank() -> {
+                                        val n = visibleSongs.size
+                                        if (n == 0) {
+                                            stringResource(R.string.offline_status_no_results_for, searchQuery.trim())
+                                        } else if (n == 1) {
+                                            stringResource(R.string.offline_status_one_result_for, searchQuery.trim())
+                                        } else {
+                                            stringResource(R.string.offline_status_results_for, n, searchQuery.trim())
+                                        }
+                                    }
+                                    songs.isEmpty() -> stringResource(R.string.offline_status_no_downloads_yet)
+                                    songs.size == 1 -> stringResource(R.string.offline_status_one_song_available_offline)
+                                    else -> stringResource(R.string.offline_status_songs_available_offline, songs.size)
+                                },
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            if (!loading && libraryTab == OfflineLibraryTab.SONGS && songs.isNotEmpty()) {
+                                Spacer(Modifier.height(8.dp))
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(modifier = Modifier.weight(1f)) {
+                                        OfflineSearchField(
+                                            value = searchQuery,
+                                            onValueChange = { searchQuery = it },
+                                            onSearchFocusChange = { searchFocused = it }
+                                        )
+                                    }
+                                    Spacer(Modifier.width(8.dp))
+                                    CompactIconButton(
+                                        icon = TablerIcons.Plus,
+                                        contentDescription = stringResource(R.string.offline_desc_import),
+                                        tint = if (importing) MaterialTheme.colorScheme.onSurfaceVariant
+                                        else MaterialTheme.colorScheme.primary,
+                                        onClick = { if (!importing) importLauncher.launch(arrayOf("audio/*")) },
+                                        boxSize = 40.dp,
+                                        iconSize = 20.dp
+                                    )
+                                    if (songs.any { !LocalImportStore.isImported(it) }) {
+                                        CompactIconButton(
+                                            icon = TablerIcons.Trash,
+                                            contentDescription = stringResource(R.string.offline_desc_delete_all_downloads),
+                                            tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
+                                            onClick = { confirmDeleteAll = true },
+                                            boxSize = 40.dp,
+                                            iconSize = 20.dp
+                                        )
+                                    }
+                                }
+                                if (importing && importLabel.isNotBlank()) {
+                                    Spacer(Modifier.height(4.dp))
+                                    Text(
+                                        text = importLabel,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                            if (!loading && libraryTab == OfflineLibraryTab.PLAYLISTS) {
+                                Spacer(Modifier.height(8.dp))
+                                Row {
+                                    Spacer(Modifier.weight(1f))
+                                    CompactIconButton(
+                                        icon = TablerIcons.Plus,
+                                        contentDescription = stringResource(R.string.offline_desc_new_playlist),
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        onClick = {
+                                            newPlaylistName = ""
+                                            showNewPlaylistDialog = true
+                                        },
+                                        boxSize = 40.dp,
+                                        iconSize = 20.dp
+                                    )
+                                }
                             }
                         }
                     }
@@ -707,6 +881,147 @@ fun OfflineScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             CircularProgressIndicator()
+                        }
+                        openPl != null -> when {
+                            playlistSongs.isEmpty() -> Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxWidth(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(
+                                        imageVector = TablerIcons.Playlist,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                                        modifier = Modifier.size(40.dp)
+                                    )
+                                    Spacer(Modifier.height(10.dp))
+                                    Text(
+                                        text = stringResource(R.string.offline_playlist_empty_title),
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Spacer(Modifier.height(4.dp))
+                                    Text(
+                                        text = stringResource(R.string.offline_playlist_empty_hint),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+                            }
+                            else -> LazyColumn(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxWidth(),
+                                contentPadding = PaddingValues(start = 12.dp, end = 12.dp, bottom = 112.dp),
+                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
+                                items(playlistSongs, key = { "${it.id}-${it.uri}" }) { song ->
+                                    val current = queueSongs.getOrNull(currentIndex)
+                                    val isCurrent = current != null && current.id == song.id && current.uri == song.uri
+                                    PlaylistSongRow(
+                                        song = song,
+                                        isCurrent = isCurrent,
+                                        onClick = {
+                                            val index = playlistSongs.indexOfFirst { it.id == song.id && it.uri == song.uri }
+                                            if (isCurrent) {
+                                                if (durationMs > 0 || mediaPlayer.isPlaying) togglePlayPause()
+                                                else if (index >= 0) playFrom(playlistSongs, index)
+                                            } else if (index >= 0) {
+                                                playFrom(playlistSongs, index)
+                                            }
+                                        },
+                                        onRemove = {
+                                            scope.launch {
+                                                withContext(Dispatchers.IO) {
+                                                    OfflinePlaylistStore.removeSong(context, openPl.id, song.id)
+                                                }
+                                                reloadPlaylists()
+                                            }
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                        libraryTab == OfflineLibraryTab.PLAYLISTS -> when {
+                            playlists.isEmpty() -> Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxWidth(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(
+                                        imageVector = TablerIcons.Playlist,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                                        modifier = Modifier.size(40.dp)
+                                    )
+                                    Spacer(Modifier.height(10.dp))
+                                    Text(
+                                        text = stringResource(R.string.offline_playlists_empty_title),
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Spacer(Modifier.height(4.dp))
+                                    Text(
+                                        text = stringResource(R.string.offline_playlists_empty_hint),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        textAlign = TextAlign.Center
+                                    )
+                                    Spacer(Modifier.height(18.dp))
+                                    Surface(
+                                        onClick = {
+                                            newPlaylistName = ""
+                                            showNewPlaylistDialog = true
+                                        },
+                                        shape = RoundedCornerShape(24.dp),
+                                        color = MaterialTheme.colorScheme.primary
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                imageVector = TablerIcons.Plus,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.onPrimary,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Spacer(Modifier.width(8.dp))
+                                            Text(
+                                                text = stringResource(R.string.offline_playlists_create),
+                                                style = MaterialTheme.typography.labelLarge,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = MaterialTheme.colorScheme.onPrimary
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                            else -> LazyColumn(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxWidth(),
+                                contentPadding = PaddingValues(start = 12.dp, end = 12.dp, bottom = 112.dp),
+                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
+                                items(playlists, key = { it.id }) { pl ->
+                                    PlaylistRow(
+                                        playlist = pl,
+                                        songCount = pl.songIds.count { it in songIds },
+                                        onClick = { openPlaylist = pl },
+                                        onRename = {
+                                            newPlaylistName = pl.name
+                                            renamingPlaylist = pl
+                                        },
+                                        onDelete = { deletingPlaylist = pl }
+                                    )
+                                }
+                            }
                         }
                         searchQuery.isNotBlank() && visibleSongs.isEmpty() -> Box(
                             modifier = Modifier
@@ -762,6 +1077,39 @@ fun OfflineScreen(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     textAlign = TextAlign.Center
                                 )
+                                Spacer(Modifier.height(18.dp))
+                                Surface(
+                                    onClick = { if (!importing) importLauncher.launch(arrayOf("audio/*")) },
+                                    shape = RoundedCornerShape(24.dp),
+                                    color = MaterialTheme.colorScheme.primary
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = TablerIcons.Plus,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onPrimary,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(Modifier.width(8.dp))
+                                        Text(
+                                            text = stringResource(R.string.offline_empty_import_cta),
+                                            style = MaterialTheme.typography.labelLarge,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onPrimary
+                                        )
+                                    }
+                                }
+                                if (importing) {
+                                    Spacer(Modifier.height(12.dp))
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(20.dp),
+                                        strokeWidth = 2.dp,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
                             }
                         }
                         else -> LazyColumn(
@@ -773,25 +1121,30 @@ fun OfflineScreen(
                         ) {
                             items(visibleSongs, key = { "${it.id}-${it.uri}" }) { song ->
                                 val index = songs.indexOfFirst { it.id == song.id && it.uri == song.uri }
+                                val current = queueSongs.getOrNull(currentIndex)
+                                val isCurrent = current != null && current.id == song.id && current.uri == song.uri
                                 OfflineSongRow(
                                     song = song,
-                                    isCurrent = index == currentIndex,
+                                    isCurrent = isCurrent,
                                     onClick = {
-                                        if (index == currentIndex) {
+                                        if (isCurrent) {
                                             if (durationMs > 0 || mediaPlayer.isPlaying) {
                                                 togglePlayPause()
                                             } else {
-                                                play(index)
+                                                playFrom(songs, index)
                                             }
                                         } else {
-                                            play(index)
+                                            playFrom(songs, index)
                                         }
                                     },
-                                    onLocate = {
-                                        if (!DownloadFolder.openTrack(context, song.uri)) {
-                                            Toast.makeText(context, song.uri.lastPathSegment ?: song.title, Toast.LENGTH_LONG).show()
+                                    onLocate = if (LocalImportStore.isImported(song)) null else {
+                                        {
+                                            if (!DownloadFolder.openTrack(context, song.uri)) {
+                                                Toast.makeText(context, song.uri.lastPathSegment ?: song.title, Toast.LENGTH_LONG).show()
+                                            }
                                         }
                                     },
+                                    onAddToPlaylist = { addToPlaylistSong = song },
                                     onDelete = { pendingDelete = song }
                                 )
                             }
@@ -981,87 +1334,328 @@ fun OfflineScreen(
     }
     }
 
-    val songToDelete = pendingDelete
-    if (songToDelete != null) {
-        AlertDialog(
-            onDismissRequest = { pendingDelete = null },
-            shape = RoundedCornerShape(28.dp),
-            title = {
-                Text(
-                    text = stringResource(R.string.offline_dialog_delete_song_title),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-            },
-            text = {
-                Text(
-                    text = stringResource(R.string.offline_dialog_delete_song_message, songToDelete.title, songToDelete.artist.ifBlank { stringResource(R.string.offline_unknown_artist) }),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    pendingDelete = null
-                    performDelete(songToDelete)
-                }) {
-                    Text(
-                        text = stringResource(R.string.offline_dialog_delete),
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.error
+                val songToDelete = pendingDelete
+                if (songToDelete != null) {
+                    AlertDialog(
+                        onDismissRequest = { pendingDelete = null },
+                        shape = RoundedCornerShape(28.dp),
+                        title = {
+                            Text(
+                                text = stringResource(R.string.offline_dialog_delete_song_title),
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                        },
+                        text = {
+                            val unknownArtist = stringResource(R.string.offline_unknown_artist)
+                            Text(
+                                text = songToDelete.let { song ->
+                                    if (LocalImportStore.isImported(song)) {
+                                        stringResource(
+                                            R.string.offline_dialog_delete_import_message,
+                                            song.title,
+                                            song.artist.ifBlank { unknownArtist }
+                                        )
+                                    } else {
+                                        stringResource(
+                                            R.string.offline_dialog_delete_song_message,
+                                            song.title,
+                                            song.artist.ifBlank { unknownArtist }
+                                        )
+                                    }
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                pendingDelete = null
+                                performDelete(songToDelete)
+                            }) {
+                                Text(
+                                    text = stringResource(R.string.offline_dialog_delete),
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { pendingDelete = null }) {
+                                Text(stringResource(R.string.offline_dialog_cancel), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
                     )
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = { pendingDelete = null }) {
-                    Text(stringResource(R.string.offline_dialog_cancel), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-        )
-    }
 
-    if (confirmDeleteAll) {
-        val total = songs.size
-        AlertDialog(
-            onDismissRequest = { confirmDeleteAll = false },
-            shape = RoundedCornerShape(28.dp),
-            title = {
-                Text(
-                    text = stringResource(R.string.offline_dialog_delete_all_title),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-            },
-            text = {
-                Text(
-                    text = if (total == 1) {
-                        stringResource(R.string.offline_dialog_delete_all_message_one)
-                    } else {
-                        stringResource(R.string.offline_dialog_delete_all_message_many, total)
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    confirmDeleteAll = false
-                    performDeleteAll()
-                }) {
-                    Text(
-                        text = stringResource(R.string.offline_dialog_delete_all),
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.error
+                if (confirmDeleteAll) {
+                    val total = songs.count { !LocalImportStore.isImported(it) }
+                    AlertDialog(
+                        onDismissRequest = { confirmDeleteAll = false },
+                        shape = RoundedCornerShape(28.dp),
+                        title = {
+                            Text(
+                                text = stringResource(R.string.offline_dialog_delete_all_title),
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                        },
+                        text = {
+                            Text(
+                                text = stringResource(R.string.offline_dialog_delete_all_message, total),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                confirmDeleteAll = false
+                                performDeleteAll()
+                            }) {
+                                Text(
+                                    text = stringResource(R.string.offline_dialog_delete_all),
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { confirmDeleteAll = false }) {
+                                Text(stringResource(R.string.offline_dialog_cancel), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
                     )
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = { confirmDeleteAll = false }) {
-                    Text(stringResource(R.string.offline_dialog_cancel), color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+                addToPlaylistSong?.let { addSong ->
+                    if (!showNewPlaylistDialog && renamingPlaylist == null) {
+                        AlertDialog(
+                            onDismissRequest = { addToPlaylistSong = null },
+                            shape = RoundedCornerShape(28.dp),
+                            title = {
+                                Text(
+                                    text = stringResource(R.string.offline_dialog_add_to_playlist_title),
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            },
+                            text = {
+                                Column {
+                                    Text(
+                                        text = addSong.title,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Spacer(Modifier.height(8.dp))
+                                    Column(
+                                        modifier = Modifier
+                                            .heightIn(max = 320.dp)
+                                            .verticalScroll(rememberScrollState())
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clip(RoundedCornerShape(12.dp))
+                                                .clickable {
+                                                    newPlaylistName = ""
+                                                    showNewPlaylistDialog = true
+                                                }
+                                                .padding(horizontal = 10.dp, vertical = 12.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                imageVector = TablerIcons.Plus,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                            Spacer(Modifier.width(12.dp))
+                                            Text(
+                                                text = stringResource(R.string.offline_dialog_new_playlist_option),
+                                                style = MaterialTheme.typography.bodyLarge,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                        playlists.forEach { pl ->
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .clip(RoundedCornerShape(12.dp))
+                                                    .clickable {
+                                                        scope.launch {
+                                                            val added = withContext(Dispatchers.IO) {
+                                                                OfflinePlaylistStore.addSong(context, pl.id, addSong.id)
+                                                            }
+                                                            Toast.makeText(
+                                                                context,
+                                                                resources.getString(
+                                                                    if (added) R.string.offline_toast_added_to_playlist
+                                                                    else R.string.offline_toast_already_in_playlist,
+                                                                    pl.name
+                                                                ),
+                                                                Toast.LENGTH_SHORT
+                                                            ).show()
+                                                            addToPlaylistSong = null
+                                                            reloadPlaylists()
+                                                        }
+                                                    }
+                                                    .padding(horizontal = 10.dp, vertical = 12.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Icon(
+                                                    imageVector = TablerIcons.Playlist,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                                Spacer(Modifier.width(12.dp))
+                                                Text(
+                                                    text = pl.name,
+                                                    style = MaterialTheme.typography.bodyLarge,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            confirmButton = {
+                                TextButton(onClick = { addToPlaylistSong = null }) {
+                                    Text(stringResource(R.string.offline_dialog_cancel), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                        )
+                    }
                 }
-            }
-        )
-    }
+
+                val renamingPl = renamingPlaylist
+                if (showNewPlaylistDialog || renamingPl != null) {
+                    AlertDialog(
+                        onDismissRequest = {
+                            showNewPlaylistDialog = false
+                            renamingPlaylist = null
+                            newPlaylistName = ""
+                        },
+                        shape = RoundedCornerShape(28.dp),
+                        title = {
+                            Text(
+                                text = stringResource(
+                                    if (renamingPl != null) R.string.offline_dialog_rename_playlist_title
+                                    else R.string.offline_dialog_new_playlist_title
+                                ),
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                        },
+                        text = {
+                            OutlinedTextField(
+                                value = newPlaylistName,
+                                onValueChange = { newPlaylistName = it },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                placeholder = { Text(stringResource(R.string.offline_playlist_name_hint)) }
+                            )
+                        },
+                        confirmButton = {
+                            TextButton(
+                                onClick = {
+                                    val name = newPlaylistName.trim()
+                                    if (name.isBlank()) return@TextButton
+                                    val songToAdd = addToPlaylistSong
+                                    showNewPlaylistDialog = false
+                                    renamingPlaylist = null
+                                    newPlaylistName = ""
+                                    scope.launch {
+                                        if (renamingPl != null) {
+                                            withContext(Dispatchers.IO) {
+                                                OfflinePlaylistStore.rename(context, renamingPl.id, name)
+                                            }
+                                        } else {
+                                            withContext(Dispatchers.IO) {
+                                                OfflinePlaylistStore.create(context, name, firstSongId = songToAdd?.id)
+                                            }
+                                            if (songToAdd != null) {
+                                                Toast.makeText(
+                                                    context,
+                                                    resources.getString(R.string.offline_toast_added_to_playlist, name),
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                            }
+                                        }
+                                        addToPlaylistSong = null
+                                        reloadPlaylists()
+                                    }
+                                },
+                                enabled = newPlaylistName.isNotBlank()
+                            ) {
+                                Text(
+                                    text = stringResource(
+                                        if (renamingPl != null) R.string.offline_dialog_rename_playlist_title
+                                        else R.string.offline_playlists_create
+                                    ),
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = {
+                                showNewPlaylistDialog = false
+                                renamingPlaylist = null
+                                newPlaylistName = ""
+                            }) {
+                                Text(stringResource(R.string.offline_dialog_cancel), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    )
+                }
+
+                val deletePl = deletingPlaylist
+                if (deletePl != null) {
+                    AlertDialog(
+                        onDismissRequest = { deletingPlaylist = null },
+                        shape = RoundedCornerShape(28.dp),
+                        title = {
+                            Text(
+                                text = stringResource(R.string.offline_dialog_delete_playlist_title),
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                        },
+                        text = {
+                            Text(
+                                text = stringResource(R.string.offline_dialog_delete_playlist_message, deletePl.name),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                deletingPlaylist = null
+                                if (openPlaylist?.id == deletePl.id) openPlaylist = null
+                                scope.launch {
+                                    withContext(Dispatchers.IO) { OfflinePlaylistStore.delete(context, deletePl.id) }
+                                    reloadPlaylists()
+                                }
+                            }) {
+                                Text(
+                                    text = stringResource(R.string.offline_dialog_delete),
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { deletingPlaylist = null }) {
+                                Text(stringResource(R.string.offline_dialog_cancel), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    )
+                }
 
     if (showSleepTimerDialog) {
         SleepTimerDialog(
@@ -1419,7 +2013,8 @@ private fun OfflineSongRow(
     song: OfflineSong,
     isCurrent: Boolean,
     onClick: () -> Unit,
-    onLocate: () -> Unit,
+    onLocate: (() -> Unit)?,
+    onAddToPlaylist: (() -> Unit)? = null,
     onDelete: () -> Unit
 ) {
     Row(
@@ -1441,16 +2036,123 @@ private fun OfflineSongRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            val unknownArtist = stringResource(R.string.offline_unknown_artist)
-            val explicitLabel = stringResource(R.string.offline_label_explicit)
-            val subtitle = buildString {
-                append(song.artist.ifBlank { unknownArtist })
-                song.album.ifBlank { "" }.takeIf { it.isNotBlank() }?.let { append(" • $it") }
-                song.durationSec?.takeIf { it > 0 }?.let { append(" • ${formatSeconds(it)}") }
-                if (song.explicit) append(" • $explicitLabel")
-            }
             Text(
-                text = subtitle,
+                text = songSubtitle(song),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        if (onLocate != null) {
+            CompactIconButton(
+                icon = TablerIcons.Folder,
+                contentDescription = stringResource(R.string.offline_desc_locate_track),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                onClick = onLocate,
+                boxSize = 30.dp,
+                iconSize = 17.dp
+            )
+        }
+        if (onAddToPlaylist != null) {
+            CompactIconButton(
+                icon = TablerIcons.Plus,
+                contentDescription = stringResource(R.string.offline_desc_add_to_playlist),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                onClick = onAddToPlaylist,
+                boxSize = 30.dp,
+                iconSize = 17.dp
+            )
+        }
+        CompactIconButton(
+            icon = TablerIcons.Trash,
+            contentDescription = stringResource(R.string.offline_desc_delete),
+            tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
+            onClick = onDelete,
+            boxSize = 30.dp,
+            iconSize = 17.dp
+        )
+    }
+}
+
+@Composable
+private fun songSubtitle(song: OfflineSong): String {
+    val unknownArtist = stringResource(R.string.offline_unknown_artist)
+    val explicitLabel = stringResource(R.string.offline_label_explicit)
+    return buildString {
+        append(song.artist.ifBlank { unknownArtist })
+        song.album.takeIf { it.isNotBlank() }?.let { append(" • $it") }
+        song.durationSec?.takeIf { it > 0 }?.let { append(" • ${formatSeconds(it)}") }
+        if (song.explicit) append(" • $explicitLabel")
+    }
+}
+
+@Composable
+private fun OfflineTabPill(label: String, selected: Boolean, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(50),
+        color = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
+        else MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.5f),
+        border = BorderStroke(
+            1.dp,
+            if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+            else MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
+        )
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 18.dp, vertical = 7.dp)
+        )
+    }
+}
+
+@Composable
+private fun PlaylistRow(
+    playlist: OfflinePlaylist,
+    songCount: Int,
+    onClick: () -> Unit,
+    onRename: () -> Unit,
+    onDelete: () -> Unit
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 6.dp, vertical = 5.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = TablerIcons.Playlist,
+                contentDescription = stringResource(R.string.offline_desc_open_playlist),
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(22.dp)
+            )
+        }
+        Spacer(Modifier.width(10.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = playlist.name,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = if (songCount == 1) stringResource(R.string.offline_playlist_song_count_one)
+                else stringResource(R.string.offline_playlist_song_count_many, songCount),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
@@ -1458,18 +2160,119 @@ private fun OfflineSongRow(
             )
         }
         CompactIconButton(
-            icon = TablerIcons.Folder,
-            contentDescription = stringResource(R.string.offline_desc_locate_track),
+            icon = TablerIcons.Pencil,
+            contentDescription = stringResource(R.string.offline_desc_rename_playlist),
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            onClick = onLocate,
+            onClick = onRename,
             boxSize = 30.dp,
             iconSize = 17.dp
         )
         CompactIconButton(
             icon = TablerIcons.Trash,
-            contentDescription = stringResource(R.string.offline_desc_delete),
+            contentDescription = stringResource(R.string.offline_desc_delete_playlist),
             tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
             onClick = onDelete,
+            boxSize = 30.dp,
+            iconSize = 17.dp
+        )
+    }
+}
+
+@Composable
+private fun PlaylistDetailHeader(
+    playlist: OfflinePlaylist,
+    songCount: Int,
+    onBack: () -> Unit,
+    onPlay: () -> Unit,
+    onShuffle: () -> Unit
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        CompactIconButton(
+            icon = TablerIcons.ChevronLeft,
+            contentDescription = stringResource(R.string.offline_desc_back_to_playlists),
+            tint = MaterialTheme.colorScheme.onSurface,
+            onClick = onBack,
+            boxSize = 36.dp,
+            iconSize = 24.dp
+        )
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 4.dp)
+        ) {
+            Text(
+                text = playlist.name,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = if (songCount == 1) stringResource(R.string.offline_playlist_song_count_one)
+                else stringResource(R.string.offline_playlist_song_count_many, songCount),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        CompactIconButton(
+            icon = TablerIcons.PlayerPlay,
+            contentDescription = stringResource(R.string.offline_desc_play_playlist),
+            tint = MaterialTheme.colorScheme.primary,
+            onClick = onPlay,
+            boxSize = 36.dp,
+            iconSize = 20.dp
+        )
+        CompactIconButton(
+            painter = painterResource(R.drawable.ic_shuffle),
+            contentDescription = stringResource(R.string.offline_desc_shuffle_playlist),
+            tint = MaterialTheme.colorScheme.primary,
+            onClick = onShuffle,
+            boxSize = 36.dp,
+            iconSize = 18.dp
+        )
+    }
+}
+
+@Composable
+private fun PlaylistSongRow(
+    song: OfflineSong,
+    isCurrent: Boolean,
+    onClick: () -> Unit,
+    onRemove: () -> Unit
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 6.dp, vertical = 5.dp)
+    ) {
+        SongCover(song = song, size = 44.dp, corner = 8.dp)
+        Spacer(Modifier.width(10.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = song.title,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium,
+                color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = songSubtitle(song),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        CompactIconButton(
+            icon = TablerIcons.X,
+            contentDescription = stringResource(R.string.offline_desc_remove_from_playlist),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            onClick = onRemove,
             boxSize = 30.dp,
             iconSize = 17.dp
         )

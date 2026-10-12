@@ -363,6 +363,15 @@ class SpotifyWebViewClient(
         val js = buildString {
             append("window.autoPlayMode='$autoPlayMode';\n")
             append("window.closeNpPref=$closeNowPlay;\n")
+            append("""
+                try {
+                    localStorage.setItem(
+                        '31mahftyjruadoavemmv6tbdbkwi:toggleNowPlayingView',
+                        JSON.stringify(Boolean(!window.closeNpPref))
+                    );
+                } catch (e) {}
+                """.trimIndent()
+            )
             append("window.__splTakeControl=$takeControl;\n")
             append("window.__splHideEmpty=$hideEmptyPlayer;\n")
             append("window.__splPlaylistSortEnabled=$playlistSortEnabled;\n")
@@ -459,7 +468,17 @@ class SpotifyWebViewClient(
                 }
                 "CloseNowPlay" -> {
                     val closeNp = prefs.getBoolean("CloseNowPlay", false)
-                    wv.evaluateJavascript("window.closeNpPref=$closeNp;", null)
+                    wv.evaluateJavascript("""
+                        window.closeNpPref=$closeNp;
+                        try {
+                            localStorage.setItem(
+                                '31mahftyjruadoavemmv6tbdbkwi:toggleNowPlayingView',
+                                JSON.stringify(Boolean(!window.closeNpPref))
+                            );
+                        } catch (e) {}
+                        """.trimIndent(),
+                        null
+                    )
                 }
                 "APlayMode" -> {
                     val mode = prefs.getString("APlayMode", "disabled") ?: "disabled"

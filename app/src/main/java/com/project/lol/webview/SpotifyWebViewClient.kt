@@ -364,6 +364,13 @@ class SpotifyWebViewClient(
         } catch (_: Exception) {
             return null
         }
+
+        val adMatch = matchAdCdn(url)
+        if (adMatch != null) {
+            postToLiveView(view) { view.evaluateJavascript("AndBridge.deferMessage('adblock')", null) }
+            val silent = view.context.assets?.open("silent.mp3") ?: return null
+            return WebResourceResponse("audio/mpeg", null, silent)
+        }
         return null
     }
 

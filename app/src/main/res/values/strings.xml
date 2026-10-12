@@ -168,6 +168,8 @@
     <string name="logger_clear">Clear</string>
     <string name="logger_copy">Copy</string>
     <string name="logger_close">Close</string>
+    <string name="logger_autoscroll">Auto-scroll to newest log</string>
+    <string name="logger_entry_copied">Log entry copied to clipboard</string>
     <string name="offline_app_name">Spotilol</string>
     <string name="offline_version">v%1$s · %2$s</string>
     <string name="offline_desc_settings">Settings</string>

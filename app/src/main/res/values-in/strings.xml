@@ -161,6 +161,8 @@
     <string name="logger_clear">Hapus</string>
     <string name="logger_copy">Salin</string>
     <string name="logger_close">Tutup</string>
+    <string name="logger_autoscroll">Gulir otomatis ke log terbaru</string>
+    <string name="logger_entry_copied">Entri log disalin ke papan klip</string>
     <string name="offline_app_name">Spotilol</string>
     <string name="offline_version">v%1$s · %2$s</string>
     <string name="offline_desc_settings">Pengaturan</string>

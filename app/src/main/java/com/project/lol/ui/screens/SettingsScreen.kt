@@ -118,6 +118,7 @@ import com.project.lol.util.LogEntry
 import com.project.lol.util.LogFilter
 import com.project.lol.util.LogLevel
 import com.project.lol.util.Logger
+import com.project.lol.util.Logger.isAutoScroll
 import com.project.lol.util.MarkdownText
 import com.project.lol.util.Telemetry
 import com.project.lol.webview.helpers.LyricsTheme
@@ -1978,10 +1979,12 @@ fun SettingsContentPreview() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoggerDialog(onDismiss: () -> Unit) {
+    val context = LocalContext.current
     var query by remember { mutableStateOf("") }
     var levelFilter by remember { mutableStateOf<LogLevel?>(null) }
     var entries by remember { mutableStateOf(Logger.entries()) }
     var expanded by remember { mutableStateOf(emptySet<Long>()) }
+    var autoScroll by remember { mutableStateOf(isAutoScroll(context)) }
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
@@ -1999,8 +2002,8 @@ fun LoggerDialog(onDismiss: () -> Unit) {
         }
     }
 
-    LaunchedEffect(filtered.size, filtered.lastOrNull()?.id) {
-        if (filtered.isNotEmpty()) listState.scrollToItem(filtered.size - 1)
+    LaunchedEffect(filtered.size, filtered.lastOrNull()?.id, autoScroll) {
+        if (autoScroll && filtered.isNotEmpty()) listState.scrollToItem(filtered.size - 1)
     }
 
     AlertDialog(
@@ -2076,6 +2079,37 @@ fun LoggerDialog(onDismiss: () -> Unit) {
                     }
                 }
                 Spacer(Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            val next = !autoScroll
+                            autoScroll = next
+                            Logger.setAutoScroll(context, next)
+                        },
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = stringResource(R.string.logger_autoscroll),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Switch(
+                        checked = autoScroll,
+                        onCheckedChange = { enabled ->
+                            autoScroll = enabled
+                            Logger.setAutoScroll(context, enabled)
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                            checkedTrackColor = MaterialTheme.colorScheme.primary,
+                            uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
                 Surface(
                     modifier = Modifier.fillMaxWidth().heightIn(min = 160.dp, max = 360.dp),
                     shape = RoundedCornerShape(12.dp),
@@ -2133,12 +2167,29 @@ fun LoggerDialog(onDismiss: () -> Unit) {
 
 @Composable
 private fun LogRow(entry: LogEntry, expanded: Boolean, onToggle: () -> Unit) {
+    val clipboard = LocalClipboard.current
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val color = logLevelColor(entry.level)
     val dim = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onToggle() }
+            .combinedClickable(
+                onClick = onToggle,
+                onLongClick = {
+                    scope.launch {
+                        clipboard.setClipEntry(
+                            ClipData.newPlainText("spotilol_log", entry.line()).toClipEntry()
+                        )
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.logger_entry_copied),
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+            )
             .padding(horizontal = 10.dp, vertical = 4.dp)
     ) {
         Text(

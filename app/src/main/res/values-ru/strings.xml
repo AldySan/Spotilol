@@ -161,6 +161,8 @@
     <string name="logger_clear">Очистить</string>
     <string name="logger_copy">Копировать</string>
     <string name="logger_close">Закрыть</string>
+    <string name="logger_autoscroll">Автоматически прокручивать к последней записи журнала</string>
+    <string name="logger_entry_copied">Запись журнала скопирована в буфер обмена</string>
     <string name="offline_app_name">Spotilol</string>
     <string name="offline_version">v%1$s · %2$s</string>
     <string name="offline_desc_settings">Настройки</string>

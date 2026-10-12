@@ -161,6 +161,8 @@
     <string name="logger_clear">Borrar</string>
     <string name="logger_copy">Copiar</string>
     <string name="logger_close">Cerrar</string>
+    <string name="logger_autoscroll">Desplazarse automáticamente al registro más reciente</string>
+    <string name="logger_entry_copied">Entrada del registro copiada al portapapeles</string>
     <string name="offline_app_name">Spotilol</string>
     <string name="offline_version">v%1$s · %2$s</string>
     <string name="offline_desc_settings">Ajustes</string>

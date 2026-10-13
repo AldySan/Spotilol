@@ -127,7 +127,6 @@ object CrashReport {
                 sb.appendLine("bandwidth: down=${caps.linkDownstreamBandwidthKbps}kbps up=${caps.linkUpstreamBandwidthKbps}kbps")
             }
         }
-        val prefs = context.getSharedPreferences("spotilol_prefs", Context.MODE_PRIVATE)
         sb.appendLine()
     }
 
@@ -203,7 +202,7 @@ object CrashReport {
     }
 
     private fun offsetLabel(zone: TimeZone): String {
-        val total = zone.rawOffset / 60_000
+        val total = zone.getOffset(System.currentTimeMillis()) / 60_000
         val sign = if (total < 0) "-" else "+"
         val abs = kotlin.math.abs(total)
         return "GMT$sign${abs / 60}:${(abs % 60).toString().padStart(2, '0')}"

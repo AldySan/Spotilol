@@ -151,6 +151,11 @@
     <string name="settings_cancel">Batal</string>
     <string name="settings_save">Simpan</string>
     <string name="settings_about_debug_tools">Tentang alat debug</string>
+    <string name="settings_device_info">Ekstrak Info Perangkat</string>
+    <string name="settings_device_info_subtitle">Salin laporan lengkap perangkat ke papan klip</string>
+    <string name="settings_device_info_copied">Info perangkat disalin ke papan klip</string>
+    <string name="settings_device_info_failed">Tidak dapat mengekstrak info perangkat</string>
+
     <string name="logger_title">Logger</string>
     <string name="logger_line_count">%1$d/%2$d</string>
     <string name="logger_search_placeholder">package:mine level:w tag:js -kata</string>

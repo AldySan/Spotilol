@@ -156,6 +156,10 @@
     <string name="settings_cancel">取消</string>
     <string name="settings_save">保存</string>
     <string name="settings_about_debug_tools">关于调试工具</string>
+    <string name="settings_device_info">提取设备信息</string>
+    <string name="settings_device_info_subtitle">将完整的设备报告复制到剪贴板</string>
+    <string name="settings_device_info_copied">设备信息已复制到剪贴板</string>
+    <string name="settings_device_info_failed">无法提取设备信息</string>
 
     <string name="logger_title">日志记录器</string>
     <string name="logger_line_count">%1$d/%2$d</string>

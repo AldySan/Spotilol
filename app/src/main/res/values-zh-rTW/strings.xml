@@ -156,6 +156,10 @@
     <string name="settings_cancel">取消</string>
     <string name="settings_save">儲存</string>
     <string name="settings_about_debug_tools">關於偵錯工具</string>
+    <string name="settings_device_info">擷取裝置資訊</string>
+    <string name="settings_device_info_subtitle">將完整的裝置報告複製到剪貼簿</string>
+    <string name="settings_device_info_copied">裝置資訊已複製到剪貼簿</string>
+    <string name="settings_device_info_failed">無法擷取裝置資訊</string>
 
     <string name="logger_title">記錄器</string>
     <string name="logger_line_count">%1$d/%2$d</string>

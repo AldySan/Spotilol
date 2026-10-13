@@ -157,6 +157,10 @@
     <string name="settings_cancel">Cancel</string>
     <string name="settings_save">Save</string>
     <string name="settings_about_debug_tools">About debug tools</string>
+    <string name="settings_device_info">Extract Device Info</string>
+    <string name="settings_device_info_subtitle">Copy a full device report to the clipboard</string>
+    <string name="settings_device_info_copied">Device info copied to clipboard</string>
+    <string name="settings_device_info_failed">Could not extract device info</string>
 
     <string name="logger_title">Logger</string>
     <string name="logger_line_count">%1$d/%2$d</string>

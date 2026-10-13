@@ -112,6 +112,7 @@ import com.project.lol.ui.components.ChangelogDialog
 import com.project.lol.ui.theme.SpotifyTheme
 import com.project.lol.util.AppLocale
 import com.project.lol.util.BuildInfo
+import com.project.lol.util.DeviceInfo
 import com.project.lol.util.GitHubApi
 import com.project.lol.util.GitHubRelease
 import com.project.lol.util.LogEntry
@@ -164,8 +165,10 @@ import compose.icons.tablericons.WaveSine
 import compose.icons.tablericons.X
 import java.text.SimpleDateFormat
 import java.util.Date
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private const val DEBUG_UNLOCK_TAPS = 5
 
@@ -983,6 +986,8 @@ fun SettingsContent(
                         )
 
                         HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+                        DeviceInfoExportTile()
+                        HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
                         SettingTile(
                             title = stringResource(R.string.settings_crash_test),
@@ -1244,6 +1249,42 @@ fun SettingsContent(
     if (showDevlogDialog) {
         LoggerDialog(onDismiss = { showDevlogDialog = false })
     }
+}
+
+@Composable
+private fun DeviceInfoExportTile() {
+    val context = LocalContext.current
+    val clipboard = LocalClipboard.current
+    val scope = rememberCoroutineScope()
+
+    SettingTile(
+        title = stringResource(R.string.settings_device_info),
+        subtitle = stringResource(R.string.settings_device_info_subtitle),
+        icon = TablerIcons.DeviceMobile,
+        onClick = {
+            scope.launch {
+                val report = withContext(Dispatchers.IO) {
+                    runCatching { DeviceInfo.build(context) }.getOrNull()
+                }
+                if (report != null) {
+                    clipboard.setClipEntry(
+                        ClipData.newPlainText("spotilol_device_info", report).toClipEntry()
+                    )
+                    Toast.makeText(
+                        context,
+                        context.getString(R.string.settings_device_info_copied),
+                        Toast.LENGTH_SHORT
+                    ).show()
+                } else {
+                    Toast.makeText(
+                        context,
+                        context.getString(R.string.settings_device_info_failed),
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        }
+    )
 }
 
 @OptIn(ExperimentalLayoutApi::class)

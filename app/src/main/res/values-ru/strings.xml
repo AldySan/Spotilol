@@ -151,6 +151,11 @@
     <string name="settings_cancel">Отмена</string>
     <string name="settings_save">Сохранить</string>
     <string name="settings_about_debug_tools">Об инструментах отладки</string>
+    <string name="settings_device_info">Извлечь информацию об устройстве</string>
+    <string name="settings_device_info_subtitle">Скопировать полный отчет об устройстве в буфер обмена</string>
+    <string name="settings_device_info_copied">Информация об устройстве скопирована в буфер обмена</string>
+    <string name="settings_device_info_failed">Не удалось извлечь информацию об устройстве</string>
+
     <string name="logger_title">Журнал</string>
     <string name="logger_line_count">%1$d/%2$d</string>
     <string name="logger_search_placeholder">package:mine level:w tag:js -слово</string>

@@ -151,6 +151,11 @@
     <string name="settings_cancel">Cancelar</string>
     <string name="settings_save">Salvar</string>
     <string name="settings_about_debug_tools">Sobre as ferramentas de depuração</string>
+    <string name="settings_device_info">Extrair informações do dispositivo</string>
+    <string name="settings_device_info_subtitle">Copiar um relatório completo do dispositivo para a área de transferência</string>
+    <string name="settings_device_info_copied">Informações do dispositivo copiadas para a área de transferência</string>
+    <string name="settings_device_info_failed">Não foi possível extrair as informações do dispositivo</string>
+
     <string name="logger_title">Logger</string>
     <string name="logger_line_count">%1$d/%2$d</string>
     <string name="logger_search_placeholder">package:mine level:w tag:js -palavra</string>

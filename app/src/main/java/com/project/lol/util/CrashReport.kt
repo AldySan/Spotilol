@@ -13,14 +13,16 @@ import android.os.SystemClock
 import android.telephony.TelephonyManager
 import androidx.webkit.WebViewCompat
 import com.project.lol.BuildConfig
-import java.text.SimpleDateFormat
-import java.util.Date
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 import java.util.TimeZone
 
 object CrashReport {
 
-    private val timeFmt = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US)
+    private val timeFmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS", Locale.US)
 
     fun build(context: Context, thread: Thread, throwable: Throwable, logs: List<String>): String {
         val sb = StringBuilder()
@@ -28,7 +30,7 @@ object CrashReport {
         val zone = TimeZone.getDefault()
 
         sb.appendLine("spotilol crash report")
-        sb.appendLine("time: ${timeFmt.format(Date())}  tz: ${zone.id} (${offsetLabel(zone)})")
+        sb.appendLine("time: ${timeFmt.format(LocalDateTime.now())}  tz: ${zone.id} (${offsetLabel(zone)})")
         sb.appendLine()
         appendCrash(sb, thread, throwable)
         appendApp(sb, context)
@@ -78,8 +80,8 @@ object CrashReport {
         sb.appendLine("uptime: ${uptimeLabel()}")
         runCatching {
             val info = context.packageManager.getPackageInfo(context.packageName, 0)
-            sb.appendLine("installed: ${timeFmt.format(Date(info.firstInstallTime))}")
-            sb.appendLine("updated: ${timeFmt.format(Date(info.lastUpdateTime))}")
+            sb.appendLine("installed: ${stamp(info.firstInstallTime)}")
+            sb.appendLine("updated: ${stamp(info.lastUpdateTime)}")
         }
         sb.appendLine()
     }
@@ -214,6 +216,9 @@ object CrashReport {
             Build.MODEL.contains("Emulator") ||
             Build.HARDWARE.contains("goldfish") ||
             Build.HARDWARE.contains("ranchu")
+
+    private fun stamp(epochMs: Long): String =
+        timeFmt.format(Instant.ofEpochMilli(epochMs).atZone(ZoneId.systemDefault()))
 
     private fun mb(bytes: Long): String = "${bytes / 1024 / 1024}MB"
 

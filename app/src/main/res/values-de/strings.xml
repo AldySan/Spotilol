@@ -151,6 +151,11 @@
     <string name="settings_cancel">Abbrechen</string>
     <string name="settings_save">Speichern</string>
     <string name="settings_about_debug_tools">Über die Debug-Werkzeuge</string>
+    <string name="settings_device_info">Geräteinformationen extrahieren</string>
+    <string name="settings_device_info_subtitle">Vollständigen Gerätebericht in die Zwischenablage kopieren</string>
+    <string name="settings_device_info_copied">Geräteinformationen in die Zwischenablage kopiert</string>
+    <string name="settings_device_info_failed">Geräteinformationen konnten nicht extrahiert werden</string>
+
     <string name="logger_title">Protokoll (Logger)</string>
     <string name="logger_line_count">%1$d/%2$d</string>
     <string name="logger_search_placeholder">package:mine level:w tag:js -wort</string>

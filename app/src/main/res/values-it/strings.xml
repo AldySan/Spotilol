@@ -151,6 +151,11 @@
     <string name="settings_cancel">Annulla</string>
     <string name="settings_save">Salva</string>
     <string name="settings_about_debug_tools">Informazioni sugli strumenti di debug</string>
+    <string name="settings_device_info">Estrai informazioni sul dispositivo</string>
+    <string name="settings_device_info_subtitle">Copia un rapporto completo del dispositivo negli appunti</string>
+    <string name="settings_device_info_copied">Informazioni sul dispositivo copiate negli appunti</string>
+    <string name="settings_device_info_failed">Impossibile estrarre le informazioni sul dispositivo</string>
+
     <string name="logger_title">Logger</string>
     <string name="logger_line_count">%1$d/%2$d</string>
     <string name="logger_search_placeholder">package:mine level:w tag:js -parola</string>

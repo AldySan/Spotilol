@@ -128,6 +128,9 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
         @Volatile
         private var taskRemoved = false
 
+        @Volatile
+        private var browserBound = false
+
         @JvmStatic
         fun onMediaItemsLoaded(parentId: String, json: String) {
             val result = pendingCallbacks.remove(parentId) ?: return
@@ -399,6 +402,7 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
         super.onCreate()
         instance = this
         appContext = applicationContext
+        taskRemoved = false
 
         try {
             createNotificationChannel()
@@ -475,6 +479,7 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
         val andAuto = getSharedPreferences("spotilol_prefs", MODE_PRIVATE)
             .getBoolean("AndAuto", true)
         if (!andAuto) return null
+        browserBound = true
         com.project.lol.webview.WebViewHost.ensure(this)
         val extras = Bundle().apply {
             putBoolean("android.media.browse.SEARCH_SUPPORTED", true)
@@ -483,6 +488,12 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
             putInt("android.media.browse.CONTENT_STYLE_PLAYABLE_HINT", 1)
         }
         return BrowserRoot(MEDIA_ID_ROOT, extras)
+    }
+
+    override fun onUnbind(intent: Intent?): Boolean {
+        browserBound = false
+        Logger.i(TAG, "media browser client unbound")
+        return super.onUnbind(intent)
     }
 
     override fun onLoadChildren(
@@ -563,6 +574,7 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
     override fun onDestroy() {
         releaseWakeLock()
         instance = null
+        browserBound = false
         try { unregisterReceiver(actionReceiver) } catch (_: Exception) {}
         try { unregisterReceiver(bluetoothReceiver) } catch (_: Exception) {}
         try { unregisterReceiver(audioBecomingNoisyReceiver) } catch (_: Exception) {}
@@ -1070,6 +1082,11 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
+        if (browserBound) {
+            Logger.i(TAG, "task removed, keeping service and webview for the bound media browser client")
+            super.onTaskRemoved(rootIntent)
+            return
+        }
         val stopOnSwipe = getSharedPreferences("spotilol_prefs", MODE_PRIVATE)
             .getBoolean("SwipeStop", true)
         if (stopOnSwipe) {
@@ -1084,8 +1101,16 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
             } catch (_: Exception) {}
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
+            mainHandler.postDelayed({ releaseWebViewAfterTaskRemoved() }, 500)
         }
         super.onTaskRemoved(rootIntent)
+    }
+
+    private fun releaseWebViewAfterTaskRemoved() {
+        if (browserBound) return
+        if (com.project.lol.webview.WebViewHost.uiHost != null) return
+        Logger.i(TAG, "task removed, releasing webview")
+        com.project.lol.webview.WebViewHost.release()
     }
 
     override fun attachBaseContext(newBase: Context) {

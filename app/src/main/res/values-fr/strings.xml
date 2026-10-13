@@ -169,6 +169,8 @@
     <string name="logger_clear">Effacer</string>
     <string name="logger_copy">Copier</string>
     <string name="logger_close">Fermer</string>
+    <string name="logger_autoscroll">Défilement automatique jusqu’au journal le plus récent</string>
+    <string name="logger_entry_copied">Entrée du journal copiée dans le presse-papiers</string>
     <string name="offline_app_name">Spotilol</string>
     <string name="offline_version">v%1$s · %2$s</string>
     <string name="offline_desc_settings">Paramètres</string>

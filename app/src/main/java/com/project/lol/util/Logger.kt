@@ -66,6 +66,7 @@ object Logger {
 
     private const val PREF_KEY = "Logging"
     private const val LEGACY_PREF_KEY = "DebugOverlay"
+    private const val PREF_KEY_AUTOSCROLL = "LoggerAutoScroll"
     private const val MAX_MESSAGE = 4000
     private const val APP_TAG = "app"
 
@@ -95,6 +96,17 @@ object Logger {
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit()
             .putBoolean(PREF_KEY, enabled)
+            .apply()
+    }
+
+    fun isAutoScroll(context: Context): Boolean =
+        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getBoolean(PREF_KEY_AUTOSCROLL, true)
+
+    fun setAutoScroll(context: Context, enabled: Boolean) {
+        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(PREF_KEY_AUTOSCROLL, enabled)
             .apply()
     }
 

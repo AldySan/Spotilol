@@ -168,6 +168,8 @@
     <string name="logger_clear">Temizle</string>
     <string name="logger_copy">Kopyala</string>
     <string name="logger_close">Kapat</string>
+    <string name="logger_autoscroll">En yeni günlük kaydına otomatik kaydır</string>
+    <string name="logger_entry_copied">Günlük kaydı panoya kopyalandı</string>
     <string name="offline_app_name">Spotilol</string>
     <string name="offline_version">v%1$s · %2$s</string>
     <string name="offline_desc_settings">Ayarlar</string>

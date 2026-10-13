@@ -281,7 +281,13 @@ object ContextMenuSheet {
 
             function schedule(){
                 if (timer) return;
-                timer = setTimeout(function(){ timer = null; ensure(); watchMenu(); }, 120);
+                timer = setTimeout(function run(){
+                    timer = null;
+                    if (window.__splBg) return;
+                    if (window.__splBusy) { timer = setTimeout(run, 250); return; }
+                    ensure();
+                    watchMenu();
+                }, 120);
             }
             function watchMenu(){
                 var m = openMenu();

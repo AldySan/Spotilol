@@ -104,6 +104,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -1229,7 +1230,8 @@ fun OfflineScreen(
                             onToggleShuffle = { toggleShuffle() },
                             repeatMode = repeatMode,
                             onCycleRepeat = { cycleRepeat() },
-                            onEnterPip = onEnterPip
+                            onEnterPip = onEnterPip,
+                            hideTopBar = hideTopBar
                         )
                     }
                 }
@@ -2596,7 +2598,8 @@ private fun FullScreenPlayer(
     onToggleShuffle: () -> Unit,
     repeatMode: RepeatMode,
     onCycleRepeat: () -> Unit,
-    onEnterPip: () -> Unit
+    onEnterPip: () -> Unit,
+    hideTopBar: Boolean
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
@@ -2625,6 +2628,7 @@ private fun FullScreenPlayer(
     }
     val coverScheme = coverSeed?.let { remember(it) { schemeFromSeed(it) } }
 
+    val topBarOffset = if (hideTopBar) with(LocalConfiguration.current) { (screenHeightDp * 0.05f).dp } else 0.dp
     val collapseThreshold = with(density) { 84.dp.toPx() }
     var dragOffset by remember { mutableFloatStateOf(0f) }
 
@@ -2639,7 +2643,9 @@ private fun FullScreenPlayer(
                 .padding(top = 6.dp, bottom = 14.dp)
         ) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = topBarOffset),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 CompactIconButton(

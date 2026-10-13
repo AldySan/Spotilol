@@ -44,6 +44,7 @@ object DeviceInfo {
         appendStorage(sb, app)
         appendWebView(sb, app)
         appendDrm(sb, app)
+        appendSession(sb, app)
         return sb.toString().trimEnd()
     }
 
@@ -188,6 +189,22 @@ object DeviceInfo {
         runCatching {
             sb.appendLine(PlaybackDiagnostics.probe(context).summary)
         }
+        sb.appendLine()
+    }
+
+    private fun appendSession(sb: StringBuilder, context: Context) {
+        val prefs = context.getSharedPreferences("spotilol_prefs", Context.MODE_PRIVATE)
+        sb.appendLine("[ session ]")
+        sb.appendLine("keys: ${prefs.all.size}")
+        sb.appendLine("loggedIn: ${prefs.getBoolean("LoggedIn", false)}")
+        sb.appendLine("serviceOn: ${prefs.getBoolean("ServiceOn", true)}")
+        sb.appendLine("playerMode: ${prefs.getString("PlayerMode", "spotilol")}")
+        sb.appendLine("aPlayMode: ${prefs.getString("APlayMode", "disabled")}")
+        sb.appendLine("amoled: ${prefs.getBoolean("AmoledTheme", false)}")
+        sb.appendLine("powerSave: ${prefs.getBoolean("PowerSave", false)}")
+        sb.appendLine("blockServiceWorker: ${prefs.getBoolean("BlockServiceWorker", true)}")
+        sb.appendLine("lyricsStyle: ${prefs.getString("LyricsStyle", "default")}")
+        sb.appendLine("logging: ${Logger.isEnabled()}")
         sb.appendLine()
     }
 

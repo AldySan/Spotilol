@@ -2,15 +2,18 @@ package com.project.lol.util
 
 import android.app.ActivityManager
 import android.content.Context
+import android.content.res.Configuration
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.Debug
+import android.os.Environment
 import android.os.Looper
 import android.os.Process
 import android.os.StatFs
 import android.os.SystemClock
 import android.telephony.TelephonyManager
+import android.view.WindowManager
 import androidx.webkit.WebViewCompat
 import com.project.lol.BuildConfig
 import java.time.Instant
@@ -35,11 +38,13 @@ object CrashReport {
         appendCrash(sb, thread, throwable)
         appendApp(sb, context)
         appendDevice(sb)
+        appendDisplay(sb, context)
         appendRegion(sb, context, locale, zone)
         appendNetwork(sb, context)
         appendMemory(sb, context)
         appendStorage(sb, context)
         appendWebView(sb, context)
+        appendDrm(sb, context)
         appendSession(sb, context)
         sb.appendLine()
         sb.appendLine("[ logs ] (${logs.size} lines)")
@@ -99,6 +104,40 @@ object CrashReport {
         sb.appendLine()
     }
 
+    private fun appendDisplay(sb: StringBuilder, context: Context) {
+        sb.appendLine("[ display ]")
+        runCatching {
+            val dm = context.resources.displayMetrics
+            sb.appendLine("resolution: ${dm.widthPixels}x${dm.heightPixels}")
+            sb.appendLine(
+                "sizeDp: ${(dm.widthPixels / dm.density).toInt()}x${(dm.heightPixels / dm.density).toInt()}dp"
+            )
+            sb.appendLine("density: ${dm.density} (${dm.densityDpi}dpi)")
+            val orientation = if (context.resources.configuration.orientation ==
+                Configuration.ORIENTATION_LANDSCAPE
+            ) "landscape" else "portrait"
+            sb.appendLine("orientation: $orientation")
+        }
+        runCatching {
+            val refresh = displayRefreshRate(context)
+            if (refresh != null) {
+                sb.appendLine("refreshRate: ${String.format(Locale.US, "%.1f", refresh)}Hz")
+            }
+        }
+        sb.appendLine()
+    }
+
+    private fun displayRefreshRate(context: Context): Float? {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val direct = runCatching { context.display.refreshRate }.getOrNull()
+            if (direct != null && direct > 0f) return direct
+        }
+        @Suppress("DEPRECATION")
+        val fallback = (context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager)
+            ?.defaultDisplay?.refreshRate
+        return fallback?.takeIf { it > 0f }
+    }
+
     private fun appendRegion(sb: StringBuilder, context: Context, locale: Locale, zone: TimeZone) {
         sb.appendLine("[ region ]")
         sb.appendLine("locale: ${locale.toLanguageTag()} (${locale.displayName})")
@@ -152,6 +191,12 @@ object CrashReport {
             val stat = StatFs(context.filesDir.path)
             sb.appendLine("data: total=${gb(stat.blockCountLong * stat.blockSizeLong)} free=${gb(stat.availableBlocksLong * stat.blockSizeLong)}")
         }
+        runCatching {
+            @Suppress("DEPRECATION")
+            val external = Environment.getExternalStorageDirectory()
+            val stat = StatFs(external.path)
+            sb.appendLine("external: total=${gb(stat.blockCountLong * stat.blockSizeLong)} free=${gb(stat.availableBlocksLong * stat.blockSizeLong)}")
+        }
         sb.appendLine("filesDir: ${context.filesDir.absolutePath}")
         sb.appendLine()
     }
@@ -162,6 +207,14 @@ object CrashReport {
             val pkg = WebViewCompat.getCurrentWebViewPackage(context)
             sb.appendLine("package: ${pkg?.packageName ?: "unknown"}")
             sb.appendLine("version: ${pkg?.versionName ?: "unknown"}")
+        }
+        sb.appendLine()
+    }
+
+    private fun appendDrm(sb: StringBuilder, context: Context) {
+        sb.appendLine("[ drm ]")
+        runCatching {
+            sb.appendLine(PlaybackDiagnostics.probe(context).summary)
         }
         sb.appendLine()
     }

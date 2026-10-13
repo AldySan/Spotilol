@@ -15,14 +15,16 @@ import android.telephony.TelephonyManager
 import android.view.WindowManager
 import androidx.webkit.WebViewCompat
 import com.project.lol.BuildConfig
-import java.text.SimpleDateFormat
-import java.util.Date
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 import java.util.TimeZone
 
 object DeviceInfo {
 
-    private val timeFmt = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US)
+    private val timeFmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS", Locale.US)
 
     fun build(context: Context): String {
         val app = context.applicationContext
@@ -31,11 +33,11 @@ object DeviceInfo {
         val zone = TimeZone.getDefault()
 
         sb.appendLine("spotilol device report")
-        sb.appendLine("time: ${timeFmt.format(Date())}  tz: ${zone.id} (${offsetLabel(zone)})")
+        sb.appendLine("time: ${timeFmt.format(LocalDateTime.now())}  tz: ${zone.id} (${offsetLabel(zone)})")
         sb.appendLine()
         appendApp(sb, app)
         appendDevice(sb)
-        appendDisplay(sb, app)
+        appendDisplay(sb, context)
         appendRegion(sb, app, locale, zone)
         appendNetwork(sb, app)
         appendMemory(sb, app)
@@ -54,8 +56,8 @@ object DeviceInfo {
         sb.appendLine("uptime: ${uptimeLabel()}")
         runCatching {
             val info = context.packageManager.getPackageInfo(context.packageName, 0)
-            sb.appendLine("installed: ${timeFmt.format(Date(info.firstInstallTime))}")
-            sb.appendLine("updated: ${timeFmt.format(Date(info.lastUpdateTime))}")
+            sb.appendLine("installed: ${stamp(info.firstInstallTime)}")
+            sb.appendLine("updated: ${stamp(info.lastUpdateTime)}")
         }
         sb.appendLine()
     }
@@ -88,18 +90,23 @@ object DeviceInfo {
             sb.appendLine("orientation: $orientation")
         }
         runCatching {
-            val refresh = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                context.display.refreshRate
-            } else {
-                @Suppress("DEPRECATION")
-                (context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager)
-                    ?.defaultDisplay?.refreshRate
-            }
-            if (refresh != null && refresh > 0f) {
+            val refresh = displayRefreshRate(context)
+            if (refresh != null) {
                 sb.appendLine("refreshRate: ${String.format(Locale.US, "%.1f", refresh)}Hz")
             }
         }
         sb.appendLine()
+    }
+
+    private fun displayRefreshRate(context: Context): Float? {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val direct = runCatching { context.display.refreshRate }.getOrNull()
+            if (direct != null && direct > 0f) return direct
+        }
+        @Suppress("DEPRECATION")
+        val fallback = (context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager)
+            ?.defaultDisplay?.refreshRate
+        return fallback?.takeIf { it > 0f }
     }
 
     private fun appendRegion(sb: StringBuilder, context: Context, locale: Locale, zone: TimeZone) {
@@ -204,7 +211,7 @@ object DeviceInfo {
     }
 
     private fun offsetLabel(zone: TimeZone): String {
-        val total = zone.rawOffset / 60_000
+        val total = zone.getOffset(System.currentTimeMillis()) / 60_000
         val sign = if (total < 0) "-" else "+"
         val abs = kotlin.math.abs(total)
         return "GMT$sign${abs / 60}:${(abs % 60).toString().padStart(2, '0')}"
@@ -217,6 +224,9 @@ object DeviceInfo {
                 Build.MODEL.contains("Emulator") ||
                 Build.HARDWARE.contains("goldfish") ||
                 Build.HARDWARE.contains("ranchu")
+
+    private fun stamp(epochMs: Long): String =
+        timeFmt.format(Instant.ofEpochMilli(epochMs).atZone(ZoneId.systemDefault()))
 
     private fun mb(bytes: Long): String = "${bytes / 1024 / 1024}MB"
     private fun gb(bytes: Long): String = String.format(Locale.US, "%.2fGB", bytes.toDouble() / 1024 / 1024 / 1024)

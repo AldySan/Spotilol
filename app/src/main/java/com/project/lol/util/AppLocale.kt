@@ -13,7 +13,7 @@ object AppLocale {
 
     const val SYSTEM = "system"
 
-    val AVAILABLE: List<String> = listOf(SYSTEM, "en", "fr", "de", "es", "it", "pt", "ru", "id", "zh", "zh-TW")
+    val AVAILABLE: List<String> = listOf(SYSTEM, "en", "fr", "de", "es", "it", "pt", "ru", "id", "tr", "zh", "zh-TW")
 
     private val NATIVE_NAMES = mapOf(
         "en" to "English",
@@ -24,6 +24,7 @@ object AppLocale {
         "pt" to "Português",
         "ru" to "Русский",
         "id" to "Bahasa Indonesia",
+        "tr" to "Türkçe",
         "zh" to "简体中文",
         "zh-TW" to "繁體中文"
     )

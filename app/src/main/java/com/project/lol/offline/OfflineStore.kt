@@ -219,6 +219,9 @@ object OfflineStore {
                 )
             }
         }
+        for (imported in LocalImportStore.loadSongs(context)) {
+            if (seen.add(imported.id)) songs.add(imported)
+        }
         return songs
     }
 

@@ -133,6 +133,7 @@ import androidx.core.graphics.toColorInt
 import com.project.lol.ui.components.ErrorScreen
 import com.project.lol.ui.components.mapWebViewError
 import com.project.lol.util.AppLocale
+import com.project.lol.util.BatterySaver
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -1303,6 +1304,18 @@ class MainActivity : ComponentActivity(), WebViewHost.UiHost {
         blockServiceWorkerState.value = prefs.getBoolean("BlockServiceWorker", true)
         applyOrientation()
         applyKeepScreenOn()
+
+        if (serviceEnabledState.value && WebViewHost.webView == null) {
+            Logger.i(TAG, "resuming without a live webview, rebuilding")
+            webViewGeneration.intValue++
+        }
+
+        if (BatterySaver.shouldPrompt(this)) {
+            if (!BatterySaver.requestExemption(this)) {
+                Logger.w(TAG, "battery exemption dialog unavailable, opening app details")
+                BatterySaver.openAppSettings(this)
+            }
+        }
 
         val customCss = prefs.getString("CustomCss", "") ?: ""
         val amoledEnabled = prefs.getBoolean("AmoledTheme", false)

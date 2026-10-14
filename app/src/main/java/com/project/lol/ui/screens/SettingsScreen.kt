@@ -7,9 +7,6 @@ import android.content.SharedPreferences
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
-import android.webkit.CookieManager
-import android.webkit.WebStorage
-import android.webkit.WebView
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -34,7 +31,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
@@ -46,7 +42,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -86,14 +81,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalClipboard
-import androidx.compose.ui.platform.toClipEntry
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.platform.toClipEntry
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
@@ -130,17 +124,15 @@ import com.project.lol.ui.theme.ThemePresets
 import com.project.lol.ui.theme.ThemeShare
 import com.project.lol.ui.theme.harmonized
 import com.project.lol.util.AppLocale
+import com.project.lol.util.BatterySaver
 import com.project.lol.util.BuildInfo
 import com.project.lol.util.DeviceInfo
-import com.project.lol.util.GitHubApi
-import com.project.lol.util.GitHubRelease
 import com.project.lol.util.LogEntry
 import com.project.lol.util.LogExport
 import com.project.lol.util.LogFilter
 import com.project.lol.util.LogLevel
 import com.project.lol.util.Logger
 import com.project.lol.util.Logger.isAutoScroll
-import com.project.lol.util.MarkdownText
 import com.project.lol.util.Telemetry
 import com.project.lol.webview.helpers.LyricsStyle
 import com.project.lol.webview.helpers.LyricsTheme
@@ -150,6 +142,7 @@ import compose.icons.tablericons.ArrowDown
 import compose.icons.tablericons.ArrowsMinimize
 import compose.icons.tablericons.ArrowsSort
 import compose.icons.tablericons.ArrowsUpDown
+import compose.icons.tablericons.Battery
 import compose.icons.tablericons.BrandDiscord
 import compose.icons.tablericons.BrightnessUp
 import compose.icons.tablericons.Brush
@@ -180,8 +173,8 @@ import compose.icons.tablericons.PlayerPlay
 import compose.icons.tablericons.Playlist
 import compose.icons.tablericons.Plus
 import compose.icons.tablericons.Power
-import compose.icons.tablericons.RotateClockwise2
 import compose.icons.tablericons.Rocket
+import compose.icons.tablericons.RotateClockwise2
 import compose.icons.tablericons.Search
 import compose.icons.tablericons.Shield
 import compose.icons.tablericons.Terminal2
@@ -192,14 +185,13 @@ import compose.icons.tablericons.UserPlus
 import compose.icons.tablericons.Video
 import compose.icons.tablericons.WaveSine
 import compose.icons.tablericons.X
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import kotlin.math.abs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.Date
+import kotlin.math.abs
 
 private const val DEBUG_UNLOCK_TAPS = 5
 private const val LOGGER_WIDE_BREAKPOINT = 600
@@ -373,6 +365,7 @@ fun SettingsContent(
     var settingsTab by remember { mutableStateOf(SettingsTab.Appearance) }
     val tabScrollStates = SettingsTab.entries.map { rememberScrollState() }
     val scrollState = tabScrollStates[settingsTab.ordinal]
+    var batteryExempt by remember(settingsTab) { mutableStateOf(BatterySaver.isExempt(context)) }
 
     val pkg = remember { WebViewCompat.getCurrentWebViewPackage(context) }
     val packageInfo = remember {
@@ -963,6 +956,36 @@ fun SettingsContent(
                                 }
                             } else {
                                 Toast.makeText(context, resources.getString(R.string.settings_open_links_always_hint), Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+
+                    SettingTile(
+                        title = stringResource(R.string.settings_battery_background),
+                        subtitle = if (batteryExempt) {
+                            stringResource(R.string.settings_battery_background_on)
+                        } else {
+                            stringResource(R.string.settings_battery_background_off)
+                        },
+                        icon = TablerIcons.Battery,
+                        info = stringResource(R.string.settings_battery_info),
+                        onClick = {
+                            if (BatterySaver.isExempt(context)) {
+                                batteryExempt = true
+                                Toast.makeText(
+                                    context,
+                                    resources.getString(R.string.settings_battery_already_allowed),
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            } else if (!BatterySaver.requestExemption(context)) {
+                                Toast.makeText(
+                                    context,
+                                    resources.getString(R.string.settings_battery_prompt_unavailable),
+                                    Toast.LENGTH_LONG
+                                ).show()
+                                BatterySaver.openAppSettings(context)
                             }
                         }
                     )

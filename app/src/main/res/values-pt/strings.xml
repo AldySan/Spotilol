@@ -363,6 +363,24 @@
     <string name="timer_action_summary_pause">A música será pausada quando o temporizador terminar</string>
     <string name="timer_action_summary_quit">O app será fechado quando o temporizador terminar</string>
     <string name="timer_desc_open">Temporizador de sono</string>
+
+    <string name="battery_dialog_title">Continue ouvindo música</string>
+    <string name="battery_dialog_intro">O Android pode interromper o Spotilol em segundo plano para economizar bateria. Por isso, às vezes a música pausa sozinha quando a tela é desligada. Basta alterar uma configuração simples para resolver isso.</string>
+    <string name="battery_dialog_benefit_playback">A música continua tocando com a tela desligada</string>
+    <string name="battery_dialog_benefit_controls">Os controles de mídia continuam respondendo na notificação</string>
+    <string name="battery_dialog_benefit_downloads">Os downloads são concluídos sem interrupções</string>
+    <string name="battery_dialog_benefit_timer">O temporizador de suspensão é acionado exatamente no horário previsto</string>
+    <string name="battery_dialog_reassure">O Spotilol continua economizando bateria: ele só funciona enquanto você está realmente ouvindo música.</string>
+    <string name="battery_dialog_hint">O Android abrirá a tela de bateria do sistema. Basta selecionar "Permitir".</string>
+    <string name="battery_dialog_confirm">Permitir reprodução em segundo plano</string>
+    <string name="battery_dialog_dismiss">Agora não</string>
+    <string name="settings_battery_background">Reprodução em segundo plano</string>
+    <string name="settings_battery_background_on">Permitida — a música continua tocando em segundo plano</string>
+    <string name="settings_battery_background_off">Restrita — o Android pode pausar a reprodução em segundo plano</string>
+    <string name="settings_battery_info">A otimização de bateria do Android pode interromper o Spotilol quando ele está em segundo plano. Esta opção abre a tela de bateria do sistema, onde você pode permitir que o aplicativo funcione em segundo plano.</string>
+    <string name="settings_battery_already_allowed">A reprodução em segundo plano já está permitida</string>
+    <string name="settings_battery_prompt_unavailable">Não foi possível abrir a caixa de diálogo da bateria. Abrindo as configurações do aplicativo.</string>
+
     <string name="splash_title">Spotilol</string>
     <string name="splash_version_label">v%1$s · %2$s</string>
     <string name="splash_onboarding_welcome">Bem-vindo</string>

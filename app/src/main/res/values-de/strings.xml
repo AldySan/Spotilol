@@ -363,6 +363,24 @@
     <string name="timer_action_summary_pause">Die Musik pausiert, wenn der Timer abläuft</string>
     <string name="timer_action_summary_quit">Die App beendet sich, wenn der Timer abläuft</string>
     <string name="timer_desc_open">Einschlaf-Timer</string>
+
+    <string name="battery_dialog_title">Musik weiter abspielen</string>
+    <string name="battery_dialog_intro">Android kann Spotilol im Hintergrund beenden, um Akku zu sparen – deshalb pausiert die Musik manchmal von selbst, wenn der Bildschirm ausgeschaltet wird. Eine kleine Einstellung behebt das Problem.</string>
+    <string name="battery_dialog_benefit_playback">Musik läuft auch bei ausgeschaltetem Bildschirm weiter</string>
+    <string name="battery_dialog_benefit_controls">Mediensteuerung in der Benachrichtigung bleibt reaktionsfähig</string>
+    <string name="battery_dialog_benefit_downloads">Downloads werden ohne Unterbrechung abgeschlossen</string>
+    <string name="battery_dialog_benefit_timer">Der Sleep-Timer wird genau zur eingestellten Zeit ausgelöst</string>
+    <string name="battery_dialog_reassure">Spotilol schont weiterhin den Akku – es läuft nur, während du tatsächlich Musik hörst.</string>
+    <string name="battery_dialog_hint">Android öffnet als Nächstes die Akku-Einstellungen – wähle einfach „Zulassen“.</string>
+    <string name="battery_dialog_confirm">Hintergrundwiedergabe zulassen</string>
+    <string name="battery_dialog_dismiss">Jetzt nicht</string>
+    <string name="settings_battery_background">Hintergrundwiedergabe</string>
+    <string name="settings_battery_background_on">Erlaubt – Musik läuft im Hintergrund weiter</string>
+    <string name="settings_battery_background_off">Eingeschränkt – Android kann die Wiedergabe im Hintergrund pausieren</string>
+    <string name="settings_battery_info">Die Akkuoptimierung von Android kann Spotilol im Hintergrund beenden. Hiermit werden die Akku-Einstellungen des Systems geöffnet, in denen du die Hintergrundaktivität erlauben kannst.</string>
+    <string name="settings_battery_already_allowed">Hintergrundwiedergabe ist bereits erlaubt</string>
+    <string name="settings_battery_prompt_unavailable">Der Akku-Dialog konnte nicht geöffnet werden. Stattdessen werden die App-Einstellungen geöffnet.</string>
+
     <string name="splash_title">Spotilol</string>
     <string name="splash_version_label">v%1$s · %2$s</string>
     <string name="splash_onboarding_welcome">Willkommen</string>

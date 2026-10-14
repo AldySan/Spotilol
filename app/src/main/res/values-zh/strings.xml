@@ -370,6 +370,23 @@
     <string name="timer_action_summary_quit">定时器结束时应用将退出</string>
     <string name="timer_desc_open">睡眠定时器</string>
 
+    <string name="battery_dialog_title">让音乐持续播放</string>
+    <string name="battery_dialog_intro">Android 可能会为了节省电量而停止在后台运行的 Spotilol，因此屏幕关闭时，音乐有时会自动暂停。只需调整一个简单设置即可解决此问题。</string>
+    <string name="battery_dialog_benefit_playback">屏幕关闭后，音乐仍会继续播放</string>
+    <string name="battery_dialog_benefit_controls">通知中的媒体控制仍可正常响应</string>
+    <string name="battery_dialog_benefit_downloads">下载任务不会中断，并能顺利完成</string>
+    <string name="battery_dialog_benefit_timer">睡眠定时器会准时触发</string>
+    <string name="battery_dialog_reassure">Spotilol 依然省电——只有在你真正听音乐时才会运行。</string>
+    <string name="battery_dialog_hint">接下来 Android 将打开系统电池设置页面，只需选择“允许”即可。</string>
+    <string name="battery_dialog_confirm">允许后台播放</string>
+    <string name="battery_dialog_dismiss">暂不设置</string>
+    <string name="settings_battery_background">后台播放</string>
+    <string name="settings_battery_background_on">已允许 — 音乐会在后台继续播放</string>
+    <string name="settings_battery_background_off">已受限制 — Android 可能会暂停后台播放</string>
+    <string name="settings_battery_info">Android 的电池优化功能可能会在 Spotilol 于后台运行时将其停止。此选项会打开系统电池设置页面，你可以在其中允许应用在后台运行。</string>
+    <string name="settings_battery_already_allowed">已允许后台播放</string>
+    <string name="settings_battery_prompt_unavailable">无法打开电池设置对话框，改为打开应用设置。</string>
+
     <string name="splash_title">Spotilol</string>
     <string name="splash_version_label">v%1$s · %2$s</string>
     <string name="splash_onboarding_welcome">欢迎</string>

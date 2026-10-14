@@ -521,4 +521,22 @@
 
     <string name="settings_theme">Theme</string>
     <string name="settings_theme_dynamic">Dynamic (system colors)</string>
+    <string name="settings_theme_secondary">Secondary color</string>
+    <string name="settings_theme_secondary_auto">Automatic, from the theme</string>
+    <string name="theme_search">Search themes</string>
+    <string name="theme_no_results">No themes match your search</string>
+    <string name="theme_preview">Preview</string>
+    <string name="theme_secondary_title">Secondary color</string>
+    <string name="theme_secondary_hint">Anchored to the theme tone, so the palette stays coherent</string>
+    <string name="theme_hue">Hue</string>
+    <string name="theme_strength">Intensity</string>
+    <string name="theme_secondary_reset">Reset to the theme color</string>
+    <string name="theme_export">Export</string>
+    <string name="theme_import">Import</string>
+    <string name="theme_export_done">Theme exported</string>
+    <string name="theme_export_failed">Could not export the theme</string>
+    <string name="theme_import_done">%1$d theme(s) imported</string>
+    <string name="theme_import_failed">Could not read that theme file</string>
+    <string name="theme_custom">Custom</string>
+    <string name="theme_delete">Delete theme</string>
 </resources>

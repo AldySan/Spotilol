@@ -479,4 +479,22 @@
 
     <string name="settings_theme">主題</string>
     <string name="settings_theme_dynamic">動態（系統色彩）</string>
+    <string name="settings_theme_secondary">次要顏色</string>
+    <string name="settings_theme_secondary_auto">自動，跟隨主題</string>
+    <string name="theme_search">搜尋主題</string>
+    <string name="theme_no_results">沒有符合的主題</string>
+    <string name="theme_preview">預覽</string>
+    <string name="theme_secondary_title">次要顏色</string>
+    <string name="theme_secondary_hint">錨定主題色調，保持配色協調</string>
+    <string name="theme_hue">色相</string>
+    <string name="theme_strength">強度</string>
+    <string name="theme_secondary_reset">還原主題顏色</string>
+    <string name="theme_export">匯出</string>
+    <string name="theme_import">匯入</string>
+    <string name="theme_export_done">主題已匯出</string>
+    <string name="theme_export_failed">無法匯出主題</string>
+    <string name="theme_import_done">已匯入 %1$d 個主題</string>
+    <string name="theme_import_failed">無法讀取該主題檔案</string>
+    <string name="theme_custom">自訂</string>
+    <string name="theme_delete">刪除主題</string>
 </resources>

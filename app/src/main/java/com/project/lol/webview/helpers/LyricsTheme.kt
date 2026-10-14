@@ -36,6 +36,9 @@ data class LyricsStyle(
         const val PREF_ALIGN = "LyricsAlign"
         const val PREF_ANIMATE = "LyricsAnimate"
 
+        /** Selected preset id (built-in or custom) - UI state only, never affects the CSS. */
+        const val PREF_PRESET_ID = "LyricsPresetId"
+
         val PREF_KEYS = listOf(PREF_PRESET, PREF_SCALE, PREF_SPACING, PREF_ALIGN, PREF_ANIMATE)
 
         fun from(prefs: SharedPreferences): LyricsStyle = LyricsStyle(
@@ -112,6 +115,17 @@ object LyricsTheme {
     )
 
     fun presetFor(id: String?): Preset = PRESETS[id] ?: PRESETS.getValue(DEFAULT_STYLE)
+
+    fun isBuiltIn(id: String?): Boolean = id != null && PRESETS.containsKey(id)
+
+    /** Clamps an untrusted style (imported file, stale prefs) into a usable range. */
+    fun sanitize(style: LyricsStyle): LyricsStyle = LyricsStyle(
+        preset = if (isBuiltIn(style.preset)) style.preset else DEFAULT_STYLE,
+        scale = style.scale.coerceIn(SCALE_MIN, SCALE_MAX),
+        spacing = style.spacing.coerceIn(SPACING_MIN, SPACING_MAX),
+        align = if (style.align in ALIGN_OPTIONS) style.align else ALIGN_START,
+        animate = style.animate
+    )
 
     /** Approximate on-device preview params (dp-ish) for the settings preview. */
     class PreviewStyle(

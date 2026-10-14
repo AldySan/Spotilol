@@ -78,6 +78,17 @@
     <string name="settings_lyrics_align_end">Rechts</string>
     <string name="settings_lyrics_animation">Dezente Animation</string>
     <string name="settings_lyrics_animation_hint">Übergänge für Deckkraft und Schriftstärke in der aktiven Zeile</string>
+    <string name="settings_lyrics_custom_presets">Eigene</string>
+    <string name="settings_lyrics_save_preset">Als Vorlage speichern</string>
+    <string name="settings_lyrics_preset_name">Name der Vorlage</string>
+    <string name="settings_lyrics_preset_saved">Vorlage gespeichert</string>
+    <string name="settings_lyrics_export">Exportieren</string>
+    <string name="settings_lyrics_import">Importieren</string>
+    <string name="settings_lyrics_export_done">Vorlagen exportiert</string>
+    <string name="settings_lyrics_export_failed">Export fehlgeschlagen</string>
+    <string name="settings_lyrics_export_empty">Keine eigenen Vorlagen zum Exportieren</string>
+    <string name="settings_lyrics_import_done">Vorlagen importiert</string>
+    <string name="settings_lyrics_import_failed">Import fehlgeschlagen</string>
     <string name="settings_spicylyrics">SpicyLyrics</string>
     <string name="settings_spicylyrics_subtitle">Fehlende Liedtexte ergänzen (SpicyLyrics-API)</string>
     <string name="settings_take_control">Player-Steuerung übernehmen</string>

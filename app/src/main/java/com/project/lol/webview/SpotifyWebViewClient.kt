@@ -176,10 +176,12 @@ class SpotifyWebViewClient(
         val hideEmptyPlayer = prefs.getBoolean("HideEmptyPlayer", false)
         val playlistSort = prefs.getBoolean("PlaylistSortEnabled", true)
         val showScrollbar = prefs.getBoolean("ShowScrollbar", true)
+        val hideTopBar = prefs.getBoolean("HideTopBar", false)
         // Each payload runs in its own try/catch, matching the old behaviour where each
         // was a separate evaluateJavascript call and one failure didn't stop the rest.
         val parts = buildList {
             add("window.__splShowScrollbar=$showScrollbar;")
+            add("window.__splHideTopBar=$hideTopBar;")
             add("window.__splPowerSavePref=$powerSave;")
             add("window.__splHideEmpty=$hideEmptyPlayer;")
             add("window.__splPlaylistSortEnabled=$playlistSort;")
@@ -406,6 +408,7 @@ class SpotifyWebViewClient(
         val lyricsStyle = prefs.getString("LyricsStyle", LyricsTheme.DEFAULT_STYLE) ?: LyricsTheme.DEFAULT_STYLE
         val webCanvas = prefs.getBoolean("WebCanvas", true)
         val webVideos = prefs.getBoolean("WebVideos", true)
+        val hideTopBar = prefs.getBoolean("HideTopBar", false)
 
         Logger.s(
             TAG,
@@ -431,6 +434,7 @@ class SpotifyWebViewClient(
             append("window.__splPlaylistSortEnabled=$playlistSortEnabled;\n")
             append("window.__spicyLyricsEnabled=$spicyLyricsEnabled;\n")
             append("window.__splShowScrollbar=$showScrollbar;\n")
+            append("window.__splHideTopBar=$hideTopBar;\n")
             append("window.__splWebPrefs=[$webCanvas,$webVideos];\n")
             if (debugOverlay) {
                 append(DevLogPrelude.js())
@@ -562,6 +566,10 @@ class SpotifyWebViewClient(
                 "HideEmptyPlayer" -> {
                     val hideEmpty = prefs.getBoolean("HideEmptyPlayer", false)
                     wv.evaluateJavascript("window.__splHideEmpty=$hideEmpty; if(window.splApplyEmpty) window.splApplyEmpty();", null)
+                }
+                "HideTopBar" -> {
+                    val hideTopBar = prefs.getBoolean("HideTopBar", false)
+                    wv.evaluateJavascript("window.__splHideTopBar=$hideTopBar; if(window.splApplyHideTopBar) window.splApplyHideTopBar();", null)
                 }
                 "WebCanvas", "WebVideos" -> {
                     val c = prefs.getBoolean("WebCanvas", true)

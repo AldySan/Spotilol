@@ -62,6 +62,14 @@ internal object WidgetActions {
         }
     }
 
+    fun setOfflineMode(context: Context, offline: Boolean) {
+        val app = context.applicationContext
+        val source = if (offline) WidgetState.SOURCE_OFFLINE else WidgetState.SOURCE_WEB
+        refreshScope.launch {
+            runCatching { WidgetUpdater.push(app, WidgetState(source = source)) }
+        }
+    }
+
     private suspend fun redraw(
         context: Context,
         manager: GlanceAppWidgetManager,
@@ -89,7 +97,8 @@ internal object WidgetActions {
         WidgetCommand.PLAY_PAUSE -> OfflineMediaService.ACTION_PLAY_PAUSE
         WidgetCommand.NEXT -> OfflineMediaService.ACTION_NEXT
         WidgetCommand.PREV -> OfflineMediaService.ACTION_PREV
-        WidgetCommand.SHUFFLE, WidgetCommand.REPEAT, WidgetCommand.FAVORITE -> null
+        WidgetCommand.SHUFFLE -> OfflineMediaService.ACTION_SHUFFLE
+        WidgetCommand.REPEAT, WidgetCommand.FAVORITE -> null
     }
 }
 

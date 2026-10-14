@@ -83,6 +83,7 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
         private const val CUSTOM_ACTION_TOGGLE_SHUFFLE = "toggle_shuffle"
         private const val CUSTOM_ACTION_REPEAT = "toggle_repeat"
 
+        private const val WAKE_LOCK_RENEW_MS = 10 * 60 * 1000L
         private val pendingCallbacks =
             ConcurrentHashMap<String, Result<MutableList<MediaBrowserCompat.MediaItem>>>()
         private val pendingSearchCallbacks =
@@ -410,16 +411,19 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
             Logger.e(TAG, "Failed to create notification channel", e)
         }
 
-        try {
-            ServiceCompat.startForeground(this, NOTIFICATION_ID, buildNotificationSafe(), getStartForegroundServiceType())
-        } catch (e: Throwable) {
-            Logger.e(TAG, "Failed to start foreground", e)
-        }
-
+        // Media session first: the very first foreground notification is then a
+        // proper MediaStyle notification carrying the session token, and OEM
+        // media routing / battery logic keys off an active session immediately.
         try {
             setupMediaSession()
         } catch (e: Exception) {
             Logger.e(TAG, "Failed to setup media session", e)
+        }
+
+        try {
+            ServiceCompat.startForeground(this, NOTIFICATION_ID, buildNotificationSafe(), getStartForegroundServiceType())
+        } catch (e: Throwable) {
+            Logger.e(TAG, "Failed to start foreground", e)
         }
 
         try {
@@ -445,7 +449,7 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
 
     @Suppress("DEPRECATION")
     private fun getStartForegroundServiceType(): Int {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
         } else {
             0
@@ -458,6 +462,10 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
             stopSelf()
             return START_NOT_STICKY
         }
+        if (intent == null) {
+            Logger.i(TAG, "service restarted by the system, rebuilding web player")
+            runCatching { com.project.lol.webview.WebViewHost.ensure(this) }
+        }
         try {
             ServiceCompat.startForeground(this, NOTIFICATION_ID, buildNotificationSafe(), getStartForegroundServiceType())
         } catch (e: Throwable) {
@@ -468,7 +476,7 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
         } catch (e: Exception) {
             Logger.e(TAG, "Failed to handle media button intent", e)
         }
-        return START_NOT_STICKY
+        return START_STICKY
     }
 
     override fun onGetRoot(
@@ -553,6 +561,7 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
         val wv = webView ?: return
         Handler(Looper.getMainLooper()).post {
             try {
+                val wv = webView ?: com.project.lol.webview.WebViewHost.ensure(this)
                 wv.resumeTimers()
                 wv.onResume()
                 wv.dispatchWindowVisibilityChanged(android.view.View.VISIBLE)
@@ -826,6 +835,7 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
 
     fun updatePlaybackPosition(position: Long) {
         currentPosition = position
+        if (isPlaying) acquireWakeLock()
         updatePlaybackState()
         pushWidgetState()
     }
@@ -1070,7 +1080,10 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
             wakeLock = pm.newWakeLock(
                 PowerManager.PARTIAL_WAKE_LOCK,
                 "spotilol:media_playback"
-            ).apply { acquire(60 * 60 * 1000L) }
+            )
+        }
+        if (wakeLock?.isHeld != true) {
+            wakeLock?.acquire(WAKE_LOCK_RENEW_MS)
         }
     }
 

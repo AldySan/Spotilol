@@ -2975,7 +2975,10 @@ fun SingleChoiceDialog(
             )
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
                 options.forEach { (value, label) ->
                     val isSelected = selected == value
                     Surface(

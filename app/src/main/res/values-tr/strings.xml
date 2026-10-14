@@ -80,6 +80,17 @@
     <string name="settings_lyrics_align_end">Sağ</string>
     <string name="settings_lyrics_animation">İnce animasyon</string>
     <string name="settings_lyrics_animation_hint">Etkin satırda saydamlık ve kalınlık geçişleri</string>
+    <string name="settings_lyrics_custom_presets">Özel</string>
+    <string name="settings_lyrics_save_preset">Preset olarak kaydet</string>
+    <string name="settings_lyrics_preset_name">Preset adı</string>
+    <string name="settings_lyrics_preset_saved">Preset kaydedildi</string>
+    <string name="settings_lyrics_export">Dışa aktar</string>
+    <string name="settings_lyrics_import">İçe aktar</string>
+    <string name="settings_lyrics_export_done">Presetler dışa aktarıldı</string>
+    <string name="settings_lyrics_export_failed">Dışa aktarılamadı</string>
+    <string name="settings_lyrics_export_empty">Dışa aktarılacak özel preset yok</string>
+    <string name="settings_lyrics_import_done">Presetler içe aktarıldı</string>
+    <string name="settings_lyrics_import_failed">İçe aktarılamadı</string>
     <string name="settings_spicylyrics">SpicyLyrics</string>
     <string name="settings_spicylyrics_subtitle">Spotify\'ın eksik olduğu şarkı sözlerini doldur (SpicyLyrics API)</string>
     <string name="settings_take_control">Oynatıcı Kontrolünü Al</string>

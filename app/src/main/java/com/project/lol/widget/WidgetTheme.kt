@@ -9,8 +9,10 @@ import androidx.glance.LocalContext
 import androidx.glance.color.ColorProviders
 import androidx.glance.material3.ColorProviders as material3ColorProviders
 import androidx.glance.unit.ColorProvider
+import com.project.lol.ui.theme.ThemeHarmony
 import com.project.lol.ui.theme.ThemePresets
 import com.project.lol.ui.theme.amoledScheme
+import com.project.lol.ui.theme.harmonized
 import com.project.lol.ui.theme.toColorScheme
 
 internal const val WIDGET_SCRIM_ALPHA = 0.80f
@@ -24,6 +26,7 @@ object WidgetTheme {
     private const val KEY_PRESET = "ThemePreset"
     private const val KEY_DYNAMIC = "MaterialYou"
     private const val KEY_AMOLED = "AmoledTheme"
+    private const val KEY_SECONDARY = "ThemeSecondary"
 
     fun colorScheme(context: Context): ColorScheme {
         val app = context.applicationContext
@@ -34,7 +37,9 @@ object WidgetTheme {
         val base = if (dynamic && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             dynamicDarkColorScheme(app)
         } else {
-            ThemePresets.resolve(presetId).toColorScheme()
+            ThemePresets.resolve(presetId)
+                .harmonized(ThemeHarmony.parseHex(prefs.getString(KEY_SECONDARY, null)))
+                .toColorScheme()
         }
         return if (amoled) base.amoledScheme() else base
     }

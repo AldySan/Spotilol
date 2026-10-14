@@ -26,9 +26,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
@@ -965,10 +963,7 @@ fun OfflineScreen(
                             .weight(1f)
                             .fillMaxWidth(),
                         transitionSpec = {
-                            val forward = targetState.ordinal > initialState.ordinal
-                            val dir = if (forward) 1 else -1
-                            (fadeIn(tween(220)) + slideInHorizontally(tween(260)) { it / 10 * dir }) togetherWith
-                                (fadeOut(tween(160)) + slideOutHorizontally(tween(260)) { -it / 10 * dir })
+                            fadeIn(tween(220)) togetherWith fadeOut(tween(160))
                         },
                         label = "offlineTab"
                     ) { targetTab ->

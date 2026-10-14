@@ -466,4 +466,22 @@
 
     <string name="settings_theme">Tema</string>
     <string name="settings_theme_dynamic">Dinamico (colori di sistema)</string>
+    <string name="settings_theme_secondary">Colore secondario</string>
+    <string name="settings_theme_secondary_auto">Automatico, dal tema</string>
+    <string name="theme_search">Cerca temi</string>
+    <string name="theme_no_results">Nessun tema corrisponde alla ricerca</string>
+    <string name="theme_preview">Anteprima</string>
+    <string name="theme_secondary_title">Colore secondario</string>
+    <string name="theme_secondary_hint">Ancorato al tono del tema, così la palette resta coerente</string>
+    <string name="theme_hue">Tonalità</string>
+    <string name="theme_strength">Intensità</string>
+    <string name="theme_secondary_reset">Ripristina il colore del tema</string>
+    <string name="theme_export">Esporta</string>
+    <string name="theme_import">Importa</string>
+    <string name="theme_export_done">Tema esportato</string>
+    <string name="theme_export_failed">Impossibile esportare il tema</string>
+    <string name="theme_import_done">%1$d tema/i importato/i</string>
+    <string name="theme_import_failed">Impossibile leggere quel file di tema</string>
+    <string name="theme_custom">Personalizzato</string>
+    <string name="theme_delete">Elimina tema</string>
 </resources>

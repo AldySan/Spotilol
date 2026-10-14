@@ -139,9 +139,6 @@
     <string name="settings_open_logger">Ouvrir le journal (Logger)</string>
     <string name="settings_open_logger_on">Journaux détaillés, débogage, info, avertissements et erreurs en direct</string>
     <string name="settings_open_logger_off">Le journal est désactivé, seules les anciennes entrées sont affichées</string>
-    <string name="settings_crash_test">Test de plantage</string>
-    <string name="settings_crash_test_subtitle">Déclencher une exception de test et ouvrir l\'écran de plantage</string>
-    <string name="settings_crash_test_exception">Test de plantage Spotilol</string>
     <string name="settings_debug_unlocked">Outils de débogage déverrouillés</string>
     <string name="settings_debug_tap_one_left">Encore 1 appui pour déverrouiller le débogage</string>
     <string name="settings_debug_taps_left">Encore %1$d appuis pour déverrouiller le débogage</string>

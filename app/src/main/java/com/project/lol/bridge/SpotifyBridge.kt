@@ -40,6 +40,7 @@ class SpotifyBridge(activityRef: WeakReference<Activity>) {
         private const val CALL = "bridge.call"
     }
 
+    @Volatile
     private var activityRef = activityRef
     private val mainHandler = Handler(Looper.getMainLooper())
 

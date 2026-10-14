@@ -51,6 +51,19 @@ class SpotifyWebViewClient(
         pendingPlayerInjection = null
     }
 
+    fun dispose() {
+        NavToken.bump()
+        cancelPendingPlayerInjection()
+        prefsListener?.let { boundPrefs?.unregisterOnSharedPreferenceChangeListener(it) }
+        prefsListener = null
+        boundPrefs = null
+        currentWebView = null
+        runCatching { docStartHandler?.remove() }
+        docStartHandler = null
+        docStartView = null
+        docStartJs = null
+    }
+
     override fun doUpdateVisitedHistory(view: WebView?, url: String?, isReload: Boolean) {
         super.doUpdateVisitedHistory(view, url, isReload)
         val canGoBack = view?.canGoBack() == true
@@ -89,8 +102,10 @@ class SpotifyWebViewClient(
             return
         }
 
-        Logger.s(TAG, "logged in, injecting player control in 500ms")
-        schedulePlayerInjection(view, token)
+        if (isWebPlayerUrl(url)) {
+            Logger.s(TAG, "logged in, injecting player control in 500ms")
+            schedulePlayerInjection(view, token)
+        }
 
         view.evaluateJavascript(LogoutCheck.CONTENT) { result ->
             if (token != NavToken.current()) return@evaluateJavascript
@@ -213,14 +228,7 @@ class SpotifyWebViewClient(
 
     override fun onRenderProcessGone(view: WebView?, detail: RenderProcessGoneDetail?): Boolean {
         Logger.e(TAG, "renderer process gone: crashed=${detail?.didCrash()}")
-        NavToken.bump()
-        cancelPendingPlayerInjection()
-        if (currentWebView === view) currentWebView = null
-        if (docStartView === view) {
-            docStartHandler = null
-            docStartView = null
-            docStartJs = null
-        }
+        dispose()
         view?.let {
             it.stopLoading()
             it.destroy()
@@ -282,7 +290,7 @@ class SpotifyWebViewClient(
 
     private fun postToLiveView(view: WebView, block: () -> Unit) {
         val token = NavToken.current()
-        view.post { if (token != NavToken.current()) block() }
+        view.post { if (token == NavToken.current()) block() }
     }
 
     override fun shouldInterceptRequest(

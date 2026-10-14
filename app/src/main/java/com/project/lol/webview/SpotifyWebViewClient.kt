@@ -71,13 +71,13 @@ class SpotifyWebViewClient(
 
         if (url.startsWith("https://www.facebook.com/privacy/consent/gdp/")) {
             Logger.s(TAG, "route: facebook gdpr bypass")
-            onPageFinishedClean(view, FbGdprBypass.CONTENT)
+            view.evaluateJavascript(FbGdprBypass.CONTENT, null)
             return
         }
 
         if (isLoginPageUrl(url)) {
             Logger.s(TAG, "route: classic login button")
-            onPageFinishedClean(view, ClassicLoginButton.CONTENT)
+            view.evaluateJavascript(ClassicLoginButton.CONTENT, null)
         }
 
         val loggedIn = view.context.getSharedPreferences("spotilol_prefs", 0)
@@ -85,7 +85,7 @@ class SpotifyWebViewClient(
 
         if (!loggedIn) {
             Logger.i(TAG, "not logged in, arming login detection")
-            onPageFinishedClean(view, LoginDetection.CONTENT)
+            view.evaluateJavascript(LoginDetection.CONTENT, null)
             return
         }
 

@@ -481,6 +481,7 @@ class SpotifyWebViewClient(
             append(ColumnsButton.CONTENT)
             append(SpicyLyrics.CONTENT)
             append(WebPrefs.CONTENT)
+            append(PlaylistLookupSheet.CONTENT)
             if (playerMode == "spotilol" || playerMode == "fullscreen") {
                 append("window.__splFullPlayer=${playerMode == "fullscreen"};\n")
                 append(SpotilolPlayer.CONTENT)

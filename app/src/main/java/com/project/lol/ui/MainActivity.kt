@@ -118,6 +118,7 @@ import com.project.lol.webview.helpers.DevLogPrelude
 import com.project.lol.webview.helpers.buildAmoledJs
 import com.project.lol.webview.helpers.buildCustomCssJs
 import com.project.lol.webview.injections.LogoutCheck
+import com.project.lol.widget.WidgetActions
 import compose.icons.TablerIcons
 import compose.icons.tablericons.Menu2
 import compose.icons.tablericons.Settings
@@ -682,6 +683,7 @@ class MainActivity : ComponentActivity(), WebViewHost.UiHost {
         Logger.i(TAG, "offline mode -> $enabled, restarting app")
         SleepTimerManager.cancel()
         prefs.edit().putBoolean("OfflineMode", enabled).apply()
+        WidgetActions.setOfflineMode(this, enabled)
         stopService(Intent(this, MediaNotificationService::class.java))
         val intent = Intent(this, SplashActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK

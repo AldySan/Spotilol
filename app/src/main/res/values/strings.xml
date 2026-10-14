@@ -244,6 +244,8 @@
     <string name="offline_filter_clear">Clear filters</string>
     <string name="offline_status_filtered">%1$d of %2$d songs</string>
     <string name="offline_empty_no_filter_match">No downloads match the selected filters</string>
+    <string name="offline_filter_title">Filters</string>
+    <string name="offline_desc_more">More options</string>
     <string name="offline_desc_verify">Check files</string>
     <string name="offline_verify_title">Library check</string>
     <string name="offline_verify_summary">%1$d checked · %2$d damaged · %3$d with missing tags</string>

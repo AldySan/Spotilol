@@ -80,6 +80,17 @@
     <string name="settings_lyrics_align_end">Right</string>
     <string name="settings_lyrics_animation">Subtle animation</string>
     <string name="settings_lyrics_animation_hint">Fade and weight transitions on the active line</string>
+    <string name="settings_lyrics_custom_presets">Custom</string>
+    <string name="settings_lyrics_save_preset">Save as preset</string>
+    <string name="settings_lyrics_preset_name">Preset name</string>
+    <string name="settings_lyrics_preset_saved">Preset saved</string>
+    <string name="settings_lyrics_export">Export</string>
+    <string name="settings_lyrics_import">Import</string>
+    <string name="settings_lyrics_export_done">Presets exported</string>
+    <string name="settings_lyrics_export_failed">Could not export</string>
+    <string name="settings_lyrics_export_empty">No custom presets to export</string>
+    <string name="settings_lyrics_import_done">Presets imported</string>
+    <string name="settings_lyrics_import_failed">Could not import</string>
     <string name="settings_spicylyrics">SpicyLyrics</string>
     <string name="settings_spicylyrics_subtitle">Fill in lyrics Spotify is missing (SpicyLyrics API)</string>
     <string name="settings_take_control">Take Player Control</string>

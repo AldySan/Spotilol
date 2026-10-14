@@ -45,6 +45,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -2486,22 +2487,24 @@ private fun LyricsPresetList(
             }
         }
 
-        Spacer(Modifier.height(6.dp))
+        Spacer(Modifier.height(10.dp))
+        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.18f))
+        Spacer(Modifier.height(4.dp))
         Text(
             text = stringResource(R.string.settings_lyrics_actions),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        OutlinedButton(
+        Button(
             onClick = onSaveCurrent,
             modifier = Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)
         ) {
-            Icon(TablerIcons.Plus, contentDescription = null, modifier = Modifier.size(15.dp))
+            Icon(TablerIcons.Plus, contentDescription = null, modifier = Modifier.size(16.dp))
             Spacer(Modifier.width(6.dp))
             Text(
                 text = stringResource(R.string.settings_lyrics_save_preset),
-                style = MaterialTheme.typography.labelMedium,
+                style = MaterialTheme.typography.labelLarge,
                 maxLines = 1
             )
         }
@@ -2512,26 +2515,34 @@ private fun LyricsPresetList(
             OutlinedButton(
                 onClick = onExport,
                 modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                    contentColor = MaterialTheme.colorScheme.onSurface
+                ),
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
             ) {
-                Icon(TablerIcons.FileUpload, contentDescription = null, modifier = Modifier.size(15.dp))
+                Icon(TablerIcons.FileUpload, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(6.dp))
                 Text(
                     text = stringResource(R.string.settings_lyrics_export),
-                    style = MaterialTheme.typography.labelSmall,
+                    style = MaterialTheme.typography.labelMedium,
                     maxLines = 1
                 )
             }
             OutlinedButton(
                 onClick = onImport,
                 modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                    contentColor = MaterialTheme.colorScheme.onSurface
+                ),
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
             ) {
-                Icon(TablerIcons.FileDownload, contentDescription = null, modifier = Modifier.size(15.dp))
+                Icon(TablerIcons.FileDownload, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(6.dp))
                 Text(
                     text = stringResource(R.string.settings_lyrics_import),
-                    style = MaterialTheme.typography.labelSmall,
+                    style = MaterialTheme.typography.labelMedium,
                     maxLines = 1
                 )
             }

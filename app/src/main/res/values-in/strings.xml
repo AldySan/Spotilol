@@ -382,6 +382,24 @@
     <string name="timer_action_summary_pause">Musik akan dijeda saat timer berakhir</string>
     <string name="timer_action_summary_quit">Aplikasi akan ditutup saat timer berakhir</string>
     <string name="timer_desc_open">Timer tidur</string>
+
+    <string name="battery_dialog_title">Musik tetap diputar</string>
+    <string name="battery_dialog_intro">Android dapat menghentikan Spotilol saat berjalan di latar belakang untuk menghemat baterai. Itulah sebabnya musik terkadang berhenti sendiri saat layar mati. Cukup ubah satu pengaturan untuk mengatasinya.</string>
+    <string name="battery_dialog_benefit_playback">Musik tetap diputar saat layar mati</string>
+    <string name="battery_dialog_benefit_controls">Kontrol media di notifikasi tetap responsif</string>
+    <string name="battery_dialog_benefit_downloads">Download selesai tanpa gangguan</string>
+    <string name="battery_dialog_benefit_timer">Timer tidur berjalan tepat pada waktunya</string>
+    <string name="battery_dialog_reassure">Spotilol tetap hemat baterai — aplikasi hanya bekerja saat kamu benar-benar mendengarkan musik.</string>
+    <string name="battery_dialog_hint">Android akan membuka layar pengaturan baterai. Cukup pilih "Izinkan".</string>
+    <string name="battery_dialog_confirm">Izinkan pemutaran di latar belakang</string>
+    <string name="battery_dialog_dismiss">Nanti saja</string>
+    <string name="settings_battery_background">Pemutaran di Latar Belakang</string>
+    <string name="settings_battery_background_on">Diizinkan — musik tetap diputar di latar belakang</string>
+    <string name="settings_battery_background_off">Dibatasi — Android dapat menghentikan pemutaran di latar belakang</string>
+    <string name="settings_battery_info">Pengoptimalan baterai Android dapat menghentikan Spotilol saat berjalan di latar belakang. Ini akan membuka layar pengaturan baterai sistem agar kamu dapat mengizinkan aplikasi berjalan di latar belakang.</string>
+    <string name="settings_battery_already_allowed">Pemutaran di latar belakang sudah diizinkan</string>
+    <string name="settings_battery_prompt_unavailable">Dialog baterai tidak dapat dibuka. Membuka pengaturan aplikasi sebagai gantinya.</string>
+
     <string name="splash_title">Spotilol</string>
     <string name="splash_version_label">v%1$s · %2$s</string>
     <string name="splash_onboarding_welcome">Selamat datang</string>

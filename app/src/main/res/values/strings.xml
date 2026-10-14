@@ -392,6 +392,23 @@
     <string name="timer_action_summary_quit">The app will quit when the timer ends</string>
     <string name="timer_desc_open">Sleep timer</string>
 
+    <string name="battery_dialog_title">Keep the music playing</string>
+    <string name="battery_dialog_intro">Android may stop Spotilol while it runs in the background to save battery - that\'s why songs sometimes pause by themselves when the screen turns off. One quick setting fixes it.</string>
+    <string name="battery_dialog_benefit_playback">Music keeps playing with the screen off</string>
+    <string name="battery_dialog_benefit_controls">Media controls stay responsive in the notification</string>
+    <string name="battery_dialog_benefit_downloads">Downloads finish without interruption</string>
+    <string name="battery_dialog_benefit_timer">Sleep timer fires exactly on time</string>
+    <string name="battery_dialog_reassure">Spotilol stays easy on the battery - it only works while you\'re actually listening.</string>
+    <string name="battery_dialog_hint">Android will open its battery screen next - just pick \"Allow\".</string>
+    <string name="battery_dialog_confirm">Allow background playback</string>
+    <string name="battery_dialog_dismiss">Not now</string>
+    <string name="settings_battery_background">Background Playback</string>
+    <string name="settings_battery_background_on">Allowed - music keeps playing in the background</string>
+    <string name="settings_battery_background_off">Restricted - Android may pause playback in the background</string>
+    <string name="settings_battery_info">Android\'s battery optimization can stop Spotilol while it runs in the background. This opens the system battery screen where you can allow it.</string>
+    <string name="settings_battery_already_allowed">Background playback is already allowed</string>
+    <string name="settings_battery_prompt_unavailable">Couldn\'t open the battery dialog, opening app settings instead</string>
+
     <string name="splash_title">Spotilol</string>
     <string name="splash_version_label">v%1$s · %2$s</string>
     <string name="splash_onboarding_welcome">Welcome</string>

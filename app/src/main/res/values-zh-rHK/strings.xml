@@ -389,6 +389,23 @@
     <string name="timer_action_summary_quit">計時器結束時應用程式將結束</string>
     <string name="timer_desc_open">睡眠計時器</string>
 
+    <string name="battery_dialog_title">讓音樂繼續播放</string>
+    <string name="battery_dialog_intro">Android 可能會為了節省電量而停止在背景執行的 Spotilol，因此螢幕關閉時，音樂有時會自動暫停。只需調整一項簡單設定即可解決此問題。</string>
+    <string name="battery_dialog_benefit_playback">螢幕關閉後，音樂仍會繼續播放</string>
+    <string name="battery_dialog_benefit_controls">通知中的媒體控制仍可正常回應</string>
+    <string name="battery_dialog_benefit_downloads">下載工作不會中斷，並能順利完成</string>
+    <string name="battery_dialog_benefit_timer">睡眠定時器會準時觸發</string>
+    <string name="battery_dialog_reassure">Spotilol 依然省電——只有在你真正聽音樂時才會運作。</string>
+    <string name="battery_dialog_hint">接下來 Android 會開啟系統電池設定頁面，只需選擇「允許」即可。</string>
+    <string name="battery_dialog_confirm">允許背景播放</string>
+    <string name="battery_dialog_dismiss">暫時不要</string>
+    <string name="settings_battery_background">背景播放</string>
+    <string name="settings_battery_background_on">已允許 — 音樂會在背景繼續播放</string>
+    <string name="settings_battery_background_off">已受限制 — Android 可能會暫停背景播放</string>
+    <string name="settings_battery_info">Android 的電池最佳化功能可能會在 Spotilol 於背景執行時將其停止。此選項會開啟系統電池設定頁面，你可以在其中允許應用程式於背景執行。</string>
+    <string name="settings_battery_already_allowed">已允許背景播放</string>
+    <string name="settings_battery_prompt_unavailable">無法開啟電池設定對話框，改為開啟應用程式設定。</string>
+
     <string name="splash_title">Spotilol</string>
     <string name="splash_version_label">v%1$s · %2$s</string>
     <string name="splash_onboarding_welcome">歡迎</string>

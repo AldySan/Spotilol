@@ -19,38 +19,44 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Rational
-import android.widget.Toast
 import android.view.LayoutInflater
 import android.view.View
-import android.view.WindowManager
 import android.view.ViewGroup
+import android.view.WindowManager
 import android.webkit.CookieManager
 import android.webkit.WebStorage
 import android.webkit.WebView
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -59,10 +65,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -73,8 +75,6 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -82,35 +82,38 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Popup
 import androidx.core.content.ContextCompat
+import androidx.core.content.edit
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.webkit.WebViewCompat
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.project.lol.R
-import com.project.lol.bridge.SpotifyBridge
 import com.project.lol.offline.DownloadManager
 import com.project.lol.profile.ProfileManager
 import com.project.lol.service.MediaNotificationService
 import com.project.lol.timer.AppQuit
 import com.project.lol.timer.SleepTimerAction
 import com.project.lol.timer.SleepTimerManager
+import com.project.lol.ui.components.BatteryOptimizationDialog
 import com.project.lol.ui.components.SettingsDialog
 import com.project.lol.ui.components.SleepTimerDialog
 import com.project.lol.ui.theme.SpotifyTheme
 import com.project.lol.ui.theme.ThemeController
 import com.project.lol.ui.theme.ThemeHarmony
 import com.project.lol.ui.theme.ThemePresets
+import com.project.lol.util.AppLocale
+import com.project.lol.util.BatterySaver
 import com.project.lol.util.BuildInfo
 import com.project.lol.util.Logger
 import com.project.lol.util.UpdateChecker
@@ -123,25 +126,20 @@ import com.project.lol.widget.WidgetActions
 import compose.icons.TablerIcons
 import compose.icons.tablericons.Menu2
 import compose.icons.tablericons.Settings
+import org.json.JSONObject
 import java.lang.ref.WeakReference
 import java.net.HttpURLConnection
 import java.net.URL
 import kotlin.math.min
-import org.json.JSONObject
-import androidx.core.content.edit
-import androidx.core.graphics.scale
-import androidx.core.graphics.toColorInt
-import com.project.lol.ui.components.ErrorScreen
-import com.project.lol.ui.components.mapWebViewError
-import com.project.lol.util.AppLocale
-import com.project.lol.util.BatterySaver
-import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 class MainActivity : ComponentActivity(), WebViewHost.UiHost {
 
     companion object {
         private const val TAG = "main"
+
+        @Volatile
+        private var batteryPromptChecked = false
     }
 
     private val webView: WebView?
@@ -174,6 +172,7 @@ class MainActivity : ComponentActivity(), WebViewHost.UiHost {
     private val themeSecondaryState = mutableStateOf<Color?>(null)
 
     private val showSleepTimerDialog = mutableStateOf(false)
+    private val showBatteryDialog = mutableStateOf(false)
     private val sleepTimerInputText = mutableStateOf("")
     private val sleepTimerState = mutableStateOf(SleepTimerManager.state())
 
@@ -274,6 +273,7 @@ class MainActivity : ComponentActivity(), WebViewHost.UiHost {
             val themePreset = themePresetState.value
             val themeSecondary = themeSecondaryState.value
             val showDialog = showSleepTimerDialog.value
+            val showBatteryPrompt = showBatteryDialog.value
             val loadProgress = loadingProgress.intValue
             val blockServiceWorker = blockServiceWorkerState.value
             val pipFilling = pipVideoActive.value
@@ -625,6 +625,23 @@ class MainActivity : ComponentActivity(), WebViewHost.UiHost {
                                     }
                                 )
                             }
+
+                                if (showBatteryPrompt) {
+                                    BatteryOptimizationDialog(
+                                        onConfirm = {
+                                            showBatteryDialog.value = false
+                                            analytics.logEvent("battery_prompt_allow", null)
+                                            if (!BatterySaver.requestExemption(this@MainActivity)) {
+                                                Logger.w(TAG, "battery exemption dialog unavailable, opening app details")
+                                                BatterySaver.openAppSettings(this@MainActivity)
+                                            }
+                                        },
+                                        onDismiss = {
+                                            showBatteryDialog.value = false
+                                            analytics.logEvent("battery_prompt_dismiss", null)
+                                        }
+                                    )
+                                }
                         } else {
                             AndroidView(
                                 factory = { context ->
@@ -1321,10 +1338,11 @@ class MainActivity : ComponentActivity(), WebViewHost.UiHost {
             webViewGeneration.intValue++
         }
 
-        if (BatterySaver.shouldPrompt(this)) {
-            if (!BatterySaver.requestExemption(this)) {
-                Logger.w(TAG, "battery exemption dialog unavailable, opening app details")
-                BatterySaver.openAppSettings(this)
+        if (!batteryPromptChecked) {
+            batteryPromptChecked = true
+            if (BatterySaver.shouldPrompt(this)) {
+                Logger.i(TAG, "first resume this run: showing battery optimization prompt")
+                showBatteryDialog.value = true
             }
         }
 

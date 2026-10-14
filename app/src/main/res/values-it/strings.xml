@@ -382,6 +382,24 @@
     <string name="timer_action_summary_pause">La musica verrà messa in pausa alla scadenza del timer</string>
     <string name="timer_action_summary_quit">L\'app verrà chiusa alla scadenza del timer</string>
     <string name="timer_desc_open">Timer di sospensione</string>
+
+    <string name="battery_dialog_title">Continua ad ascoltare la musica</string>
+    <string name="battery_dialog_intro">Android potrebbe arrestare Spotilol in background per risparmiare batteria. Per questo motivo, a volte la musica si mette in pausa da sola quando lo schermo si spegne. Basta modificare una semplice impostazione per risolvere il problema.</string>
+    <string name="battery_dialog_benefit_playback">La musica continua anche con lo schermo spento</string>
+    <string name="battery_dialog_benefit_controls">I controlli multimediali nella notifica restano reattivi</string>
+    <string name="battery_dialog_benefit_downloads">I download terminano senza interruzioni</string>
+    <string name="battery_dialog_benefit_timer">Il timer di spegnimento si attiva esattamente all’ora prevista</string>
+    <string name="battery_dialog_reassure">Spotilol continua a consumare poca batteria: funziona solo mentre ascolti davvero la musica.</string>
+    <string name="battery_dialog_hint">Android aprirà la schermata della batteria. Ti basterà selezionare «Consenti».</string>
+    <string name="battery_dialog_confirm">Consenti la riproduzione in background</string>
+    <string name="battery_dialog_dismiss">Non ora</string>
+    <string name="settings_battery_background">Riproduzione in background</string>
+    <string name="settings_battery_background_on">Consentita – la musica continua in background</string>
+    <string name="settings_battery_background_off">Limitata – Android potrebbe mettere in pausa la riproduzione in background</string>
+    <string name="settings_battery_info">L’ottimizzazione della batteria di Android può arrestare Spotilol quando è in esecuzione in background. Questa opzione apre la schermata della batteria di sistema, dove puoi consentirne il funzionamento.</string>
+    <string name="settings_battery_already_allowed">La riproduzione in background è già consentita</string>
+    <string name="settings_battery_prompt_unavailable">Impossibile aprire la finestra della batteria. Verranno aperte le impostazioni dell’app.</string>
+
     <string name="splash_title">Spotilol</string>
     <string name="splash_version_label">v%1$s · %2$s</string>
     <string name="splash_onboarding_welcome">Benvenuti</string>

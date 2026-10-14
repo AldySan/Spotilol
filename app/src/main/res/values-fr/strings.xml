@@ -391,6 +391,23 @@
     <string name="timer_action_summary_quit">L\'application se fermera à la fin du minuteur</string>
     <string name="timer_desc_open">Mise en veille</string>
 
+    <string name="battery_dialog_title">Continuez à écouter votre musique</string>
+    <string name="battery_dialog_intro">Android peut arrêter Spotilol en arrière-plan pour économiser la batterie. C’est pourquoi la musique se met parfois en pause toute seule lorsque l’écran s’éteint. Un simple réglage suffit à résoudre ce problème.</string>
+    <string name="battery_dialog_benefit_playback">La musique continue même lorsque l’écran est éteint</string>
+    <string name="battery_dialog_benefit_controls">Les commandes multimédias restent réactives dans la notification</string>
+    <string name="battery_dialog_benefit_downloads">Les téléchargements se terminent sans interruption</string>
+    <string name="battery_dialog_benefit_timer">La minuterie de mise en veille se déclenche exactement à l’heure prévue</string>
+    <string name="battery_dialog_reassure">Spotilol continue de préserver votre batterie : l’application ne fonctionne que lorsque vous écoutez réellement de la musique.</string>
+    <string name="battery_dialog_hint">Android va ouvrir les paramètres de batterie du système. Il vous suffit de sélectionner « Autoriser ».</string>
+    <string name="battery_dialog_confirm">Autoriser la lecture en arrière-plan</string>
+    <string name="battery_dialog_dismiss">Pas maintenant</string>
+    <string name="settings_battery_background">Lecture en arrière-plan</string>
+    <string name="settings_battery_background_on">Autorisée – la musique continue en arrière-plan</string>
+    <string name="settings_battery_background_off">Restreinte – Android peut interrompre la lecture en arrière-plan</string>
+    <string name="settings_battery_info">L’optimisation de la batterie d’Android peut arrêter Spotilol en arrière-plan. Cette option ouvre les paramètres de batterie du système, où vous pouvez autoriser son fonctionnement.</string>
+    <string name="settings_battery_already_allowed">La lecture en arrière-plan est déjà autorisée</string>
+    <string name="settings_battery_prompt_unavailable">Impossible d’ouvrir la boîte de dialogue de batterie. Ouverture des paramètres de l’application à la place.</string>
+
     <string name="splash_title">Spotilol</string>
     <string name="splash_version_label">v%1$s · %2$s</string>
     <string name="splash_onboarding_welcome">Bienvenue</string>

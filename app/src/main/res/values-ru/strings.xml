@@ -382,6 +382,24 @@
     <string name="timer_action_summary_pause">Музыка встанет на паузу, когда таймер сработает</string>
     <string name="timer_action_summary_quit">Приложение закроется, когда таймер сработает</string>
     <string name="timer_desc_open">Таймер сна</string>
+
+    <string name="battery_dialog_title">Продолжайте слушать музыку</string>
+    <string name="battery_dialog_intro">Android может останавливать Spotilol в фоновом режиме для экономии заряда батареи. Поэтому музыка иногда сама приостанавливается при выключении экрана. Достаточно изменить одну настройку, чтобы это исправить.</string>
+    <string name="battery_dialog_benefit_playback">Музыка продолжает играть при выключенном экране</string>
+    <string name="battery_dialog_benefit_controls">Элементы управления воспроизведением в уведомлении продолжают работать</string>
+    <string name="battery_dialog_benefit_downloads">Загрузки завершаются без прерываний</string>
+    <string name="battery_dialog_benefit_timer">Таймер сна срабатывает точно в назначенное время</string>
+    <string name="battery_dialog_reassure">Spotilol по-прежнему экономно расходует заряд батареи — приложение работает только тогда, когда вы действительно слушаете музыку.</string>
+    <string name="battery_dialog_hint">Android откроет системный экран настроек батареи. Просто выберите «Разрешить».</string>
+    <string name="battery_dialog_confirm">Разрешить воспроизведение в фоновом режиме</string>
+    <string name="battery_dialog_dismiss">Не сейчас</string>
+    <string name="settings_battery_background">Фоновое воспроизведение</string>
+    <string name="settings_battery_background_on">Разрешено — музыка продолжает играть в фоновом режиме</string>
+    <string name="settings_battery_background_off">Ограничено — Android может приостанавливать воспроизведение в фоновом режиме</string>
+    <string name="settings_battery_info">Оптимизация батареи Android может останавливать Spotilol при работе в фоновом режиме. Здесь открывается системный экран настроек батареи, где можно разрешить работу приложения.</string>
+    <string name="settings_battery_already_allowed">Фоновое воспроизведение уже разрешено</string>
+    <string name="settings_battery_prompt_unavailable">Не удалось открыть диалог настроек батареи. Вместо него открываются настройки приложения.</string>
+
     <string name="splash_title">Spotilol</string>
     <string name="splash_version_label">v%1$s · %2$s</string>
     <string name="splash_onboarding_welcome">Добро пожаловать</string>

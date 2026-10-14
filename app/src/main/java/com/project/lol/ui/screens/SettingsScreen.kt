@@ -42,7 +42,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -127,6 +126,7 @@ import com.project.lol.ui.theme.ThemePresets
 import com.project.lol.ui.theme.ThemeShare
 import com.project.lol.ui.theme.harmonized
 import com.project.lol.util.AppLocale
+import com.project.lol.util.BatterySaver
 import com.project.lol.util.BuildInfo
 import com.project.lol.util.DeviceInfo
 import com.project.lol.util.InnertubeCachePrefs
@@ -145,6 +145,7 @@ import compose.icons.tablericons.ArrowDown
 import compose.icons.tablericons.ArrowsMinimize
 import compose.icons.tablericons.ArrowsSort
 import compose.icons.tablericons.ArrowsUpDown
+import compose.icons.tablericons.Battery
 import compose.icons.tablericons.BrandDiscord
 import compose.icons.tablericons.BrightnessUp
 import compose.icons.tablericons.Brush
@@ -396,6 +397,7 @@ fun SettingsContent(
     var settingsTab by remember { mutableStateOf(SettingsTab.Appearance) }
     val tabScrollStates = SettingsTab.entries.map { rememberScrollState() }
     val scrollState = tabScrollStates[settingsTab.ordinal]
+    var batteryExempt by remember(settingsTab) { mutableStateOf(BatterySaver.isExempt(context)) }
 
     val pkg = remember { WebViewCompat.getCurrentWebViewPackage(context) }
     val packageInfo = remember {
@@ -1058,6 +1060,36 @@ fun SettingsContent(
                                 }
                             } else {
                                 Toast.makeText(context, resources.getString(R.string.settings_open_links_always_hint), Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+
+                    SettingTile(
+                        title = stringResource(R.string.settings_battery_background),
+                        subtitle = if (batteryExempt) {
+                            stringResource(R.string.settings_battery_background_on)
+                        } else {
+                            stringResource(R.string.settings_battery_background_off)
+                        },
+                        icon = TablerIcons.Battery,
+                        info = stringResource(R.string.settings_battery_info),
+                        onClick = {
+                            if (BatterySaver.isExempt(context)) {
+                                batteryExempt = true
+                                Toast.makeText(
+                                    context,
+                                    resources.getString(R.string.settings_battery_already_allowed),
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            } else if (!BatterySaver.requestExemption(context)) {
+                                Toast.makeText(
+                                    context,
+                                    resources.getString(R.string.settings_battery_prompt_unavailable),
+                                    Toast.LENGTH_LONG
+                                ).show()
+                                BatterySaver.openAppSettings(context)
                             }
                         }
                     )

@@ -405,7 +405,7 @@ class SpotifyWebViewClient(
         val playlistSortEnabled = prefs.getBoolean("PlaylistSortEnabled", true)
         val spicyLyricsEnabled = prefs.getBoolean("SpicyLyrics", true)
         val showScrollbar = prefs.getBoolean("ShowScrollbar", true)
-        val lyricsStyle = prefs.getString("LyricsStyle", LyricsTheme.DEFAULT_STYLE) ?: LyricsTheme.DEFAULT_STYLE
+        val lyricsStyle = LyricsStyle.from(prefs)
         val webCanvas = prefs.getBoolean("WebCanvas", true)
         val webVideos = prefs.getBoolean("WebVideos", true)
         val hideTopBar = prefs.getBoolean("HideTopBar", false)
@@ -414,7 +414,8 @@ class SpotifyWebViewClient(
             TAG,
             "inject: engine=$playerMode autoPlay=$autoPlayMode closeNp=$closeNowPlay amoled=$amoledEnabled " +
                 "logging=$debugOverlay takeControl=$takeControl sort=$playlistSortEnabled " +
-                "spicy=$spicyLyricsEnabled scrollbar=$showScrollbar css=${customCss.length}chars lyrics=$lyricsStyle"
+                "spicy=$spicyLyricsEnabled scrollbar=$showScrollbar css=${customCss.length}chars " +
+                "lyrics=${lyricsStyle.preset}/${lyricsStyle.align}/${lyricsStyle.scale}x${lyricsStyle.spacing}"
         )
 
         val js = buildString {
@@ -480,6 +481,7 @@ class SpotifyWebViewClient(
             append(ErrorDialogRestyle.CONTENT)
             append(ToastFix.CONTENT)
             append(LyricsSyncFix.CONTENT)
+            append(LyricsEngine.CONTENT)
             append(QueueAutoClose.CONTENT)
             append(LibraryAutoClose.CONTENT)
             append(PlaylistSort.CONTENT)
@@ -545,12 +547,13 @@ class SpotifyWebViewClient(
                     val mode = prefs.getString("APlayMode", "disabled") ?: "disabled"
                     wv.evaluateJavascript("window.autoPlayMode='$mode';", null)
                 }
-                "AmoledTheme", "CustomCss", "LyricsStyle" -> {
+                "AmoledTheme", "CustomCss" -> {
                     val js = buildAmoledJs(prefs.getBoolean("AmoledTheme", false)) + ";\n" +
                             buildCustomCssJs(prefs.getString("CustomCss", "") ?: "")
                     wv.evaluateJavascript(js, null)
-                    wv.evaluateJavascript(LyricsTheme.buildLyricsStyleJs(prefs.getString("LyricsStyle", LyricsTheme.DEFAULT_STYLE) ?: LyricsTheme.DEFAULT_STYLE), null)
                 }
+                in LyricsStyle.PREF_KEYS ->
+                    wv.evaluateJavascript(LyricsTheme.buildLyricsStyleJs(LyricsStyle.from(prefs)), null)
                 "ThemePreset", "MaterialYou" ->
                     wv.evaluateJavascript(ThemeController.buildAccentJs(wv.context), null)
                 "TakeControl" -> {

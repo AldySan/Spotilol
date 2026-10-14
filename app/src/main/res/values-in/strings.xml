@@ -79,6 +79,7 @@
     <string name="settings_lyrics_animation">Animasi halus</string>
     <string name="settings_lyrics_animation_hint">Transisi opasitas dan ketebalan pada baris aktif</string>
     <string name="settings_lyrics_custom_presets">Kustom</string>
+    <string name="settings_lyrics_actions">Tindakan</string>
     <string name="settings_lyrics_save_preset">Simpan sebagai preset</string>
     <string name="settings_lyrics_preset_name">Nama preset</string>
     <string name="settings_lyrics_preset_saved">Preset disimpan</string>

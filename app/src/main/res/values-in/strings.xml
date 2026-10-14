@@ -132,9 +132,6 @@
     <string name="settings_open_logger">Buka logger</string>
     <string name="settings_open_logger_on">Log langsung verbose, debug, info, warn, dan error</string>
     <string name="settings_open_logger_off">Pencatatan log mati, hanya entri lama yang ditampilkan</string>
-    <string name="settings_crash_test">Uji crash</string>
-    <string name="settings_crash_test_subtitle">Lempar pengecualian uji dan buka layar crash</string>
-    <string name="settings_crash_test_exception">Uji crash Spotilol</string>
     <string name="settings_debug_unlocked">Alat debug diaktifkan</string>
     <string name="settings_debug_tap_one_left">1 ketukan lagi untuk membuka debug</string>
     <string name="settings_debug_taps_left">%1$d ketukan lagi untuk membuka debug</string>

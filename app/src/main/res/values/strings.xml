@@ -424,6 +424,7 @@
     <string name="widget_action_repeat">Repeat</string>
     <string name="widget_empty_title">Spotilol</string>
     <string name="widget_empty_subtitle">Open the app to start playing</string>
+    <string name="widget_badge_offline">Offline</string>
 
     <string name="widget_studio_title">Widget Studio</string>
     <string name="widget_studio_subtitle">Customize the Spotilol widget</string>

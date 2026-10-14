@@ -109,6 +109,7 @@ import com.project.lol.ui.components.SettingsDialog
 import com.project.lol.ui.components.SleepTimerDialog
 import com.project.lol.ui.theme.SpotifyTheme
 import com.project.lol.ui.theme.ThemeController
+import com.project.lol.ui.theme.ThemeHarmony
 import com.project.lol.ui.theme.ThemePresets
 import com.project.lol.util.BuildInfo
 import com.project.lol.util.Logger
@@ -170,6 +171,7 @@ class MainActivity : ComponentActivity(), WebViewHost.UiHost {
     private val videoFullscreenState = mutableStateOf(false)
     private val keepScreenOnState = mutableStateOf(false)
     private val themePresetState = mutableStateOf(ThemePresets.DEFAULT_ID)
+    private val themeSecondaryState = mutableStateOf<Color?>(null)
 
     private val showSleepTimerDialog = mutableStateOf(false)
     private val sleepTimerInputText = mutableStateOf("")
@@ -244,6 +246,7 @@ class MainActivity : ComponentActivity(), WebViewHost.UiHost {
         landscapeModeState.value = prefs.getBoolean("LandscapeMode", false)
         keepScreenOnState.value = prefs.getBoolean("KeepScreenOn", false)
         themePresetState.value = prefs.getString("ThemePreset", ThemePresets.DEFAULT_ID) ?: ThemePresets.DEFAULT_ID
+        themeSecondaryState.value = ThemeHarmony.parseHex(prefs.getString("ThemeSecondary", null))
         blockServiceWorkerState.value = prefs.getBoolean("BlockServiceWorker", true)
         applyOrientation()
         applyKeepScreenOn()
@@ -269,6 +272,7 @@ class MainActivity : ComponentActivity(), WebViewHost.UiHost {
             val landscapeMode = landscapeModeState.value
             val keepScreenOn = keepScreenOnState.value
             val themePreset = themePresetState.value
+            val themeSecondary = themeSecondaryState.value
             val showDialog = showSleepTimerDialog.value
             val loadProgress = loadingProgress.intValue
             val blockServiceWorker = blockServiceWorkerState.value
@@ -354,6 +358,11 @@ class MainActivity : ComponentActivity(), WebViewHost.UiHost {
                     onThemePresetChange = { id ->
                         themePresetState.value = id
                         ThemeController.updatePreset(id)
+                    },
+                    themeSecondary = themeSecondary,
+                    onThemeSecondaryChange = { color ->
+                        themeSecondaryState.value = color
+                        ThemeController.updateSecondary(color)
                     },
                     onOfflineModeChange = { switchOfflineMode(it) },
                     onSaveProfile = { name, cookies -> saveProfile(name, cookies) },
@@ -1302,6 +1311,7 @@ class MainActivity : ComponentActivity(), WebViewHost.UiHost {
         landscapeModeState.value = prefs.getBoolean("LandscapeMode", false)
         keepScreenOnState.value = prefs.getBoolean("KeepScreenOn", false)
         themePresetState.value = prefs.getString("ThemePreset", ThemePresets.DEFAULT_ID) ?: ThemePresets.DEFAULT_ID
+        themeSecondaryState.value = ThemeHarmony.parseHex(prefs.getString("ThemeSecondary", null))
         blockServiceWorkerState.value = prefs.getBoolean("BlockServiceWorker", true)
         applyOrientation()
         applyKeepScreenOn()

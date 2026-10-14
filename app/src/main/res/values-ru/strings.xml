@@ -132,9 +132,6 @@
     <string name="settings_open_logger">Открыть журнал</string>
     <string name="settings_open_logger_on">Подробные, отладочные, информационные, предупреждающие сообщения и ошибки в реальном времени</string>
     <string name="settings_open_logger_off">Запись выключена, показаны только старые записи</string>
-    <string name="settings_crash_test">Тест сбоя</string>
-    <string name="settings_crash_test_subtitle">Бросить тестовое исключение и открыть экран сбоя</string>
-    <string name="settings_crash_test_exception">Тест сбоя Spotilol</string>
     <string name="settings_debug_unlocked">Инструменты отладки разблокированы</string>
     <string name="settings_debug_tap_one_left">Осталось 1 нажатие до разблокировки отладки</string>
     <string name="settings_debug_taps_left">Осталось %1$d нажатий до разблокировки отладки</string>

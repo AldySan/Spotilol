@@ -466,4 +466,22 @@
 
     <string name="settings_theme">Tema</string>
     <string name="settings_theme_dynamic">Dinámico (colores del sistema)</string>
+    <string name="settings_theme_secondary">Color secundario</string>
+    <string name="settings_theme_secondary_auto">Automático, según el tema</string>
+    <string name="theme_search">Buscar temas</string>
+    <string name="theme_no_results">Ningún tema coincide con la búsqueda</string>
+    <string name="theme_preview">Vista previa</string>
+    <string name="theme_secondary_title">Color secundario</string>
+    <string name="theme_secondary_hint">Anclado al tono del tema, así la paleta sigue siendo coherente</string>
+    <string name="theme_hue">Matiz</string>
+    <string name="theme_strength">Intensidad</string>
+    <string name="theme_secondary_reset">Volver al color del tema</string>
+    <string name="theme_export">Exportar</string>
+    <string name="theme_import">Importar</string>
+    <string name="theme_export_done">Tema exportado</string>
+    <string name="theme_export_failed">No se pudo exportar el tema</string>
+    <string name="theme_import_done">%1$d tema(s) importado(s)</string>
+    <string name="theme_import_failed">No se pudo leer ese archivo de tema</string>
+    <string name="theme_custom">Personalizado</string>
+    <string name="theme_delete">Eliminar tema</string>
 </resources>

@@ -78,6 +78,17 @@
     <string name="settings_lyrics_align_end">Справа</string>
     <string name="settings_lyrics_animation">Плавная анимация</string>
     <string name="settings_lyrics_animation_hint">Переходы прозрачности и насыщенности активной строки</string>
+    <string name="settings_lyrics_custom_presets">Свои</string>
+    <string name="settings_lyrics_save_preset">Сохранить как пресет</string>
+    <string name="settings_lyrics_preset_name">Название пресета</string>
+    <string name="settings_lyrics_preset_saved">Пресет сохранён</string>
+    <string name="settings_lyrics_export">Экспорт</string>
+    <string name="settings_lyrics_import">Импорт</string>
+    <string name="settings_lyrics_export_done">Пресеты экспортированы</string>
+    <string name="settings_lyrics_export_failed">Не удалось экспортировать</string>
+    <string name="settings_lyrics_export_empty">Нет своих пресетов для экспорта</string>
+    <string name="settings_lyrics_import_done">Пресеты импортированы</string>
+    <string name="settings_lyrics_import_failed">Не удалось импортировать</string>
     <string name="settings_spicylyrics">SpicyLyrics</string>
     <string name="settings_spicylyrics_subtitle">Дополнять тексты, которых нет в Spotify (API SpicyLyrics)</string>
     <string name="settings_take_control">Взять управление плеером</string>

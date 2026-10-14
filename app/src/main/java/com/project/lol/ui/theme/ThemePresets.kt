@@ -2,6 +2,7 @@ package com.project.lol.ui.theme
 
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
@@ -19,6 +20,9 @@ data class ThemePalette(
     val fg: Color,
     val fgMuted: Color,
     val outline: Color,
+    val onAlt: Color = bg,
+    val altContainer: Color = panelHigh,
+    val onAltContainer: Color = fg,
 )
 
 data class ThemePreset(
@@ -34,9 +38,9 @@ fun ThemePalette.toColorScheme(): ColorScheme = darkColorScheme().copy(
     primaryContainer = accentSoft,
     onPrimaryContainer = onAccentSoft,
     secondary = alt,
-    onSecondary = bg,
-    secondaryContainer = panelHigh,
-    onSecondaryContainer = fg,
+    onSecondary = onAlt,
+    secondaryContainer = altContainer,
+    onSecondaryContainer = onAltContainer,
     tertiary = accent,
     onTertiary = onAccent,
     tertiaryContainer = accentSoft,
@@ -85,7 +89,7 @@ object ThemePresets {
 
     const val DEFAULT_ID = "spotilol"
 
-    val all = listOf(
+    private val builtIn = listOf(
         ThemePreset(
             "spotilol", "Spotilol", "Dark",
             pal(0xFF7FC79A, 0xFF2E6B45, 0xFFB6CCBB, 0xFF121411, 0xFF1C1E1A, 0xFF45473F, 0xFFE3E2DC, 0xFFC6C5BE, 0xFF909189),
@@ -368,10 +372,21 @@ object ThemePresets {
         )
     )
 
-    val byId = all.associateBy { it.id }
+    private val builtInById = builtIn.associateBy { it.id }
+
+    val custom = mutableStateListOf<ThemePreset>()
+
+    val all: List<ThemePreset> get() = builtIn + custom
+
+    val byId: Map<String, ThemePreset>
+        get() = if (custom.isEmpty()) builtInById else builtInById + custom.associateBy { it.id }
 
     fun resolve(id: String): ThemePalette =
-        (byId[id] ?: byId.getValue(DEFAULT_ID)).palette
+        (byId[id] ?: builtInById.getValue(DEFAULT_ID)).palette
+
+    fun find(id: String): ThemePreset? = byId[id]
+
+    fun isCustom(id: String): Boolean = custom.any { it.id == id }
 }
 
 fun schemeFromSeed(seed: Color): ColorScheme {

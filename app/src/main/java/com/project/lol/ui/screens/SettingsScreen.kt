@@ -113,6 +113,7 @@ import com.project.lol.R
 import com.project.lol.offline.DownloadFolder
 import com.project.lol.offline.DownloadFormat
 import com.project.lol.offline.DownloadPrefs
+import com.project.lol.offline.lyrics.LyricsSource
 import com.project.lol.profile.ProfileManager
 import com.project.lol.service.MediaNotificationService
 import com.project.lol.service.OfflineMediaService
@@ -173,8 +174,10 @@ import compose.icons.tablericons.Folder
 import compose.icons.tablericons.InfoCircle
 import compose.icons.tablericons.Language
 import compose.icons.tablericons.Link
+import compose.icons.tablericons.Microphone
 import compose.icons.tablericons.Moon
 import compose.icons.tablericons.Movie
+import compose.icons.tablericons.Music
 import compose.icons.tablericons.Palette
 import compose.icons.tablericons.PlayerPlay
 import compose.icons.tablericons.Playlist
@@ -334,6 +337,11 @@ fun SettingsContent(
         }
     }
     var dlTags by remember { mutableStateOf(DownloadPrefs.writeTags(context)) }
+    var dlLyrics by remember { mutableStateOf(DownloadPrefs.lyrics(context)) }
+    var dlLyricsSource by remember { mutableStateOf(DownloadPrefs.lyricsSource(context)) }
+    var dlLyricsEmbed by remember { mutableStateOf(DownloadPrefs.lyricsEmbed(context)) }
+    var dlLyricsSidecar by remember { mutableStateOf(DownloadPrefs.lyricsSidecar(context)) }
+    var showLyricsSourceDialog by remember { mutableStateOf(false) }
 
     fun onDebugSecretTap() {
         if (debugUnlocked) return
@@ -845,6 +853,62 @@ fun SettingsContent(
                             DownloadPrefs.setWriteTags(context, enabled)
                         }
                     )
+
+                    HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+
+                    SettingSwitchTile(
+                        title = stringResource(R.string.settings_dl_lyrics),
+                        subtitle = stringResource(R.string.settings_dl_lyrics_subtitle),
+                        icon = TablerIcons.Microphone,
+                        checked = dlLyrics,
+                        onCheckedChange = { enabled ->
+                            dlLyrics = enabled
+                            DownloadPrefs.setLyrics(context, enabled)
+                        }
+                    )
+
+                    if (dlLyrics) {
+                        HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+
+                        SettingTile(
+                            title = stringResource(R.string.settings_dl_lyrics_source),
+                            subtitle = stringResource(
+                                when (dlLyricsSource) {
+                                    LyricsSource.YOUTUBE -> R.string.settings_dl_lyrics_source_youtube
+                                    LyricsSource.SPOTIFY -> R.string.settings_dl_lyrics_source_spotify
+                                    LyricsSource.AUTO -> R.string.settings_dl_lyrics_source_auto
+                                }
+                            ),
+                            icon = TablerIcons.Music,
+                            onClick = { showLyricsSourceDialog = true }
+                        )
+
+                        HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+
+                        SettingSwitchTile(
+                            title = stringResource(R.string.settings_dl_lyrics_embed),
+                            subtitle = stringResource(R.string.settings_dl_lyrics_embed_subtitle),
+                            icon = TablerIcons.Playlist,
+                            checked = dlLyricsEmbed,
+                            onCheckedChange = { enabled ->
+                                dlLyricsEmbed = enabled
+                                DownloadPrefs.setLyricsEmbed(context, enabled)
+                            }
+                        )
+
+                        HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+
+                        SettingSwitchTile(
+                            title = stringResource(R.string.settings_dl_lyrics_sidecar),
+                            subtitle = stringResource(R.string.settings_dl_lyrics_sidecar_subtitle),
+                            icon = TablerIcons.Folder,
+                            checked = dlLyricsSidecar,
+                            onCheckedChange = { enabled ->
+                                dlLyricsSidecar = enabled
+                                DownloadPrefs.setLyricsSidecar(context, enabled)
+                            }
+                        )
+                    }
                 }
 
                 SettingSectionCard(
@@ -1279,6 +1343,24 @@ fun SettingsContent(
                 DownloadPrefs.setFormat(context, f)
             },
             onDismiss = { showFormatDialog = false }
+        )
+    }
+
+    if (showLyricsSourceDialog) {
+        SingleChoiceDialog(
+            title = stringResource(R.string.settings_dl_lyrics_source),
+            options = listOf(
+                LyricsSource.AUTO.id to stringResource(R.string.settings_dl_lyrics_source_auto),
+                LyricsSource.YOUTUBE.id to stringResource(R.string.settings_dl_lyrics_source_youtube),
+                LyricsSource.SPOTIFY.id to stringResource(R.string.settings_dl_lyrics_source_spotify),
+            ),
+            selected = dlLyricsSource.id,
+            onSelect = { value ->
+                val source = LyricsSource.from(value)
+                dlLyricsSource = source
+                DownloadPrefs.setLyricsSource(context, source)
+            },
+            onDismiss = { showLyricsSourceDialog = false }
         )
     }
 

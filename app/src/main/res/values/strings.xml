@@ -125,6 +125,17 @@
     <string name="settings_write_tags">Write Tags and Cover Art</string>
     <string name="settings_write_tags_subtitle">Embed metadata and cover art into the file</string>
 
+    <string name="settings_dl_lyrics">Save Lyrics</string>
+    <string name="settings_dl_lyrics_subtitle">Store the lyrics with every download so Offline Mode can show them</string>
+    <string name="settings_dl_lyrics_source">Lyrics Source</string>
+    <string name="settings_dl_lyrics_source_auto">Auto</string>
+    <string name="settings_dl_lyrics_source_youtube">YouTube Music</string>
+    <string name="settings_dl_lyrics_source_spotify">Spotify</string>
+    <string name="settings_dl_lyrics_embed">Embed in Tags</string>
+    <string name="settings_dl_lyrics_embed_subtitle">Write the lyrics into the ID3 or M4A tags</string>
+    <string name="settings_dl_lyrics_sidecar">LRC File</string>
+    <string name="settings_dl_lyrics_sidecar_subtitle">Also save a .lrc next to the audio file</string>
+
     <string name="settings_save_account">Save Current Account</string>
     <string name="settings_save_account_subtitle">Store the current session as a profile</string>
     <string name="settings_save_account_message">The current Spotify session will be stored on this device.</string>
@@ -255,6 +266,10 @@
     <string name="offline_toast_could_not_delete_file">Could not delete file</string>
     <string name="offline_toast_could_not_delete_one_file">Could not delete 1 file</string>
     <string name="offline_toast_could_not_delete_files">Could not delete %1$d files</string>
+
+    <string name="offline_desc_lyrics">Lyrics</string>
+    <string name="offline_lyrics_empty">No lyrics saved for this track</string>
+    <string name="offline_lyrics_unsynced">Lyrics available without timing</string>
     <string name="offline_act_toast_account_saved">Account saved</string>
     <string name="offline_act_toast_profile_load_failed">Profile could not be loaded</string>
     <string name="offline_act_toast_profile_loaded">Profile loaded</string>
@@ -518,6 +533,7 @@
     <string name="dl_progress_converting">Converting to %1$s</string>
     <string name="dl_progress_preparing_m4a">Preparing M4A</string>
     <string name="dl_progress_writing_tags">Writing tags…</string>
+    <string name="dl_progress_fetching_lyrics">Fetching lyrics…</string>
     <string name="dl_stage_reading_playlist">Reading playlist</string>
     <string name="dl_progress_already_saved">Already saved</string>
     <string name="dl_progress_saved">Saved</string>

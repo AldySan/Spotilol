@@ -120,6 +120,16 @@
     <string name="settings_choose_folder">Pilih folder</string>
     <string name="settings_write_tags">Tulis tag dan sampul</string>
     <string name="settings_write_tags_subtitle">Sematkan metadata dan sampul ke dalam berkas</string>
+    <string name="settings_dl_lyrics">Simpan lirik</string>
+    <string name="settings_dl_lyrics_subtitle">Simpan lirik dari setiap unduhan agar mode offline bisa menampilkannya</string>
+    <string name="settings_dl_lyrics_source">Sumber lirik</string>
+    <string name="settings_dl_lyrics_source_auto">Otomatis</string>
+    <string name="settings_dl_lyrics_source_youtube">YouTube Music</string>
+    <string name="settings_dl_lyrics_source_spotify">Spotify</string>
+    <string name="settings_dl_lyrics_embed">Sisipkan ke tag</string>
+    <string name="settings_dl_lyrics_embed_subtitle">Menulis lirik ke tag ID3 atau M4A</string>
+    <string name="settings_dl_lyrics_sidecar">Berkas LRC</string>
+    <string name="settings_dl_lyrics_sidecar_subtitle">Juga simpan .lrc di samping file audio</string>
     <string name="settings_save_account">Simpan akun saat ini</string>
     <string name="settings_save_account_subtitle">Simpan sesi saat ini sebagai profil</string>
     <string name="settings_save_account_message">Sesi Spotify saat ini akan disimpan di perangkat ini.</string>
@@ -249,6 +259,9 @@
     <string name="offline_toast_could_not_delete_file">Tidak dapat menghapus berkas</string>
     <string name="offline_toast_could_not_delete_one_file">Tidak dapat menghapus 1 berkas</string>
     <string name="offline_toast_could_not_delete_files">Tidak dapat menghapus %1$d berkas</string>
+    <string name="offline_desc_lyrics">Lirik</string>
+    <string name="offline_lyrics_empty">Tidak ada lirik tersimpan untuk lagu ini</string>
+    <string name="offline_lyrics_unsynced">Lirik tersedia tanpa sinkronisasi</string>
     <string name="offline_act_toast_account_saved">Akun disimpan</string>
     <string name="offline_act_toast_profile_load_failed">Profil tidak dapat dimuat</string>
     <string name="offline_act_toast_profile_loaded">Profil dimuat</string>
@@ -463,6 +476,7 @@
     <string name="dl_progress_converting">Mengonversi ke %1$s</string>
     <string name="dl_progress_preparing_m4a">Menyiapkan M4A</string>
     <string name="dl_progress_writing_tags">Menulis tag…</string>
+    <string name="dl_progress_fetching_lyrics">Mengambil lirik…</string>
     <string name="dl_stage_reading_playlist">Membaca playlist</string>
     <string name="dl_progress_already_saved">Sudah disimpan</string>
     <string name="dl_progress_saved">Disimpan</string>

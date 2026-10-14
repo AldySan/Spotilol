@@ -124,6 +124,16 @@
     <string name="settings_choose_folder">Klasör seç</string>
     <string name="settings_write_tags">Etiketleri ve Kapak Resmini Yaz</string>
     <string name="settings_write_tags_subtitle">Meta verileri ve kapak resmini dosyaya göm</string>
+    <string name="settings_dl_lyrics">Şarkı sözlerini kaydet</string>
+    <string name="settings_dl_lyrics_subtitle">Çevrimdışı modun gösterebilmesi için her indirmede şarkı sözlerini kaydet</string>
+    <string name="settings_dl_lyrics_source">Şarkı sözü kaynağı</string>
+    <string name="settings_dl_lyrics_source_auto">Otomatik</string>
+    <string name="settings_dl_lyrics_source_youtube">YouTube Music</string>
+    <string name="settings_dl_lyrics_source_spotify">Spotify</string>
+    <string name="settings_dl_lyrics_embed">Etiketlere göm</string>
+    <string name="settings_dl_lyrics_embed_subtitle">Şarkı sözlerini ID3 veya M4A etiketlerine yazar</string>
+    <string name="settings_dl_lyrics_sidecar">LRC dosyası</string>
+    <string name="settings_dl_lyrics_sidecar_subtitle">Ses dosyasının yanına bir .lrc de kaydet</string>
 
     <string name="settings_save_account">Mevcut Hesabı Kaydet</string>
     <string name="settings_save_account_subtitle">Mevcut oturumu bir profil olarak sakla</string>
@@ -255,6 +265,9 @@
     <string name="offline_toast_could_not_delete_file">Dosya silinemedi</string>
     <string name="offline_toast_could_not_delete_one_file">1 dosya silinemedi</string>
     <string name="offline_toast_could_not_delete_files">%1$d dosya silinemedi</string>
+    <string name="offline_desc_lyrics">Şarkı sözleri</string>
+    <string name="offline_lyrics_empty">Bu parça için kayıtlı şarkı sözü yok</string>
+    <string name="offline_lyrics_unsynced">Şarkı sözleri senkronizasyonsuz kullanılabilir</string>
     <string name="offline_act_toast_account_saved">Hesap kaydedildi</string>
     <string name="offline_act_toast_profile_load_failed">Profil yüklenemedi</string>
     <string name="offline_act_toast_profile_loaded">Profil yüklendi</string>
@@ -477,6 +490,7 @@
     <string name="dl_progress_converting">%1$s biçimine dönüştürülüyor</string>
     <string name="dl_progress_preparing_m4a">M4A hazırlanıyor</string>
     <string name="dl_progress_writing_tags">Etiketler yazılıyor…</string>
+    <string name="dl_progress_fetching_lyrics">Şarkı sözleri alınıyor…</string>
     <string name="dl_stage_reading_playlist">Çalma listesi okunuyor</string>
     <string name="dl_progress_already_saved">Zaten kaydedildi</string>
     <string name="dl_progress_saved">Kaydedildi</string>

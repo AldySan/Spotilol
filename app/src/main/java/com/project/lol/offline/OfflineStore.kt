@@ -6,6 +6,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import com.project.lol.offline.lyrics.LyricsStore
 import com.project.lol.util.Logger
 import org.json.JSONObject
 import java.io.File
@@ -118,6 +119,7 @@ object OfflineStore {
             file.writeText(root.toString())
         }
         runCatching { File(coverDir(context), "$trackId.jpg").delete() }
+        LyricsStore.delete(context, trackId)
     }
 
     fun loadSongs(context: Context): List<OfflineSong> {
@@ -276,6 +278,7 @@ object OfflineStore {
             Logger.w(TAG, "deleteSong: failed to delete ${song.uri}: ${it.message}")
             false
         }
+        runCatching { LyricsStore.deleteSidecar(context, LyricsStore.sidecarName(song.artist, song.title, song.id)) }
         removeMetadata(context, song.id)
         return ok
     }

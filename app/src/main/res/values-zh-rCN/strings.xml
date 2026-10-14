@@ -123,6 +123,16 @@
     <string name="settings_choose_folder">选择文件夹</string>
     <string name="settings_write_tags">写入标签和封面</string>
     <string name="settings_write_tags_subtitle">将元数据和封面嵌入文件中</string>
+    <string name="settings_dl_lyrics">保存歌词</string>
+    <string name="settings_dl_lyrics_subtitle">随每次下载保存歌词，以便离线模式可以显示</string>
+    <string name="settings_dl_lyrics_source">歌词来源</string>
+    <string name="settings_dl_lyrics_source_auto">自动</string>
+    <string name="settings_dl_lyrics_source_youtube">YouTube Music</string>
+    <string name="settings_dl_lyrics_source_spotify">Spotify</string>
+    <string name="settings_dl_lyrics_embed">嵌入标签</string>
+    <string name="settings_dl_lyrics_embed_subtitle">将歌词写入 ID3 或 M4A 标签</string>
+    <string name="settings_dl_lyrics_sidecar">LRC 文件</string>
+    <string name="settings_dl_lyrics_sidecar_subtitle">同时在音频文件旁保存一个 .lrc</string>
 
     <string name="settings_save_account">保存当前账号</string>
     <string name="settings_save_account_subtitle">将当前会话存储为配置文件</string>
@@ -254,6 +264,9 @@
     <string name="offline_toast_could_not_delete_file">无法删除文件</string>
     <string name="offline_toast_could_not_delete_one_file">无法删除1个文件</string>
     <string name="offline_toast_could_not_delete_files">无法删除%1$d个文件</string>
+    <string name="offline_desc_lyrics">歌词</string>
+    <string name="offline_lyrics_empty">这首歌没有保存的歌词</string>
+    <string name="offline_lyrics_unsynced">歌词可用（无时间轴）</string>
     <string name="offline_act_toast_account_saved">账号已保存</string>
     <string name="offline_act_toast_profile_load_failed">无法加载配置文件</string>
     <string name="offline_act_toast_profile_loaded">配置文件已加载</string>
@@ -476,6 +489,7 @@
     <string name="dl_progress_converting">正在转换为%1$s</string>
     <string name="dl_progress_preparing_m4a">正在准备M4A</string>
     <string name="dl_progress_writing_tags">正在写入标签…</string>
+    <string name="dl_progress_fetching_lyrics">正在获取歌词…</string>
     <string name="dl_stage_reading_playlist">读取歌单</string>
     <string name="dl_progress_already_saved">已保存</string>
     <string name="dl_progress_saved">已保存</string>

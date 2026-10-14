@@ -20,6 +20,7 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -52,7 +53,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -130,6 +133,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.core.content.ContextCompat
 import com.project.lol.R
@@ -150,7 +154,12 @@ import com.project.lol.timer.SleepTimerManager
 import com.project.lol.ui.components.SettingsDialog
 import com.project.lol.ui.components.SleepTimerDialog
 import com.project.lol.ui.theme.schemeFromSeed
+import com.project.lol.offline.lyrics.Lrc
+import com.project.lol.offline.lyrics.LyricsStore
+import com.project.lol.offline.lyrics.ParsedLrc
 import com.project.lol.util.BuildInfo
+import com.project.lol.webview.helpers.LyricsStyle
+import com.project.lol.webview.helpers.LyricsTheme
 import compose.icons.TablerIcons
 import compose.icons.tablericons.AlertTriangle
 import compose.icons.tablericons.Check
@@ -162,6 +171,7 @@ import compose.icons.tablericons.Filter
 import compose.icons.tablericons.Folder
 import compose.icons.tablericons.Logout
 import compose.icons.tablericons.Menu2
+import compose.icons.tablericons.Microphone
 import compose.icons.tablericons.Music
 import compose.icons.tablericons.Pencil
 import compose.icons.tablericons.PictureInPicture
@@ -3143,6 +3153,28 @@ private fun FullScreenPlayer(
     }
     val coverScheme = coverSeed?.let { remember(it) { schemeFromSeed(it) } }
 
+    var showLyrics by remember { mutableStateOf(false) }
+    var lyrics by remember(song.id) { mutableStateOf<ParsedLrc?>(null) }
+    var lyricsLoaded by remember(song.id) { mutableStateOf(false) }
+    var activeLyricLine by remember(song.id) { mutableStateOf(-1) }
+    val lyricsListState = rememberLazyListState()
+    LaunchedEffect(song.id, showLyrics) {
+        if (!showLyrics || lyricsLoaded) return@LaunchedEffect
+        lyrics = withContext(Dispatchers.IO) { LyricsStore.parsed(context, song.id) }
+        lyricsLoaded = true
+    }
+    LaunchedEffect(lyrics, positionMs, showLyrics) {
+        val parsed = lyrics ?: return@LaunchedEffect
+        if (!parsed.synced) return@LaunchedEffect
+        val index = Lrc.activeIndex(parsed, positionMs.toLong())
+        if (index == activeLyricLine) return@LaunchedEffect
+        activeLyricLine = index
+        if (showLyrics && index >= 0) {
+            val delta = kotlin.math.abs(index - lyricsListState.firstVisibleItemIndex)
+            if (delta > 8) lyricsListState.scrollToItem(index) else lyricsListState.animateScrollToItem(index)
+        }
+    }
+
     val topBarOffset = if (hideTopBar) with(LocalConfiguration.current) { (screenHeightDp * 0.05f).dp } else 0.dp
     val collapseThreshold = with(density) { 84.dp.toPx() }
     var dragOffset by remember { mutableFloatStateOf(0f) }
@@ -3197,15 +3229,25 @@ private fun FullScreenPlayer(
                     .padding(vertical = 12.dp),
                 contentAlignment = Alignment.Center
             ) {
-                val side = if (maxWidth < maxHeight) maxWidth else maxHeight
-                CoverBox(
-                    song = song,
-                    corner = 16.dp,
-                    iconFraction = 0.4f,
-                    modifier = Modifier
-                        .size(side)
-                        .shadow(10.dp, RoundedCornerShape(16.dp))
-                )
+                val parsedLyrics = lyrics
+                if (showLyrics && parsedLyrics != null && parsedLyrics.lines.isNotEmpty()) {
+                    OfflineLyricsView(
+                        parsed = parsedLyrics,
+                        activeIndex = activeLyricLine,
+                        listState = lyricsListState,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    val side = if (maxWidth < maxHeight) maxWidth else maxHeight
+                    CoverBox(
+                        song = song,
+                        corner = 16.dp,
+                        iconFraction = 0.4f,
+                        modifier = Modifier
+                            .size(side)
+                            .shadow(10.dp, RoundedCornerShape(16.dp))
+                    )
+                }
             }
 
             Text(
@@ -3327,6 +3369,14 @@ private fun FullScreenPlayer(
                 )
                 Spacer(Modifier.weight(1f))
                 CompactIconButton(
+                    icon = TablerIcons.Microphone,
+                    contentDescription = stringResource(R.string.offline_desc_lyrics),
+                    tint = if (showLyrics) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    onClick = { showLyrics = !showLyrics },
+                    boxSize = 44.dp,
+                    iconSize = 20.dp
+                )
+                CompactIconButton(
                     icon = TablerIcons.PictureInPicture,
                     contentDescription = stringResource(R.string.offline_desc_enter_pip),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -3369,6 +3419,97 @@ private fun FullScreenPlayer(
             MaterialTheme(colorScheme = scheme) { body() }
         } else {
             body()
+        }
+    }
+}
+
+/**
+ * Native lyrics viewer for Offline Mode. Deliberately mirrors the WebView engine: same preset
+ * curve through [LyricsTheme.previewStyle] and the same scale / spacing / alignment / animation
+ * overrides from [LyricsStyle], so the two renderings look identical.
+ */
+@Composable
+private fun OfflineLyricsView(
+    parsed: ParsedLrc,
+    activeIndex: Int,
+    listState: LazyListState,
+    modifier: Modifier = Modifier,
+) {
+    if (parsed.lines.isEmpty()) {
+        Box(modifier = modifier, contentAlignment = Alignment.Center) {
+            Text(
+                text = stringResource(R.string.offline_lyrics_empty),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        return
+    }
+
+    val context = LocalContext.current
+    val style = remember {
+        val prefs = context.getSharedPreferences("spotilol_prefs", Context.MODE_PRIVATE)
+        LyricsTheme.sanitize(LyricsStyle.from(prefs))
+    }
+    val preview = remember(style) { LyricsTheme.previewStyle(style) }
+
+    Column(modifier = modifier) {
+        if (!parsed.synced) {
+            Text(
+                text = stringResource(R.string.offline_lyrics_unsynced),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+        }
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            items(parsed.lines.size) { index ->
+                val line = parsed.lines[index]
+                val isActive = parsed.synced && index == activeIndex
+                val isPast = parsed.synced && activeIndex >= 0 && index < activeIndex
+                val stateAlpha = when {
+                    !parsed.synced -> 1f
+                    isActive -> 1f
+                    isPast -> preview.passedOpacity
+                    else -> preview.upcomingOpacity
+                }
+                val stateScale = if (isActive) preview.activeScale else 1f
+                val animAlpha = if (style.animate) {
+                    animateFloatAsState(stateAlpha, tween(350), label = "lyrAlpha").value
+                } else stateAlpha
+                val animScale = if (style.animate) {
+                    animateFloatAsState(stateScale, tween(350), label = "lyrScale").value
+                } else stateScale
+                Text(
+                    text = line.text,
+                    fontSize = preview.baseSp.sp,
+                    lineHeight = (preview.baseSp * preview.lineHeight).sp,
+                    fontWeight = FontWeight(if (isActive) preview.activeWeight else preview.weight),
+                    color = if (isActive) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = when (style.align) {
+                        LyricsTheme.ALIGN_CENTER -> TextAlign.Center
+                        LyricsTheme.ALIGN_END -> TextAlign.End
+                        else -> TextAlign.Start
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .graphicsLayer {
+                            alpha = animAlpha
+                            scaleX = animScale
+                            scaleY = animScale
+                            transformOrigin = when (style.align) {
+                                LyricsTheme.ALIGN_CENTER -> TransformOrigin(0.5f, 0.5f)
+                                LyricsTheme.ALIGN_END -> TransformOrigin(1f, 0.5f)
+                                else -> TransformOrigin(0f, 0.5f)
+                            }
+                        }
+                        .padding(vertical = 5.dp)
+                )
+            }
         }
     }
 }

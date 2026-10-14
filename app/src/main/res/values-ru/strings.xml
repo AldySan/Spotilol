@@ -120,6 +120,16 @@
     <string name="settings_choose_folder">Выбрать папку</string>
     <string name="settings_write_tags">Записывать теги и обложку</string>
     <string name="settings_write_tags_subtitle">Встраивать метаданные и обложку в файл</string>
+    <string name="settings_dl_lyrics">Сохранять тексты</string>
+    <string name="settings_dl_lyrics_subtitle">Сохраняет тексты к каждой загрузке, чтобы офлайн-режим мог их показать</string>
+    <string name="settings_dl_lyrics_source">Источник текстов</string>
+    <string name="settings_dl_lyrics_source_auto">Авто</string>
+    <string name="settings_dl_lyrics_source_youtube">YouTube Music</string>
+    <string name="settings_dl_lyrics_source_spotify">Spotify</string>
+    <string name="settings_dl_lyrics_embed">Встраивать в теги</string>
+    <string name="settings_dl_lyrics_embed_subtitle">Записывает тексты в теги ID3 или M4A</string>
+    <string name="settings_dl_lyrics_sidecar">Файл LRC</string>
+    <string name="settings_dl_lyrics_sidecar_subtitle">Также сохраняет .lrc рядом с аудиофайлом</string>
     <string name="settings_save_account">Сохранить текущий аккаунт</string>
     <string name="settings_save_account_subtitle">Сохранить текущую сессию как профиль</string>
     <string name="settings_save_account_message">Текущая сессия Spotify будет сохранена на этом устройстве.</string>
@@ -249,6 +259,9 @@
     <string name="offline_toast_could_not_delete_file">Не удалось удалить файл</string>
     <string name="offline_toast_could_not_delete_one_file">Не удалось удалить 1 файл</string>
     <string name="offline_toast_could_not_delete_files">Не удалось удалить %1$d файлов</string>
+    <string name="offline_desc_lyrics">Текст песни</string>
+    <string name="offline_lyrics_empty">Для этого трека нет сохранённого текста</string>
+    <string name="offline_lyrics_unsynced">Текст доступен без синхронизации</string>
     <string name="offline_act_toast_account_saved">Аккаунт сохранён</string>
     <string name="offline_act_toast_profile_load_failed">Не удалось загрузить профиль</string>
     <string name="offline_act_toast_profile_loaded">Профиль загружен</string>
@@ -463,6 +476,7 @@
     <string name="dl_progress_converting">Преобразование в %1$s</string>
     <string name="dl_progress_preparing_m4a">Подготовка M4A</string>
     <string name="dl_progress_writing_tags">Запись тегов…</string>
+    <string name="dl_progress_fetching_lyrics">Получение текстов…</string>
     <string name="dl_stage_reading_playlist">Чтение плейлиста</string>
     <string name="dl_progress_already_saved">Уже сохранено</string>
     <string name="dl_progress_saved">Сохранено</string>

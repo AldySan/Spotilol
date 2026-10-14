@@ -120,6 +120,16 @@
     <string name="settings_choose_folder">Scegli cartella</string>
     <string name="settings_write_tags">Scrivi tag e copertina</string>
     <string name="settings_write_tags_subtitle">Incorpora metadati e copertina nel file</string>
+    <string name="settings_dl_lyrics">Salva i testi</string>
+    <string name="settings_dl_lyrics_subtitle">Salva i testi di ogni download così la modalità offline potrà mostrarli</string>
+    <string name="settings_dl_lyrics_source">Fonte dei testi</string>
+    <string name="settings_dl_lyrics_source_auto">Automatica</string>
+    <string name="settings_dl_lyrics_source_youtube">YouTube Music</string>
+    <string name="settings_dl_lyrics_source_spotify">Spotify</string>
+    <string name="settings_dl_lyrics_embed">Incorpora nei tag</string>
+    <string name="settings_dl_lyrics_embed_subtitle">Scrive i testi nei tag ID3 o M4A</string>
+    <string name="settings_dl_lyrics_sidecar">File LRC</string>
+    <string name="settings_dl_lyrics_sidecar_subtitle">Salva anche un .lrc accanto al file audio</string>
     <string name="settings_save_account">Salva l\'account attuale</string>
     <string name="settings_save_account_subtitle">Memorizza la sessione attuale come profilo</string>
     <string name="settings_save_account_message">L\'attuale sessione di Spotify verrà memorizzata su questo dispositivo.</string>
@@ -249,6 +259,9 @@
     <string name="offline_toast_could_not_delete_file">Impossibile eliminare il file</string>
     <string name="offline_toast_could_not_delete_one_file">Impossibile eliminare 1 file</string>
     <string name="offline_toast_could_not_delete_files">Impossibile eliminare %1$d file</string>
+    <string name="offline_desc_lyrics">Testi</string>
+    <string name="offline_lyrics_empty">Nessun testo salvato per questo brano</string>
+    <string name="offline_lyrics_unsynced">Testi disponibili senza sincronizzazione</string>
     <string name="offline_act_toast_account_saved">Account salvato</string>
     <string name="offline_act_toast_profile_load_failed">Impossibile caricare il profilo</string>
     <string name="offline_act_toast_profile_loaded">Profilo caricato</string>
@@ -463,6 +476,7 @@
     <string name="dl_progress_converting">Conversione in %1$s</string>
     <string name="dl_progress_preparing_m4a">Preparazione M4A</string>
     <string name="dl_progress_writing_tags">Scrittura dei tag…</string>
+    <string name="dl_progress_fetching_lyrics">Recupero dei testi…</string>
     <string name="dl_stage_reading_playlist">Lettura della playlist</string>
     <string name="dl_progress_already_saved">Già salvato</string>
     <string name="dl_progress_saved">Salvato</string>

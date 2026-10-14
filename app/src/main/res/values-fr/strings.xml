@@ -125,6 +125,16 @@
     <string name="settings_choose_folder">Choisir un dossier</string>
     <string name="settings_write_tags">Inscrire les tags et la pochette</string>
     <string name="settings_write_tags_subtitle">Intégrer les métadonnées et la pochette dans le fichier</string>
+    <string name="settings_dl_lyrics">Enregistrer les paroles</string>
+    <string name="settings_dl_lyrics_subtitle">Enregistre les paroles de chaque téléchargement pour que le mode hors ligne puisse les afficher</string>
+    <string name="settings_dl_lyrics_source">Source des paroles</string>
+    <string name="settings_dl_lyrics_source_auto">Automatique</string>
+    <string name="settings_dl_lyrics_source_youtube">YouTube Music</string>
+    <string name="settings_dl_lyrics_source_spotify">Spotify</string>
+    <string name="settings_dl_lyrics_embed">Intégrer aux balises</string>
+    <string name="settings_dl_lyrics_embed_subtitle">Écrit les paroles dans les balises ID3 ou M4A</string>
+    <string name="settings_dl_lyrics_sidecar">Fichier LRC</string>
+    <string name="settings_dl_lyrics_sidecar_subtitle">Enregistre aussi un .lrc à côté du fichier audio</string>
 
     <string name="settings_save_account">Enregistrer le compte actuel</string>
     <string name="settings_save_account_subtitle">Conserver la session actuelle sous forme de profil</string>
@@ -256,6 +266,9 @@
     <string name="offline_toast_could_not_delete_file">Impossible de supprimer le fichier</string>
     <string name="offline_toast_could_not_delete_one_file">Impossible de supprimer 1 fichier</string>
     <string name="offline_toast_could_not_delete_files">Impossible de supprimer %1$d fichiers</string>
+    <string name="offline_desc_lyrics">Paroles</string>
+    <string name="offline_lyrics_empty">Aucune parole enregistrée pour ce titre</string>
+    <string name="offline_lyrics_unsynced">Paroles disponibles sans synchronisation</string>
     <string name="offline_act_toast_account_saved">Compte enregistré</string>
     <string name="offline_act_toast_profile_load_failed">Le profil n\'a pas pu être chargé</string>
     <string name="offline_act_toast_profile_loaded">Profil chargé</string>
@@ -478,6 +491,7 @@
     <string name="dl_progress_converting">Conversion en %1$s</string>
     <string name="dl_progress_preparing_m4a">Préparation du M4A</string>
     <string name="dl_progress_writing_tags">Écriture des tags…</string>
+    <string name="dl_progress_fetching_lyrics">Récupération des paroles…</string>
     <string name="dl_stage_reading_playlist">Lecture de la playlist</string>
     <string name="dl_progress_already_saved">Déjà enregistré</string>
     <string name="dl_progress_saved">Enregistré</string>

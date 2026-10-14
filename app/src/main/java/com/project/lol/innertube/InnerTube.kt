@@ -282,6 +282,46 @@ class InnerTube {
 
     suspend fun getSwJsData() = withRetry { httpClient.get("https://music.youtube.com/sw.js_data") }
 
+    /**
+     * Watch-next payload. Used to locate the Lyrics tab, whose browseId cannot be derived
+     * from the videoId.
+     *
+     * Never sends the account cookie: the tab list we need is public, and there is no reason
+     * to attach a session to a lyrics lookup.
+     */
+    suspend fun next(
+        client: YouTubeClient,
+        videoId: String,
+    ) = withRetry {
+        httpClient.post("next") {
+            ytClient(client, setLogin = false)
+            setBody(
+                NextBody(
+                    context = client.toContext(locale, visitorData, null),
+                    videoId = videoId,
+                )
+            )
+        }
+    }
+
+    /** Generic browse. Lyrics live behind an opaque browseId obtained from [next]. */
+    suspend fun browse(
+        client: YouTubeClient,
+        browseId: String,
+        params: String? = null,
+    ) = withRetry {
+        httpClient.post("browse") {
+            ytClient(client, setLogin = false)
+            setBody(
+                BrowseBody(
+                    context = client.toContext(locale, visitorData, null),
+                    browseId = browseId,
+                    params = params,
+                )
+            )
+        }
+    }
+
     
     private suspend fun returnYouTubeDislike(videoId: String) = withRetry {
         httpClient.get("https://returnyoutubedislikeapi.com/Votes?videoId=$videoId") {

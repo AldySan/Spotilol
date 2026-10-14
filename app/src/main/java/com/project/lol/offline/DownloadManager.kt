@@ -15,6 +15,8 @@ import com.project.lol.offline.audio.Mp3Encoder
 import com.project.lol.offline.audio.Mp4Remux
 import com.project.lol.offline.audio.Mp4Tags
 import com.project.lol.offline.audio.Tags
+import com.project.lol.offline.lyrics.LyricsFetcher
+import com.project.lol.offline.lyrics.LyricsStore
 import com.project.lol.yt.AudioQuality
 import com.project.lol.yt.CandidateScorer
 import com.project.lol.yt.CandidateScorer.isAcceptableMatch
@@ -723,6 +725,30 @@ object DownloadManager {
             else -> null
         }
 
+        val lyricsLrc = if (DownloadPrefs.lyrics(context) && signal == null) {
+            progress(99, context.getString(R.string.dl_progress_fetching_lyrics))
+            val result = LyricsFetcher.fetch(
+                videoId = resolved.chosen.id,
+                trackId = trackId,
+                title = effectiveTitle,
+                artist = effectiveArtist,
+                durationSec = resolved.chosen.duration ?: 0,
+                source = DownloadPrefs.lyricsSource(context),
+            )
+            if (result == null) {
+                Logger.i(TAG, "downloadToFile: no lyrics for $trackId")
+                null
+            } else {
+                LyricsStore.write(context, trackId, result.lrc)
+                Logger.i(
+                    TAG,
+                    "downloadToFile: lyrics ${result.source} " +
+                        "${if (result.synced) "synced" else "plain"} ${result.lineCount} lines",
+                )
+                result.lrc
+            }
+        } else null
+
         if (writeTags && tagFormat != null) {
             progress(99, context.getString(R.string.dl_progress_writing_tags))
             Tags.writeTags(
@@ -735,6 +761,7 @@ object DownloadManager {
                 trackNumber = track.trackNumber,
                 discNumber = track.discNumber,
                 year = track.year,
+                lyrics = if (DownloadPrefs.lyricsEmbed(context)) lyricsLrc else null,
             )
         }
 
@@ -749,6 +776,13 @@ object DownloadManager {
         )
         finalFile.delete()
         if (uri != null) {
+            if (lyricsLrc != null && DownloadPrefs.lyricsSidecar(context)) {
+                LyricsStore.writeSidecar(
+                    context,
+                    LyricsStore.sidecarName(effectiveArtist, effectiveTitle, trackId),
+                    lyricsLrc,
+                )
+            }
             return TrackResult.Saved(
                 effectiveTitle,
                 effectiveArtist,

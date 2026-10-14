@@ -371,6 +371,14 @@
     <string name="main_pip_play">Воспроизвести</string>
     <string name="main_pip_pause">Пауза</string>
     <string name="main_pip_next">Следующий</string>
+
+    <string name="main_volume_title">Громкость</string>
+    <string name="main_volume_muted">Без звука</string>
+    <string name="main_volume_percent">%1$d%%</string>
+    <string name="volume_preset_mute">Без звука</string>
+    <string name="volume_preset_half">50%</string>
+    <string name="volume_preset_max">100%</string>
+
     <string name="timer_quick_select">Быстрый выбор</string>
     <string name="timer_preset_minutes">%1$d мин</string>
     <string name="timer_end_of_song">Конец песни</string>

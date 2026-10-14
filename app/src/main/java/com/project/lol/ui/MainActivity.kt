@@ -131,6 +131,10 @@ import java.lang.ref.WeakReference
 import java.net.HttpURLConnection
 import java.net.URL
 import kotlin.math.min
+import android.media.AudioManager
+import androidx.compose.runtime.mutableFloatStateOf
+import com.project.lol.ui.components.VolumeDialog
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 class MainActivity : ComponentActivity(), WebViewHost.UiHost {
@@ -175,6 +179,8 @@ class MainActivity : ComponentActivity(), WebViewHost.UiHost {
     private val showBatteryDialog = mutableStateOf(false)
     private val sleepTimerInputText = mutableStateOf("")
     private val sleepTimerState = mutableStateOf(SleepTimerManager.state())
+    private val showVolumeDialog = mutableStateOf(false)
+    private val volumeFractionState = mutableFloatStateOf(0f)
 
     private val loadingProgress = mutableIntStateOf(100)
     private val blockServiceWorkerState = mutableStateOf(true)
@@ -273,6 +279,7 @@ class MainActivity : ComponentActivity(), WebViewHost.UiHost {
             val themePreset = themePresetState.value
             val themeSecondary = themeSecondaryState.value
             val showDialog = showSleepTimerDialog.value
+            val showVolume = showVolumeDialog.value
             val showBatteryPrompt = showBatteryDialog.value
             val loadProgress = loadingProgress.intValue
             val blockServiceWorker = blockServiceWorkerState.value
@@ -458,9 +465,15 @@ class MainActivity : ComponentActivity(), WebViewHost.UiHost {
                                 }
                             }
 
-                            bridge.onPlayLoaded = {
-                                publishTimerHighlight(SleepTimerManager.isActive)
-                            }
+                                bridge.onVolumeDialogRequest = {
+                                    publishVolumeIcon(syncVolumeState())
+                                    showVolumeDialog.value = true
+                                }
+
+                                bridge.onPlayLoaded = {
+                                    publishTimerHighlight(SleepTimerManager.isActive)
+                                    publishVolumeIcon(syncVolumeState())
+                                }
 
                             bridge.onMediaPosition = { position ->
                                 SleepTimerManager.onPosition(position)
@@ -625,6 +638,17 @@ class MainActivity : ComponentActivity(), WebViewHost.UiHost {
                                     }
                                 )
                             }
+
+                                if (showVolume) {
+                                    VolumeDialog(
+                                        fraction = volumeFractionState.floatValue,
+                                        onChange = { fraction ->
+                                            volumeFractionState.value = fraction
+                                            applySystemVolume(fraction)
+                                        },
+                                        onDismiss = { showVolumeDialog.value = false }
+                                    )
+                                }
 
                                 if (showBatteryPrompt) {
                                     BatteryOptimizationDialog(
@@ -809,6 +833,39 @@ class MainActivity : ComponentActivity(), WebViewHost.UiHost {
                 if(t) t.classList.toggle('spl-active',a);
             })($active)
             """.trimIndent(),
+            null
+        )
+    }
+
+    private fun audioManager(): AudioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+
+    private fun syncVolumeState(): Boolean {
+        val am = audioManager()
+        val max = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+        val current = runCatching { am.getStreamVolume(AudioManager.STREAM_MUSIC) }.getOrDefault(0)
+        val fraction = (current.toFloat() / max).coerceIn(0f, 1f)
+        volumeFractionState.value = fraction
+        return fraction <= 0f
+    }
+
+    private fun applySystemVolume(fraction: Float) {
+        val am = audioManager()
+        val max = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+        val level = (fraction.coerceIn(0f, 1f) * max).roundToInt()
+        runCatching { am.setStreamVolume(AudioManager.STREAM_MUSIC, level, 0) }
+        volumeFractionState.value = level.toFloat() / max
+        publishVolumeIcon(level <= 0)
+    }
+
+    private fun publishVolumeIcon(muted: Boolean) {
+        webView?.evaluateJavascript(
+            """
+        (function(m){
+            window.__splSysMuted=!!m;
+            var b=document.getElementById('spl-vol-btn');
+            if(b) b.classList.toggle('spl-active',!!m);
+        })($muted)
+        """.trimIndent(),
             null
         )
     }
@@ -1377,6 +1434,7 @@ class MainActivity : ComponentActivity(), WebViewHost.UiHost {
                     view.loadUrl("https://accounts.spotify.com/login")
                 }
             }
+            publishVolumeIcon(syncVolumeState())
         }
     }
 

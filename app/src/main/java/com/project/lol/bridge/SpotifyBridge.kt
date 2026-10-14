@@ -51,6 +51,7 @@ class SpotifyBridge(activityRef: WeakReference<Activity>) {
     var onMediaStatus: ((String) -> Unit)? = null
     var onMediaPosition: ((Long) -> Unit)? = null
     var onTimerDialogRequest: (() -> Unit)? = null
+    var onVolumeDialogRequest: (() -> Unit)? = null
     var onEnterPipRequest: (() -> Unit)? = null
     var onEnterPipVideoRequest: ((Int, Int) -> Unit)? = null
     var onEnterVideoFullscreen: (() -> Unit)? = null
@@ -211,6 +212,15 @@ class SpotifyBridge(activityRef: WeakReference<Activity>) {
         Logger.d(CALL, "openTimerDialog")
         activity.runOnUiThread {
             onTimerDialogRequest?.invoke()
+        }
+    }
+
+    @JavascriptInterface
+    fun openVolumeDialog() {
+        val activity = activityRef.get() ?: return
+        Logger.d(CALL, "openVolumeDialog")
+        activity.runOnUiThread {
+            onVolumeDialogRequest?.invoke()
         }
     }
 

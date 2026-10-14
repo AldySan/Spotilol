@@ -380,6 +380,13 @@
     <string name="main_pip_pause">Pause</string>
     <string name="main_pip_next">Next</string>
 
+    <string name="main_volume_title">Volume</string>
+    <string name="main_volume_muted">Muted</string>
+    <string name="main_volume_percent">%1$d%%</string>
+    <string name="volume_preset_mute">Mute</string>
+    <string name="volume_preset_half">50%</string>
+    <string name="volume_preset_max">100%</string>
+
     <string name="timer_quick_select">Quick select</string>
     <string name="timer_preset_minutes">%1$d min</string>
     <string name="timer_end_of_song">End Song</string>

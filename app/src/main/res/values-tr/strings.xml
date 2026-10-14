@@ -205,6 +205,7 @@
     <string name="offline_search_placeholder">İndirmelerinizde ara</string>
     <string name="offline_desc_clear_search">Aramayı temizle</string>
     <string name="offline_unknown_artist">Bilinmeyen sanatçı</string>
+    <string name="offline_unknown_album">Bilinmeyen albüm</string>
     <string name="offline_label_explicit">Explicit</string>
     <string name="offline_desc_delete">Sil</string>
     <string name="offline_desc_previous">Önceki</string>
@@ -233,6 +234,16 @@
     <string name="offline_act_toast_third_party_cleared">Üçüncü taraf girişleri temizlendi</string>
     <string name="offline_tab_songs">Şarkılar</string>
     <string name="offline_tab_playlists">Çalma listeleri</string>
+    <string name="offline_filter_artist">Sanatçılar</string>
+    <string name="offline_filter_album">Albümler</string>
+    <string name="offline_filter_year">Yıllar</string>
+    <string name="offline_filter_format">Formatlar</string>
+    <string name="offline_filter_unknown">Bilinmiyor</string>
+    <string name="offline_filter_none">Filtrelenecek bir şey yok</string>
+    <string name="offline_filter_done">Bitti</string>
+    <string name="offline_filter_clear">Filtreleri temizle</string>
+    <string name="offline_status_filtered">%1$d / %2$d şarkı</string>
+    <string name="offline_empty_no_filter_match">Seçili filtrelerle eşleşen indirme yok</string>
     <string name="offline_desc_import">Yerel ses dosyalarını içe aktar</string>
     <string name="offline_import_done_one">1 parça içe aktarıldı</string>
     <string name="offline_import_done_many">%1$d parça içe aktarıldı</string>

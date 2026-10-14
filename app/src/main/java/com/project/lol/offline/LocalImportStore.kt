@@ -26,6 +26,7 @@ object LocalImportStore {
         val album: String,
         val durationSec: Int,
         val cover: ByteArray?,
+        val year: Int?,
     )
 
     fun isImported(song: OfflineSong): Boolean = song.id.startsWith(ID_PREFIX)
@@ -89,6 +90,7 @@ object LocalImportStore {
                         put("artist", meta.artist)
                         put("album", meta.album)
                         put("durationSec", meta.durationSec)
+                        meta.year?.let { put("year", it) }
                         put("key", key)
                         put("addedAt", System.currentTimeMillis())
                     }
@@ -130,6 +132,8 @@ object LocalImportStore {
                     coverFile = coverFile(context, id),
                     album = o.optString("album"),
                     durationSec = o.optInt("durationSec", 0).takeIf { it > 0 },
+                    year = o.optInt("year", 0).takeIf { it > 0 },
+                    format = file.extension.lowercase(),
                 )
             )
         }
@@ -162,6 +166,8 @@ object LocalImportStore {
                 album = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM)?.trim().orEmpty(),
                 durationSec = ((durationMs + 500) / 1000).toInt(),
                 cover = retriever.embeddedPicture,
+                year = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_YEAR)
+                    ?.toIntOrNull()?.takeIf { it > 0 },
             )
         } catch (e: Exception) {
             Logger.w(TAG, "import: probe failed for ${file.name}: ${e.message}")

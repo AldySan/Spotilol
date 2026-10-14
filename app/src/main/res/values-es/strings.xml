@@ -199,6 +199,7 @@
     <string name="offline_search_placeholder">Buscar en tus descargas</string>
     <string name="offline_desc_clear_search">Borrar búsqueda</string>
     <string name="offline_unknown_artist">Artista desconocido</string>
+    <string name="offline_unknown_album">Álbum desconocido</string>
     <string name="offline_label_explicit">Explícito</string>
     <string name="offline_desc_delete">Eliminar</string>
     <string name="offline_desc_previous">Anterior</string>
@@ -227,6 +228,16 @@
     <string name="offline_act_toast_third_party_cleared">Inicios de sesión de terceros borrados</string>
     <string name="offline_tab_songs">Canciones</string>
     <string name="offline_tab_playlists">Listas de reproducción</string>
+    <string name="offline_filter_artist">Artistas</string>
+    <string name="offline_filter_album">Álbumes</string>
+    <string name="offline_filter_year">Años</string>
+    <string name="offline_filter_format">Formatos</string>
+    <string name="offline_filter_unknown">Desconocido</string>
+    <string name="offline_filter_none">Nada que filtrar aquí</string>
+    <string name="offline_filter_done">Listo</string>
+    <string name="offline_filter_clear">Borrar filtros</string>
+    <string name="offline_status_filtered">%1$d de %2$d canciones</string>
+    <string name="offline_empty_no_filter_match">Ninguna descarga coincide con los filtros seleccionados</string>
     <string name="offline_desc_import">Importar archivos de audio locales</string>
     <string name="offline_import_done_one">1 canción importada</string>
     <string name="offline_import_done_many">%1$d canciones importadas</string>

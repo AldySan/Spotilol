@@ -199,6 +199,7 @@
     <string name="offline_search_placeholder">Downloads durchsuchen</string>
     <string name="offline_desc_clear_search">Suche löschen</string>
     <string name="offline_unknown_artist">Unbekannter Künstler</string>
+    <string name="offline_unknown_album">Unbekanntes Album</string>
     <string name="offline_label_explicit">Explizit</string>
     <string name="offline_desc_delete">Löschen</string>
     <string name="offline_desc_previous">Vorheriger</string>
@@ -227,6 +228,16 @@
     <string name="offline_act_toast_third_party_cleared">Drittanbieter-Anmeldungen gelöscht</string>
     <string name="offline_tab_songs">Titel</string>
     <string name="offline_tab_playlists">Playlists</string>
+    <string name="offline_filter_artist">Künstler</string>
+    <string name="offline_filter_album">Alben</string>
+    <string name="offline_filter_year">Jahre</string>
+    <string name="offline_filter_format">Formate</string>
+    <string name="offline_filter_unknown">Unbekannt</string>
+    <string name="offline_filter_none">Nichts zum Filtern vorhanden</string>
+    <string name="offline_filter_done">Fertig</string>
+    <string name="offline_filter_clear">Filter zurücksetzen</string>
+    <string name="offline_status_filtered">%1$d von %2$d Titeln</string>
+    <string name="offline_empty_no_filter_match">Keine Downloads entsprechen den ausgewählten Filtern</string>
     <string name="offline_desc_import">Lokale Audiodateien importieren</string>
     <string name="offline_import_done_one">1 Titel importiert</string>
     <string name="offline_import_done_many">%1$d Titel importiert</string>

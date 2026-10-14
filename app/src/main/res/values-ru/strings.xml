@@ -199,6 +199,7 @@
     <string name="offline_search_placeholder">Поиск по загрузкам</string>
     <string name="offline_desc_clear_search">Очистить поиск</string>
     <string name="offline_unknown_artist">Неизвестный исполнитель</string>
+    <string name="offline_unknown_album">Неизвестный альбом</string>
     <string name="offline_label_explicit">Explicit</string>
     <string name="offline_desc_delete">Удалить</string>
     <string name="offline_desc_previous">Предыдущий</string>
@@ -227,6 +228,16 @@
     <string name="offline_act_toast_third_party_cleared">Входы сторонних сервисов удалены</string>
     <string name="offline_tab_songs">Песни</string>
     <string name="offline_tab_playlists">Плейлисты</string>
+    <string name="offline_filter_artist">Исполнители</string>
+    <string name="offline_filter_album">Альбомы</string>
+    <string name="offline_filter_year">Годы</string>
+    <string name="offline_filter_format">Форматы</string>
+    <string name="offline_filter_unknown">Неизвестно</string>
+    <string name="offline_filter_none">Нечего фильтровать</string>
+    <string name="offline_filter_done">Готово</string>
+    <string name="offline_filter_clear">Сбросить фильтры</string>
+    <string name="offline_status_filtered">%1$d из %2$d песен</string>
+    <string name="offline_empty_no_filter_match">Ни одна загрузка не соответствует выбранным фильтрам</string>
     <string name="offline_desc_import">Импортировать локальные аудиофайлы</string>
     <string name="offline_import_done_one">Импортирована 1 песня</string>
     <string name="offline_import_done_many">Импортировано песен: %1$d</string>

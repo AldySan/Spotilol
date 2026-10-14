@@ -199,6 +199,7 @@
     <string name="offline_search_placeholder">Cari di unduhan Anda</string>
     <string name="offline_desc_clear_search">Hapus pencarian</string>
     <string name="offline_unknown_artist">Artis tidak dikenal</string>
+    <string name="offline_unknown_album">Album tidak dikenal</string>
     <string name="offline_label_explicit">Eksplisit</string>
     <string name="offline_desc_delete">Hapus</string>
     <string name="offline_desc_previous">Sebelumnya</string>
@@ -227,6 +228,16 @@
     <string name="offline_act_toast_third_party_cleared">Login pihak ketiga dihapus</string>
     <string name="offline_tab_songs">Lagu</string>
     <string name="offline_tab_playlists">Playlist</string>
+    <string name="offline_filter_artist">Artis</string>
+    <string name="offline_filter_album">Album</string>
+    <string name="offline_filter_year">Tahun</string>
+    <string name="offline_filter_format">Format</string>
+    <string name="offline_filter_unknown">Tidak dikenal</string>
+    <string name="offline_filter_none">Tidak ada yang bisa difilter</string>
+    <string name="offline_filter_done">Selesai</string>
+    <string name="offline_filter_clear">Hapus filter</string>
+    <string name="offline_status_filtered">%1$d dari %2$d lagu</string>
+    <string name="offline_empty_no_filter_match">Tidak ada unduhan yang cocok dengan filter yang dipilih</string>
     <string name="offline_desc_import">Impor file audio lokal</string>
     <string name="offline_import_done_one">1 lagu berhasil diimpor</string>
     <string name="offline_import_done_many">%1$d lagu berhasil diimpor</string>

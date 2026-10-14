@@ -33,6 +33,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -58,6 +59,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -167,6 +169,7 @@ import kotlin.time.Duration.Companion.milliseconds
 
 private enum class RepeatMode { OFF, ALL, ONE }
 private enum class OfflineLibraryTab { SONGS, PLAYLISTS }
+private enum class OfflineFilterKind { ARTIST, ALBUM, YEAR, FORMAT }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -242,6 +245,11 @@ fun OfflineScreen(
     var importing by remember { mutableStateOf(false) }
     var importLabel by remember { mutableStateOf("") }
     var queueSongs by remember { mutableStateOf<List<OfflineSong>>(emptyList()) }
+    var artistFilters by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var albumFilters by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var yearFilters by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var formatFilters by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var filterDialog by remember { mutableStateOf<OfflineFilterKind?>(null) }
 
     val searchEngine = remember { GenericSearchEngine<OfflineSong>(maxResult = 100) }
     val songExtractor = remember {
@@ -303,7 +311,32 @@ fun OfflineScreen(
             }
         }
     }
-    val visibleSongs = searchResults ?: songs
+    val artistOptions = remember(songs) {
+        songs.map { it.artist.ifBlank { it.ytArtist } }.distinct()
+            .sortedWith(compareBy({ it.isBlank() }, { it.lowercase() }))
+    }
+    val albumOptions = remember(songs) {
+        songs.map { it.album.ifBlank { it.ytAlbum } }.distinct()
+            .sortedWith(compareBy({ it.isBlank() }, { it.lowercase() }))
+    }
+    val yearOptions = remember(songs) {
+        val years = songs.mapNotNull { it.year }.distinct().sortedDescending().map { it.toString() }
+        if (songs.any { it.year == null }) years + "" else years
+    }
+    val formatOptions = remember(songs) {
+        songs.map { it.format.lowercase() }.distinct()
+            .sortedWith(compareBy({ it.isBlank() }, { it }))
+    }
+    val filtersActive = artistFilters.isNotEmpty() || albumFilters.isNotEmpty() ||
+        yearFilters.isNotEmpty() || formatFilters.isNotEmpty()
+    val visibleSongs = remember(songs, searchResults, artistFilters, albumFilters, yearFilters, formatFilters) {
+        (searchResults ?: songs).filter { song ->
+            (artistFilters.isEmpty() || song.artist.ifBlank { song.ytArtist } in artistFilters) &&
+                (albumFilters.isEmpty() || song.album.ifBlank { song.ytAlbum } in albumFilters) &&
+                (yearFilters.isEmpty() || (song.year?.toString() ?: "") in yearFilters) &&
+                (formatFilters.isEmpty() || song.format.lowercase() in formatFilters)
+        }
+    }
     val openPl = openPlaylist
     val playlistSongs = remember(openPl, songs) {
         openPl?.let { pl -> pl.songIds.mapNotNull { id -> songs.firstOrNull { it.id == id } } }
@@ -803,6 +836,7 @@ fun OfflineScreen(
                                             stringResource(R.string.offline_status_results_for, n, searchQuery.trim())
                                         }
                                     }
+                                    filtersActive -> stringResource(R.string.offline_status_filtered, visibleSongs.size, songs.size)
                                     songs.isEmpty() -> stringResource(R.string.offline_status_no_downloads_yet)
                                     songs.size == 1 -> stringResource(R.string.offline_status_one_song_available_offline)
                                     else -> stringResource(R.string.offline_status_songs_available_offline, songs.size)
@@ -840,6 +874,48 @@ fun OfflineScreen(
                                             onClick = { confirmDeleteAll = true },
                                             boxSize = 40.dp,
                                             iconSize = 20.dp
+                                        )
+                                    }
+                                }
+                                Spacer(Modifier.height(8.dp))
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Row(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .horizontalScroll(rememberScrollState()),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        OfflineFilterPill(
+                                            label = stringResource(R.string.offline_filter_artist),
+                                            count = artistFilters.size
+                                        ) { filterDialog = OfflineFilterKind.ARTIST }
+                                        OfflineFilterPill(
+                                            label = stringResource(R.string.offline_filter_album),
+                                            count = albumFilters.size
+                                        ) { filterDialog = OfflineFilterKind.ALBUM }
+                                        OfflineFilterPill(
+                                            label = stringResource(R.string.offline_filter_year),
+                                            count = yearFilters.size
+                                        ) { filterDialog = OfflineFilterKind.YEAR }
+                                        OfflineFilterPill(
+                                            label = stringResource(R.string.offline_filter_format),
+                                            count = formatFilters.size
+                                        ) { filterDialog = OfflineFilterKind.FORMAT }
+                                    }
+                                    if (filtersActive) {
+                                        Spacer(Modifier.width(4.dp))
+                                        CompactIconButton(
+                                            icon = TablerIcons.X,
+                                            contentDescription = stringResource(R.string.offline_filter_clear),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            onClick = {
+                                                artistFilters = emptySet()
+                                                albumFilters = emptySet()
+                                                yearFilters = emptySet()
+                                                formatFilters = emptySet()
+                                            },
+                                            boxSize = 36.dp,
+                                            iconSize = 18.dp
                                         )
                                     }
                                 }
@@ -1024,7 +1100,7 @@ fun OfflineScreen(
                                 }
                             }
                         }
-                        searchQuery.isNotBlank() && visibleSongs.isEmpty() -> Box(
+                        (searchQuery.isNotBlank() || filtersActive) && visibleSongs.isEmpty() -> Box(
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxWidth(),
@@ -1045,7 +1121,11 @@ fun OfflineScreen(
                                 )
                                 Spacer(Modifier.height(4.dp))
                                 Text(
-                                    text = stringResource(R.string.offline_empty_nothing_matches, searchQuery.trim()),
+                                    text = if (searchQuery.isNotBlank()) {
+                                        stringResource(R.string.offline_empty_nothing_matches, searchQuery.trim())
+                                    } else {
+                                        stringResource(R.string.offline_empty_no_filter_match)
+                                    },
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     textAlign = TextAlign.Center
@@ -1659,6 +1739,51 @@ fun OfflineScreen(
                     )
                 }
 
+    val filterKind = filterDialog
+    if (filterKind != null) {
+        val unknownArtist = stringResource(R.string.offline_unknown_artist)
+        val unknownAlbum = stringResource(R.string.offline_unknown_album)
+        val unknownValue = stringResource(R.string.offline_filter_unknown)
+        val (titleRes, options) = when (filterKind) {
+            OfflineFilterKind.ARTIST -> R.string.offline_filter_artist to
+                artistOptions.map { it to it.ifBlank { unknownArtist } }
+            OfflineFilterKind.ALBUM -> R.string.offline_filter_album to
+                albumOptions.map { it to it.ifBlank { unknownAlbum } }
+            OfflineFilterKind.YEAR -> R.string.offline_filter_year to
+                yearOptions.map { it to it.ifBlank { unknownValue } }
+            OfflineFilterKind.FORMAT -> R.string.offline_filter_format to
+                formatOptions.map { it to it.ifBlank { unknownValue }.uppercase() }
+        }
+        val selected = when (filterKind) {
+            OfflineFilterKind.ARTIST -> artistFilters
+            OfflineFilterKind.ALBUM -> albumFilters
+            OfflineFilterKind.YEAR -> yearFilters
+            OfflineFilterKind.FORMAT -> formatFilters
+        }
+        OfflineFilterDialog(
+            title = stringResource(titleRes),
+            options = options,
+            selected = selected,
+            onToggle = { value ->
+                when (filterKind) {
+                    OfflineFilterKind.ARTIST -> artistFilters = artistFilters.toggle(value)
+                    OfflineFilterKind.ALBUM -> albumFilters = albumFilters.toggle(value)
+                    OfflineFilterKind.YEAR -> yearFilters = yearFilters.toggle(value)
+                    OfflineFilterKind.FORMAT -> formatFilters = formatFilters.toggle(value)
+                }
+            },
+            onClear = {
+                when (filterKind) {
+                    OfflineFilterKind.ARTIST -> artistFilters = emptySet()
+                    OfflineFilterKind.ALBUM -> albumFilters = emptySet()
+                    OfflineFilterKind.YEAR -> yearFilters = emptySet()
+                    OfflineFilterKind.FORMAT -> formatFilters = emptySet()
+                }
+            },
+            onDismiss = { filterDialog = null }
+        )
+    }
+
     if (showSleepTimerDialog) {
         SleepTimerDialog(
             state = sleepTimerState,
@@ -1834,6 +1959,8 @@ private fun CompactIconButton(
 }
 
 private fun songKey(song: OfflineSong): String = "${song.id}-${song.uri}"
+private fun Set<String>.toggle(value: String): Set<String> =
+    if (value in this) this - value else this + value
 
 @Composable
 private fun OfflineSearchField(
@@ -2110,6 +2237,97 @@ private fun OfflineTabPill(label: String, selected: Boolean, onClick: () -> Unit
             modifier = Modifier.padding(horizontal = 18.dp, vertical = 7.dp)
         )
     }
+}
+
+@Composable
+private fun OfflineFilterPill(label: String, count: Int, onClick: () -> Unit) {
+    val active = count > 0
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(50),
+        color = if (active) MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
+        else MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.5f),
+        border = BorderStroke(
+            1.dp,
+            if (active) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+            else MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
+        )
+    ) {
+        Text(
+            text = if (active) "$label · $count" else label,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium,
+            color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+        )
+    }
+}
+
+@Composable
+private fun OfflineFilterDialog(
+    title: String,
+    options: List<Pair<String, String>>,
+    selected: Set<String>,
+    onToggle: (String) -> Unit,
+    onClear: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(28.dp),
+        title = {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            if (options.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.offline_filter_none),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                LazyColumn(modifier = Modifier.heightIn(max = 420.dp)) {
+                    items(options, key = { it.first }) { (value, label) ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .clickable { onToggle(value) }
+                                .padding(end = 4.dp)
+                        ) {
+                            Checkbox(checked = value in selected, onCheckedChange = { onToggle(value) })
+                            Spacer(Modifier.width(4.dp))
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.bodyMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.offline_filter_done), fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            if (selected.isNotEmpty()) {
+                TextButton(onClick = onClear) {
+                    Text(stringResource(R.string.offline_filter_clear), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+    )
 }
 
 @Composable

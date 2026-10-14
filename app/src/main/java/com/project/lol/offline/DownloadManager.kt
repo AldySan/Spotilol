@@ -68,6 +68,7 @@ private sealed class TrackResult {
         val title: String,
         val artist: String,
         val album: String,
+        val year: Int? = null,
         val yt: YtMeta? = null,
     ) : TrackResult()
     data class Failed(val title: String, val artist: String, val album: String) : TrackResult()
@@ -409,6 +410,7 @@ object DownloadManager {
                         durationSec = result.yt?.durationSec,
                         explicit = result.yt?.explicit ?: false,
                         shareLink = result.yt?.shareLink,
+                        year = result.year,
                     )
                     progress(100, appContext.getString(R.string.dl_status_saved_to, DownloadPrefs.folderLabel(appContext)))
                     withContext(Dispatchers.Main) { onStatus?.invoke(appContext.getString(R.string.dl_status_saved_to, DownloadPrefs.folderLabel(appContext))) }
@@ -532,6 +534,7 @@ object DownloadManager {
                                 durationSec = result.yt?.durationSec,
                                 explicit = result.yt?.explicit ?: false,
                                 shareLink = result.yt?.shareLink,
+                                year = result.year,
                             )
                             report(100, appContext.getString(R.string.dl_progress_saved))
                         }
@@ -750,6 +753,7 @@ object DownloadManager {
                 effectiveTitle,
                 effectiveArtist,
                 effectiveAlbum,
+                year = track.year,
                 yt = YtMeta(
                     videoId = resolved.chosen.id,
                     ytTitle = resolved.chosen.title,

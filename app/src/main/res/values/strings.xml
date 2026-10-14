@@ -205,6 +205,7 @@
     <string name="offline_search_placeholder">Search your downloads</string>
     <string name="offline_desc_clear_search">Clear search</string>
     <string name="offline_unknown_artist">Unknown artist</string>
+    <string name="offline_unknown_album">Unknown album</string>
     <string name="offline_label_explicit">Explicit</string>
     <string name="offline_desc_delete">Delete</string>
     <string name="offline_desc_previous">Previous</string>
@@ -233,6 +234,16 @@
     <string name="offline_act_toast_third_party_cleared">Third-party logins cleared</string>
     <string name="offline_tab_songs">Songs</string>
     <string name="offline_tab_playlists">Playlists</string>
+    <string name="offline_filter_artist">Artists</string>
+    <string name="offline_filter_album">Albums</string>
+    <string name="offline_filter_year">Years</string>
+    <string name="offline_filter_format">Formats</string>
+    <string name="offline_filter_unknown">Unknown</string>
+    <string name="offline_filter_none">Nothing to filter here</string>
+    <string name="offline_filter_done">Done</string>
+    <string name="offline_filter_clear">Clear filters</string>
+    <string name="offline_status_filtered">%1$d of %2$d songs</string>
+    <string name="offline_empty_no_filter_match">No downloads match the selected filters</string>
     <string name="offline_desc_import">Import local audio files</string>
     <string name="offline_import_done_one">1 track imported</string>
     <string name="offline_import_done_many">%1$d tracks imported</string>

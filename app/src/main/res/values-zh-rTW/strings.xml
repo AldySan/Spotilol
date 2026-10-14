@@ -204,6 +204,7 @@
     <string name="offline_search_placeholder">搜尋您的下載</string>
     <string name="offline_desc_clear_search">清除搜尋</string>
     <string name="offline_unknown_artist">未知藝人</string>
+    <string name="offline_unknown_album">未知專輯</string>
     <string name="offline_label_explicit">限制級</string>
     <string name="offline_desc_delete">刪除</string>
     <string name="offline_desc_previous">上一首</string>
@@ -232,6 +233,16 @@
     <string name="offline_act_toast_third_party_cleared">第三方登入已清除</string>
     <string name="offline_tab_songs">歌曲</string>
     <string name="offline_tab_playlists">歌單</string>
+    <string name="offline_filter_artist">藝人</string>
+    <string name="offline_filter_album">專輯</string>
+    <string name="offline_filter_year">年份</string>
+    <string name="offline_filter_format">格式</string>
+    <string name="offline_filter_unknown">未知</string>
+    <string name="offline_filter_none">沒有可篩選的內容</string>
+    <string name="offline_filter_done">完成</string>
+    <string name="offline_filter_clear">清除篩選</string>
+    <string name="offline_status_filtered">%1$d / %2$d 首歌曲</string>
+    <string name="offline_empty_no_filter_match">沒有符合所選篩選條件的下載</string>
     <string name="offline_desc_import">匯入本機音訊檔案</string>
     <string name="offline_import_done_one">已匯入 1 首曲目</string>
     <string name="offline_import_done_many">已匯入 %1$d 首曲目</string>

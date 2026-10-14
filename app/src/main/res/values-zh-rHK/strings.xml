@@ -137,9 +137,6 @@
     <string name="settings_open_logger">開啟記錄器</string>
     <string name="settings_open_logger_on">即時顯示詳細、偵錯、資訊、警告與錯誤記錄</string>
     <string name="settings_open_logger_off">記錄功能已關閉，僅顯示舊項目</string>
-    <string name="settings_crash_test">當機測試</string>
-    <string name="settings_crash_test_subtitle">擲出測試例外並開啟當機畫面</string>
-    <string name="settings_crash_test_exception">Spotilol 當機測試</string>
     <string name="settings_debug_unlocked">偵錯工具已解鎖</string>
     <string name="settings_debug_tap_one_left">再點 1 次即可解鎖偵錯工具</string>
     <string name="settings_debug_taps_left">再點 %1$d 次即可解鎖偵錯工具</string>

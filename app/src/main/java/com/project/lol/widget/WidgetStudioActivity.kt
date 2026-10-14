@@ -586,7 +586,10 @@ private fun StandardPreview(config: WidgetConfig, state: WidgetState, cover: Ima
                         PreviewProgress(state)
                     }
                 }
-                if (config.showFavorite) {
+                if (state.offline) {
+                    Spacer(Modifier.width(8.dp))
+                    OfflineBadgePreview()
+                } else if (config.showFavorite) {
                     Spacer(Modifier.width(8.dp))
                     PreviewCircle(
                         icon = TablerIcons.Heart,
@@ -707,12 +710,14 @@ private fun ArtPreview(config: WidgetConfig, state: WidgetState, cover: ImageBit
 @Composable
 private fun PreviewControls(config: WidgetConfig, state: WidgetState) {
     val scheme = MaterialTheme.colorScheme
+    val showShuffle = config.showShuffleRepeat
+    val showRepeat = config.showShuffleRepeat && !state.offline
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Spacer(Modifier.weight(1f))
-        if (config.showShuffleRepeat) {
+        if (showShuffle) {
             PreviewCircle(TablerIcons.ArrowsSort, 28.dp, 15.dp)
             Spacer(Modifier.weight(1f))
         }
@@ -734,10 +739,28 @@ private fun PreviewControls(config: WidgetConfig, state: WidgetState) {
             PreviewCircle(TablerIcons.PlayerSkipForward, 28.dp, 15.dp)
             Spacer(Modifier.weight(1f))
         }
-        if (config.showShuffleRepeat) {
+        if (showRepeat) {
             PreviewCircle(TablerIcons.Refresh, 28.dp, 15.dp)
             Spacer(Modifier.weight(1f))
         }
+    }
+}
+
+@Composable
+private fun OfflineBadgePreview() {
+    val scheme = MaterialTheme.colorScheme
+    Box(
+        modifier = Modifier
+            .background(scheme.onSurface.copy(alpha = 0.14f), RoundedCornerShape(11.dp))
+            .padding(horizontal = 8.dp, vertical = 3.dp)
+    ) {
+        Text(
+            text = stringResource(R.string.widget_badge_offline),
+            color = scheme.onSurfaceVariant,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1
+        )
     }
 }
 

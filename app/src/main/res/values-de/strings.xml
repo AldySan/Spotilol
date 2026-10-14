@@ -466,4 +466,22 @@
 
     <string name="settings_theme">Design</string>
     <string name="settings_theme_dynamic">Dynamisch (Systemfarben)</string>
+    <string name="settings_theme_secondary">Sekundärfarbe</string>
+    <string name="settings_theme_secondary_auto">Automatisch, aus dem Theme</string>
+    <string name="theme_search">Themes suchen</string>
+    <string name="theme_no_results">Keine Themes passen zur Suche</string>
+    <string name="theme_preview">Vorschau</string>
+    <string name="theme_secondary_title">Sekundärfarbe</string>
+    <string name="theme_secondary_hint">An den Theme-Ton gebunden, damit die Palette stimmig bleibt</string>
+    <string name="theme_hue">Farbton</string>
+    <string name="theme_strength">Intensität</string>
+    <string name="theme_secondary_reset">Auf die Theme-Farbe zurücksetzen</string>
+    <string name="theme_export">Exportieren</string>
+    <string name="theme_import">Importieren</string>
+    <string name="theme_export_done">Theme exportiert</string>
+    <string name="theme_export_failed">Theme konnte nicht exportiert werden</string>
+    <string name="theme_import_done">%1$d Theme(s) importiert</string>
+    <string name="theme_import_failed">Diese Theme-Datei konnte nicht gelesen werden</string>
+    <string name="theme_custom">Benutzerdefiniert</string>
+    <string name="theme_delete">Theme löschen</string>
 </resources>

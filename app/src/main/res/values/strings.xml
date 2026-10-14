@@ -138,9 +138,6 @@
     <string name="settings_open_logger">Open Logger</string>
     <string name="settings_open_logger_on">Live verbose, debug, info, warn and error logs</string>
     <string name="settings_open_logger_off">Logging is off, only old entries are shown</string>
-    <string name="settings_crash_test">Crash test</string>
-    <string name="settings_crash_test_subtitle">Throw a test exception and open the crash screen</string>
-    <string name="settings_crash_test_exception">Spotilol crash test</string>
     <string name="settings_debug_unlocked">Debug tools unlocked</string>
     <string name="settings_debug_tap_one_left">1 tap left to unlock Debug</string>
     <string name="settings_debug_taps_left">%1$d taps left to unlock Debug</string>

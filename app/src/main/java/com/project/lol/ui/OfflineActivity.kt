@@ -21,6 +21,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.Color
 import androidx.core.view.WindowCompat
 import com.project.lol.R
 import com.project.lol.profile.ProfileManager
@@ -29,6 +30,7 @@ import com.project.lol.timer.SleepTimerManager
 import com.project.lol.ui.screens.OfflineScreen
 import com.project.lol.ui.theme.SpotifyTheme
 import com.project.lol.ui.theme.ThemeController
+import com.project.lol.ui.theme.ThemeHarmony
 import com.project.lol.ui.theme.ThemePresets
 import com.project.lol.util.AppLocale
 import com.project.lol.widget.WidgetActions
@@ -43,6 +45,7 @@ class OfflineActivity : ComponentActivity() {
     private val landscapeState = mutableStateOf(false)
     private val keepScreenOnState = mutableStateOf(false)
     private val themePresetState = mutableStateOf(ThemePresets.DEFAULT_ID)
+    private val themeSecondaryState = mutableStateOf<Color?>(null)
     private val pipActiveState = mutableStateOf(false)
 
     private var pipPlaying = false
@@ -63,6 +66,7 @@ class OfflineActivity : ComponentActivity() {
         landscapeState.value = prefs.getBoolean("LandscapeMode", false)
         keepScreenOnState.value = prefs.getBoolean("KeepScreenOn", false)
         themePresetState.value = prefs.getString("ThemePreset", ThemePresets.DEFAULT_ID) ?: ThemePresets.DEFAULT_ID
+        themeSecondaryState.value = ThemeHarmony.parseHex(prefs.getString("ThemeSecondary", null))
 
         applyOrientation()
         applyKeepScreenOn()
@@ -102,6 +106,11 @@ class OfflineActivity : ComponentActivity() {
                     onThemePresetChange = { id ->
                         themePresetState.value = id
                         ThemeController.updatePreset(id)
+                    },
+                    themeSecondary = themeSecondaryState.value,
+                    onThemeSecondaryChange = { color ->
+                        themeSecondaryState.value = color
+                        ThemeController.updateSecondary(color)
                     },
                     onOfflineModeChange = { enabled ->
                         prefs.edit().putBoolean("OfflineMode", enabled).apply()

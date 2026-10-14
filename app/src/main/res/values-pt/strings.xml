@@ -79,6 +79,7 @@
     <string name="settings_lyrics_animation">Animação subtil</string>
     <string name="settings_lyrics_animation_hint">Transições de opacidade e espessura na linha ativa</string>
     <string name="settings_lyrics_custom_presets">Personalizados</string>
+    <string name="settings_lyrics_actions">Ações</string>
     <string name="settings_lyrics_save_preset">Guardar como predefinição</string>
     <string name="settings_lyrics_preset_name">Nome da predefinição</string>
     <string name="settings_lyrics_preset_saved">Predefinição guardada</string>

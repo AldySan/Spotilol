@@ -31,6 +31,7 @@ import com.project.lol.ui.theme.SpotifyTheme
 import com.project.lol.ui.theme.ThemeController
 import com.project.lol.ui.theme.ThemePresets
 import com.project.lol.util.AppLocale
+import com.project.lol.widget.WidgetActions
 
 class OfflineActivity : ComponentActivity() {
 
@@ -104,6 +105,7 @@ class OfflineActivity : ComponentActivity() {
                     },
                     onOfflineModeChange = { enabled ->
                         prefs.edit().putBoolean("OfflineMode", enabled).apply()
+                        WidgetActions.setOfflineMode(this, enabled)
                         restartToSplash()
                     },
                     onSaveProfile = { name, cookies ->
@@ -253,6 +255,7 @@ class OfflineActivity : ComponentActivity() {
 
     private fun exitOfflineMode() {
         prefs.edit().putBoolean("OfflineMode", false).apply()
+        WidgetActions.setOfflineMode(this, false)
         restartToSplash()
     }
 

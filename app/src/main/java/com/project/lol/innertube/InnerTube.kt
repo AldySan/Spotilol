@@ -3,29 +3,35 @@ package com.project.lol.innertube
 import com.project.lol.innertube.models.Context
 import com.project.lol.innertube.models.YouTubeClient
 import com.project.lol.innertube.models.YouTubeLocale
-import com.project.lol.innertube.models.body.*
+import com.project.lol.innertube.models.body.PlayerBody
+import com.project.lol.innertube.models.body.SearchBody
 import com.project.lol.innertube.utils.parseCookieString
 import com.project.lol.innertube.utils.sha1
 import com.project.lol.util.Logger
-import io.ktor.client.*
-import io.ktor.client.call.body
-import io.ktor.client.engine.okhttp.*
-import io.ktor.client.plugins.*
-import io.ktor.client.plugins.compression.*
-import io.ktor.client.plugins.contentnegotiation.*
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.HttpTimeout
-import io.ktor.client.request.*
-import io.ktor.client.statement.bodyAsText
-import io.ktor.http.*
-import io.ktor.serialization.kotlinx.json.*
+import io.ktor.client.plugins.compression.ContentEncoding
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.plugins.defaultRequest
+import io.ktor.client.request.HttpRequestBuilder
+import io.ktor.client.request.get
+import io.ktor.client.request.header
+import io.ktor.client.request.headers
+import io.ktor.client.request.parameter
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
+import io.ktor.http.ContentType
+import io.ktor.http.contentType
+import io.ktor.http.userAgent
+import io.ktor.serialization.kotlinx.json.json
+import kotlinx.coroutines.delay
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
-import java.net.Proxy
 import java.io.File
 import java.io.IOException
-import kotlinx.coroutines.delay
-import java.util.*
-import kotlin.io.encoding.Base64
+import java.net.Proxy
+import java.util.Locale
 import kotlin.io.encoding.ExperimentalEncodingApi
 
 /**
@@ -34,6 +40,10 @@ import kotlin.io.encoding.ExperimentalEncodingApi
  */
 @OptIn(ExperimentalEncodingApi::class)
 class InnerTube {
+    @Volatile
+    private var cacheMaxBytes = DEFAULT_CACHE_BYTES
+
+    @Volatile
     private var httpClient = createClient()
 
     private var cacheDir: File? = null
@@ -62,12 +72,29 @@ class InnerTube {
 
     var useLoginForBrowse: Boolean = false
 
-    fun setCacheDir(dir: File?) {
-        if (dir == cacheDir) return
+    @Suppress("unused")
+    fun setCacheDir(dir: File?) = setCacheDir(dir, cacheMaxBytes)
+
+    fun setCacheDir(dir: File?, maxBytes: Long) {
+        if (dir == cacheDir && maxBytes == cacheMaxBytes) return
         cacheDir = dir
+        cacheMaxBytes = maxBytes.coerceAtLeast(1L)
         httpClient.close()
         httpClient = createClient()
         Logger.d(TAG, "http cache dir set to ${dir?.absolutePath ?: "none"}")
+    }
+
+    fun setCacheLimit(maxBytes: Long) {
+        val bounded = maxBytes.coerceAtLeast(1L)
+        if (bounded == cacheMaxBytes) return
+        cacheMaxBytes = bounded
+        if (cacheDir == null) {
+            Logger.d(TAG, "http cache limit set to $bounded bytes (no cache dir yet)")
+            return
+        }
+        httpClient.close()
+        httpClient = createClient()
+        Logger.d(TAG, "http cache limit set to $bounded bytes")
     }
 
     @OptIn(ExperimentalSerializationApi::class)
@@ -117,7 +144,7 @@ class InnerTube {
                         cache(
                             okhttp3.Cache(
                                 directory = dir,
-                                maxSize = 50L * 1024L * 1024L // 50 MB
+                                maxSize = cacheMaxBytes
                             )
                         )
                     }.onFailure { error ->
@@ -291,6 +318,7 @@ class InnerTube {
 
     companion object {
         private const val TAG = "innertube"
+        const val DEFAULT_CACHE_BYTES = 50L * 1024L * 1024L
     }
 
 }

@@ -94,6 +94,12 @@
     <string name="settings_download_folder_subtitle">保存至 %1$s</string>
     <string name="settings_download_folder_hint">选择任何您有写入权限的文件夹，包括SD卡。已保存的曲目将保留在媒体库中</string>
     <string name="settings_download_folder_default">使用默认（Music/%1$s）</string>
+    <string name="settings_innertube_cache">InnerTube 缓存大小</string>
+    <string name="settings_innertube_cache_subtitle">限制 %1$s · 已使用 %2$s</string>
+    <string name="settings_innertube_cache_mb">%1$d MB</string>
+    <string name="settings_innertube_cache_unlimited">无限制</string>
+    <string name="settings_innertube_cache_applied">缓存大小已应用</string>
+    <string name="settings_innertube_cache_restart_hint">重启应用后生效</string>
     <string name="settings_choose_folder">选择文件夹</string>
     <string name="settings_write_tags">写入标签和封面</string>
     <string name="settings_write_tags_subtitle">将元数据和封面嵌入文件中</string>

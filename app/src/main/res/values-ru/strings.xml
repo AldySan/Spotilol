@@ -91,6 +91,12 @@
     <string name="settings_download_folder_subtitle">Сохраняет в %1$s</string>
     <string name="settings_download_folder_hint">Выберите любую папку с правом записи, включая SD-карту. Уже сохранённые треки останутся в библиотеке.</string>
     <string name="settings_download_folder_default">Использовать папку по умолчанию (Музыка/%1$s)</string>
+    <string name="settings_innertube_cache">Размер кэша InnerTube</string>
+    <string name="settings_innertube_cache_subtitle">Лимит %1$s · используется %2$s</string>
+    <string name="settings_innertube_cache_mb">%1$d МБ</string>
+    <string name="settings_innertube_cache_unlimited">Без ограничений</string>
+    <string name="settings_innertube_cache_applied">Размер кэша применён</string>
+    <string name="settings_innertube_cache_restart_hint">Применится после перезапуска приложения</string>
     <string name="settings_choose_folder">Выбрать папку</string>
     <string name="settings_write_tags">Записывать теги и обложку</string>
     <string name="settings_write_tags_subtitle">Встраивать метаданные и обложку в файл</string>

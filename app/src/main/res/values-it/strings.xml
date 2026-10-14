@@ -91,6 +91,12 @@
     <string name="settings_download_folder_subtitle">Salva in %1$s</string>
     <string name="settings_download_folder_hint">Scegli una cartella in cui puoi scrivere, scheda SD inclusa. I brani già salvati restano nella libreria.</string>
     <string name="settings_download_folder_default">Usa la cartella predefinita (Musica/%1$s)</string>
+    <string name="settings_innertube_cache">Dimensione della cache di InnerTube</string>
+    <string name="settings_innertube_cache_subtitle">Limite %1$s · in uso %2$s</string>
+    <string name="settings_innertube_cache_mb">%1$d MB</string>
+    <string name="settings_innertube_cache_unlimited">Illimitata</string>
+    <string name="settings_innertube_cache_applied">Dimensione della cache applicata</string>
+    <string name="settings_innertube_cache_restart_hint">Verrà applicata al riavvio dell’app</string>
     <string name="settings_choose_folder">Scegli cartella</string>
     <string name="settings_write_tags">Scrivi tag e copertina</string>
     <string name="settings_write_tags_subtitle">Incorpora metadati e copertina nel file</string>

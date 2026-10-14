@@ -91,6 +91,12 @@
     <string name="settings_download_folder_subtitle">Guarda en %1$s</string>
     <string name="settings_download_folder_hint">Elige cualquier carpeta con permiso de escritura, incluida una tarjeta SD. Las pistas ya guardadas permanecen en la biblioteca.</string>
     <string name="settings_download_folder_default">Usar la carpeta predeterminada (Música/%1$s)</string>
+    <string name="settings_innertube_cache">Tamaño de la caché de InnerTube</string>
+    <string name="settings_innertube_cache_subtitle">Límite %1$s · en uso %2$s</string>
+    <string name="settings_innertube_cache_mb">%1$d MB</string>
+    <string name="settings_innertube_cache_unlimited">Ilimitado</string>
+    <string name="settings_innertube_cache_applied">Tamaño de la caché aplicado</string>
+    <string name="settings_innertube_cache_restart_hint">Se aplicará al reiniciar la aplicación</string>
     <string name="settings_choose_folder">Elegir carpeta</string>
     <string name="settings_write_tags">Escribir etiquetas y portada</string>
     <string name="settings_write_tags_subtitle">Insertar metadatos y portada en el archivo</string>

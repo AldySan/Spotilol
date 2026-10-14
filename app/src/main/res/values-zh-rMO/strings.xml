@@ -80,6 +80,7 @@
     <string name="settings_lyrics_animation">細致動畫</string>
     <string name="settings_lyrics_animation_hint">當前歌詞行的透明度與字重轉場</string>
     <string name="settings_lyrics_custom_presets">自訂</string>
+    <string name="settings_lyrics_actions">操作</string>
     <string name="settings_lyrics_save_preset">儲存為預設</string>
     <string name="settings_lyrics_preset_name">預設名稱</string>
     <string name="settings_lyrics_preset_saved">預設已儲存</string>

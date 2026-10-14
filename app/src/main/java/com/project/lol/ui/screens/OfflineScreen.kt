@@ -16,7 +16,9 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -24,8 +26,11 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -846,7 +851,16 @@ fun OfflineScreen(
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
-                            if (!loading && libraryTab == OfflineLibraryTab.SONGS && songs.isNotEmpty()) {
+                            AnimatedContent(
+                                targetState = libraryTab,
+                                modifier = Modifier.fillMaxWidth(),
+                                transitionSpec = {
+                                    fadeIn(tween(180)) togetherWith fadeOut(tween(120))
+                                },
+                                label = "offlineTabHeader"
+                            ) { targetTab ->
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                            if (!loading && targetTab == OfflineLibraryTab.SONGS && songs.isNotEmpty()) {
                                 Spacer(Modifier.height(8.dp))
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Box(modifier = Modifier.weight(1f)) {
@@ -930,7 +944,7 @@ fun OfflineScreen(
                                     )
                                 }
                             }
-                            if (!loading && libraryTab == OfflineLibraryTab.PLAYLISTS) {
+                            if (!loading && targetTab == OfflineLibraryTab.PLAYLISTS) {
                                 Spacer(Modifier.height(8.dp))
                                 Row {
                                     Spacer(Modifier.weight(1f))
@@ -947,9 +961,25 @@ fun OfflineScreen(
                                     )
                                 }
                             }
+                            }
+                            }
                         }
                     }
 
+                    AnimatedContent(
+                        targetState = libraryTab,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
+                        transitionSpec = {
+                            val forward = targetState.ordinal > initialState.ordinal
+                            val dir = if (forward) 1 else -1
+                            (fadeIn(tween(220)) + slideInHorizontally(tween(260)) { it / 10 * dir }) togetherWith
+                                (fadeOut(tween(160)) + slideOutHorizontally(tween(260)) { -it / 10 * dir })
+                        },
+                        label = "offlineTab"
+                    ) { targetTab ->
+                    Column(modifier = Modifier.fillMaxSize()) {
                     when {
                         loading -> Box(
                             modifier = Modifier
@@ -1022,7 +1052,7 @@ fun OfflineScreen(
                                 }
                             }
                         }
-                        libraryTab == OfflineLibraryTab.PLAYLISTS -> when {
+                        targetTab == OfflineLibraryTab.PLAYLISTS -> when {
                             playlists.isEmpty() -> Box(
                                 modifier = Modifier
                                     .weight(1f)
@@ -1230,6 +1260,8 @@ fun OfflineScreen(
                                 )
                             }
                         }
+                    }
+                    }
                     }
                 }
 
@@ -2218,22 +2250,34 @@ private fun songSubtitle(song: OfflineSong): String {
 
 @Composable
 private fun OfflineTabPill(label: String, selected: Boolean, onClick: () -> Unit) {
+    val container by animateColorAsState(
+        if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
+        else MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.5f),
+        animationSpec = tween(220),
+        label = "tabPillContainer"
+    )
+    val borderColor by animateColorAsState(
+        if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+        else MaterialTheme.colorScheme.outline.copy(alpha = 0.15f),
+        animationSpec = tween(220),
+        label = "tabPillBorder"
+    )
+    val contentColor by animateColorAsState(
+        if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+        animationSpec = tween(220),
+        label = "tabPillContent"
+    )
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(50),
-        color = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
-        else MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.5f),
-        border = BorderStroke(
-            1.dp,
-            if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
-            else MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
-        )
+        color = container,
+        border = BorderStroke(1.dp, borderColor)
     ) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelLarge,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
-            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            color = contentColor,
             modifier = Modifier.padding(horizontal = 18.dp, vertical = 7.dp)
         )
     }

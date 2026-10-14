@@ -81,6 +81,7 @@
     <string name="settings_lyrics_animation">İnce animasyon</string>
     <string name="settings_lyrics_animation_hint">Etkin satırda saydamlık ve kalınlık geçişleri</string>
     <string name="settings_lyrics_custom_presets">Özel</string>
+    <string name="settings_lyrics_actions">İşlemler</string>
     <string name="settings_lyrics_save_preset">Preset olarak kaydet</string>
     <string name="settings_lyrics_preset_name">Preset adı</string>
     <string name="settings_lyrics_preset_saved">Preset kaydedildi</string>

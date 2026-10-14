@@ -78,6 +78,17 @@
     <string name="settings_lyrics_align_end">Kanan</string>
     <string name="settings_lyrics_animation">Animasi halus</string>
     <string name="settings_lyrics_animation_hint">Transisi opasitas dan ketebalan pada baris aktif</string>
+    <string name="settings_lyrics_custom_presets">Kustom</string>
+    <string name="settings_lyrics_save_preset">Simpan sebagai preset</string>
+    <string name="settings_lyrics_preset_name">Nama preset</string>
+    <string name="settings_lyrics_preset_saved">Preset disimpan</string>
+    <string name="settings_lyrics_export">Ekspor</string>
+    <string name="settings_lyrics_import">Impor</string>
+    <string name="settings_lyrics_export_done">Preset diekspor</string>
+    <string name="settings_lyrics_export_failed">Gagal mengekspor</string>
+    <string name="settings_lyrics_export_empty">Tidak ada preset kustom untuk diekspor</string>
+    <string name="settings_lyrics_import_done">Preset diimpor</string>
+    <string name="settings_lyrics_import_failed">Gagal mengimpor</string>
     <string name="settings_spicylyrics">SpicyLyrics</string>
     <string name="settings_spicylyrics_subtitle">Isi lirik yang tidak ada di Spotify (API SpicyLyrics)</string>
     <string name="settings_take_control">Ambil alih kendali pemutar</string>

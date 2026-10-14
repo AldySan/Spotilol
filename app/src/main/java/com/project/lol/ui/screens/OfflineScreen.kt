@@ -128,11 +128,15 @@ import androidx.compose.ui.window.Popup
 import androidx.core.content.ContextCompat
 import com.project.lol.R
 import com.project.lol.offline.DownloadFolder
+import com.project.lol.offline.IntegrityIssue
+import com.project.lol.offline.IntegrityReport
+import com.project.lol.offline.LibraryIntegrity
 import com.project.lol.offline.LocalImportStore
 import com.project.lol.offline.OfflinePlaylist
 import com.project.lol.offline.OfflinePlaylistStore
 import com.project.lol.offline.OfflineSong
 import com.project.lol.offline.OfflineStore
+import com.project.lol.offline.SongIntegrity
 import com.project.lol.service.OfflineMediaService
 import com.project.lol.timer.AppQuit
 import com.project.lol.timer.SleepTimerAction
@@ -159,6 +163,7 @@ import compose.icons.tablericons.Playlist
 import compose.icons.tablericons.Plus
 import compose.icons.tablericons.Search
 import compose.icons.tablericons.Settings
+import compose.icons.tablericons.ShieldCheck
 import compose.icons.tablericons.Trash
 import compose.icons.tablericons.Volume
 import compose.icons.tablericons.Volume2
@@ -254,6 +259,8 @@ fun OfflineScreen(
     var yearFilters by remember { mutableStateOf<Set<String>>(emptySet()) }
     var formatFilters by remember { mutableStateOf<Set<String>>(emptySet()) }
     var filterDialog by remember { mutableStateOf<OfflineFilterKind?>(null) }
+    var verifying by remember { mutableStateOf(false) }
+    var integrityReport by remember { mutableStateOf<IntegrityReport?>(null) }
 
     val searchEngine = remember { GenericSearchEngine<OfflineSong>(maxResult = 100) }
     val songExtractor = remember {
@@ -546,6 +553,16 @@ fun OfflineScreen(
         }
     }
 
+    fun runIntegrityCheck() {
+        if (verifying) return
+        verifying = true
+        scope.launch {
+            val result = withContext(Dispatchers.IO) { LibraryIntegrity.scan(context, songs) }
+            verifying = false
+            integrityReport = result
+        }
+    }
+
     fun performDeleteAll() {
         val all = songs.filterNot { LocalImportStore.isImported(it) }
         if (all.isEmpty()) return
@@ -805,7 +822,7 @@ fun OfflineScreen(
                                     selected = libraryTab == OfflineLibraryTab.PLAYLISTS
                                 ) { libraryTab = OfflineLibraryTab.PLAYLISTS }
                                 Spacer(Modifier.weight(1f))
-                                if (importing) {
+                                if (importing || verifying) {
                                     CircularProgressIndicator(
                                         modifier = Modifier.size(18.dp),
                                         strokeWidth = 2.dp,
@@ -862,6 +879,15 @@ fun OfflineScreen(
                                         )
                                     }
                                     Spacer(Modifier.width(8.dp))
+                                    CompactIconButton(
+                                        icon = TablerIcons.ShieldCheck,
+                                        contentDescription = stringResource(R.string.offline_desc_verify),
+                                        tint = if (verifying) MaterialTheme.colorScheme.onSurfaceVariant
+                                        else MaterialTheme.colorScheme.primary,
+                                        onClick = { runIntegrityCheck() },
+                                        boxSize = 40.dp,
+                                        iconSize = 20.dp
+                                    )
                                     CompactIconButton(
                                         icon = TablerIcons.Plus,
                                         contentDescription = stringResource(R.string.offline_desc_import),
@@ -1761,6 +1787,31 @@ fun OfflineScreen(
                     )
                 }
 
+    val report = integrityReport
+    if (report != null) {
+        IntegrityReportDialog(
+            report = report,
+            onDismiss = { integrityReport = null },
+            onRemoveDamaged = {
+                val damaged = report.damaged.map { it.song }
+                integrityReport = null
+                val current = queueSongs.getOrNull(currentIndex)
+                if (current != null && damaged.any { it.id == current.id && it.uri == current.uri }) {
+                    stopAndClear()
+                }
+                scope.launch {
+                    withContext(Dispatchers.IO) {
+                        damaged.forEach { song ->
+                            if (LocalImportStore.isImported(song)) LocalImportStore.deleteSong(context, song.id)
+                            else OfflineStore.deleteSong(context, song)
+                        }
+                    }
+                    songs = withContext(Dispatchers.IO) { OfflineStore.loadSongs(context) }
+                }
+            }
+        )
+    }
+
     val filterKind = filterDialog
     if (filterKind != null) {
         val unknownArtist = stringResource(R.string.offline_unknown_artist)
@@ -2363,6 +2414,132 @@ private fun OfflineFilterDialog(
         }
     )
 }
+
+@Composable
+private fun IntegrityReportDialog(
+    report: IntegrityReport,
+    onDismiss: () -> Unit,
+    onRemoveDamaged: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(28.dp),
+        title = {
+            Text(
+                text = stringResource(R.string.offline_verify_title),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .heightIn(max = 420.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                if (report.clean) {
+                    Text(
+                        text = stringResource(R.string.offline_verify_summary_ok, report.checked),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    Text(
+                        text = stringResource(
+                            R.string.offline_verify_summary,
+                            report.checked,
+                            report.damaged.size,
+                            report.incompleteTags.size
+                        ),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    if (report.damaged.isNotEmpty()) {
+                        Spacer(Modifier.height(14.dp))
+                        IntegritySection(
+                            title = stringResource(R.string.offline_verify_section_damaged),
+                            entries = report.damaged,
+                            destructive = true
+                        )
+                    }
+                    if (report.incompleteTags.isNotEmpty()) {
+                        Spacer(Modifier.height(14.dp))
+                        IntegritySection(
+                            title = stringResource(R.string.offline_verify_section_tags),
+                            entries = report.incompleteTags,
+                            destructive = false
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.offline_verify_close), fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            if (report.damaged.isNotEmpty()) {
+                TextButton(onClick = onRemoveDamaged) {
+                    Text(
+                        text = stringResource(R.string.offline_verify_remove_damaged),
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+        }
+    )
+}
+
+@Composable
+private fun IntegritySection(
+    title: String,
+    entries: List<SongIntegrity>,
+    destructive: Boolean,
+) {
+    val context = LocalContext.current
+    Text(
+        text = title,
+        style = MaterialTheme.typography.labelLarge,
+        fontWeight = FontWeight.SemiBold,
+        color = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+    )
+    Spacer(Modifier.height(4.dp))
+    entries.forEach { entry ->
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp)
+        ) {
+            Text(
+                text = entry.song.title.ifBlank { stringResource(R.string.offline_verify_untitled) },
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = entry.issues.joinToString(" · ") { integrityIssueLabel(context, it) },
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+private fun integrityIssueLabel(context: Context, issue: IntegrityIssue): String = context.getString(
+    when (issue) {
+        IntegrityIssue.MISSING_FILE -> R.string.offline_verify_issue_missing_file
+        IntegrityIssue.EMPTY_FILE -> R.string.offline_verify_issue_empty_file
+        IntegrityIssue.UNREADABLE -> R.string.offline_verify_issue_unreadable
+        IntegrityIssue.MISSING_TITLE -> R.string.offline_verify_issue_title
+        IntegrityIssue.MISSING_ARTIST -> R.string.offline_verify_issue_artist
+        IntegrityIssue.MISSING_ALBUM -> R.string.offline_verify_issue_album
+        IntegrityIssue.MISSING_YEAR -> R.string.offline_verify_issue_year
+        IntegrityIssue.MISSING_COVER -> R.string.offline_verify_issue_cover
+    }
+)
 
 @Composable
 private fun PlaylistRow(

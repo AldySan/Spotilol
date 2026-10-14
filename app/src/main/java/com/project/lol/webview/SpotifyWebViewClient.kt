@@ -123,9 +123,23 @@ class SpotifyWebViewClient(
         cancelPendingPlayerInjection()
         val task = Runnable {
             pendingPlayerInjection = null
-            if (token != NavToken.current()) return@Runnable
-            if (lastInjectedToken == token) return@Runnable
-            if (currentWebView !== view) return@Runnable
+            if (token != NavToken.current()) {
+                Logger.d(TAG, "player inject skipped: stale nav token")
+                return@Runnable
+            }
+            if (lastInjectedToken == token) {
+                Logger.d(TAG, "player inject skipped: already injected for this token")
+                return@Runnable
+            }
+            if (currentWebView !== view) {
+                Logger.d(TAG, "player inject skipped: webview instance changed")
+                return@Runnable
+            }
+            val currentUrl = view.url
+            if (!isWebPlayerUrl(currentUrl)) {
+                Logger.w(TAG, "player inject skipped: left player origin (${currentUrl?.take(100) ?: "null"})")
+                return@Runnable
+            }
             lastInjectedToken = token
             injectPlayerControl(view)
         }
@@ -465,21 +479,7 @@ class SpotifyWebViewClient(
             append(DownloadProgress.CONTENT)
             append(CollectionDownload.CONTENT)
             append(ContextMenuDownload.CONTENT)
-            append("""
-                (function(){
-                    var recAcc=function(){
-                        try{
-                            var uw=document.querySelector('[data-testid="user-widget-link"]');
-                            if(uw){
-                                var txt=(uw.textContent||'').split('\n')[0].trim();
-                                if(txt) AndBridge.recAccountName(txt);
-                            }
-                        }catch(e){}
-                    };
-                    setTimeout(recAcc,5000);
-                    setInterval(recAcc,60000);
-                })();
-            """.trimIndent())
+            append(REC_ACC_JS)
             append(CssHack.CONTENT)
             append(ScrollbarAutoHide.CONTENT)
             append(ContextMenuSheet.CONTENT)
@@ -659,7 +659,21 @@ class SpotifyWebViewClient(
             "content-type, client-token, authorization, accept, app-platform, spotify-app-version"
         private const val DESKTOP_UA =
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
-
+        private val REC_ACC_JS = """
+            (function(){
+                var recAcc=function(){
+                    try{
+                        var uw=document.querySelector('[data-testid="user-widget-link"]');
+                        if(uw){
+                            var txt=(uw.textContent||'').split('\n')[0].trim();
+                            if(txt) AndBridge.recAccountName(txt);
+                        }
+                    }catch(e){}
+                };
+                setTimeout(recAcc,5000);
+                setInterval(recAcc,60000);
+            })();
+        """.trimIndent()
         private val SW_UNREGISTER_JS = """
             try {
                 if(navigator.serviceWorker){

@@ -36,6 +36,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
@@ -193,6 +194,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private const val DEBUG_UNLOCK_TAPS = 5
+private const val LOGGER_WIDE_BREAKPOINT = 600
 
 private enum class SettingsTab(@StringRes val labelRes: Int) {
     Appearance(R.string.settings_tab_appearance),
@@ -2500,6 +2502,7 @@ fun LoggerDialog(onDismiss: () -> Unit) {
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
     val exportName = remember { LogExport.fileName() }
+    val wide = LocalConfiguration.current.screenWidthDp >= LOGGER_WIDE_BREAKPOINT
     val filtered = remember(entries, query, levelFilter) {
         LogFilter.apply(entries, query, levelFilter ?: LogLevel.VERBOSE)
     }
@@ -2523,9 +2526,10 @@ fun LoggerDialog(onDismiss: () -> Unit) {
     ) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
         val snapshot = filtered
+        val total = entries.size
         scope.launch {
             val done = runCatching {
-                val payload = LogExport.payload(snapshot, entries.size, query, levelFilter)
+                val payload = LogExport.payload(snapshot, total, query, levelFilter)
                 withContext(Dispatchers.IO) { LogExport.write(context, uri, payload) }
             }.isSuccess
             Toast.makeText(
@@ -2536,14 +2540,33 @@ fun LoggerDialog(onDismiss: () -> Unit) {
         }
     }
 
+    fun clearAll() {
+        Logger.clear()
+        entries = emptyList()
+        expanded = emptySet()
+    }
+
+    fun toggleEntry(id: Long) {
+        expanded = if (expanded.contains(id)) expanded - id else expanded + id
+    }
+
+    fun setAutoScroll(enabled: Boolean) {
+        autoScroll = enabled
+        Logger.setAutoScroll(context, enabled)
+    }
+
+    fun jumpToLatest() {
+        if (filtered.isNotEmpty()) scope.launch { listState.scrollToItem(filtered.size - 1) }
+    }
+
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         Surface(
             modifier = Modifier
-                .fillMaxWidth(0.95f)
-                .fillMaxHeight(0.88f),
+                .fillMaxWidth(if (wide) 0.92f else 0.95f)
+                .fillMaxHeight(if (wide) 0.92f else 0.88f),
             shape = RoundedCornerShape(28.dp),
             color = MaterialTheme.colorScheme.surfaceContainerHigh,
             tonalElevation = 6.dp
@@ -2553,272 +2576,346 @@ fun LoggerDialog(onDismiss: () -> Unit) {
                     .fillMaxSize()
                     .padding(14.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Surface(
-                        modifier = Modifier.size(32.dp),
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.primaryContainer
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = TablerIcons.Terminal2,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.size(17.dp)
+                LoggerHeader(
+                    shown = filtered.size,
+                    total = entries.size,
+                    onDismiss = onDismiss
+                )
+                Spacer(Modifier.height(if (wide) 12.dp else 8.dp))
+                if (wide) {
+                    Row(modifier = Modifier.weight(1f)) {
+                        Column(
+                            modifier = Modifier
+                                .weight(0.42f)
+                                .fillMaxHeight()
+                                .verticalScroll(rememberScrollState())
+                        ) {
+                            LoggerSectionLabel(stringResource(R.string.logger_filters))
+                            Spacer(Modifier.height(6.dp))
+                            LoggerSearchField(query = query, onQueryChange = { query = it })
+                            Spacer(Modifier.height(8.dp))
+                            LoggerLevelChips(selected = levelFilter, onSelect = { levelFilter = it })
+                            Spacer(Modifier.height(10.dp))
+                            LoggerAutoScrollRow(autoScroll = autoScroll, onAutoScrollChange = { setAutoScroll(it) })
+                            Spacer(Modifier.height(12.dp))
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.14f))
+                            Spacer(Modifier.height(12.dp))
+                            LoggerSectionLabel(stringResource(R.string.logger_actions))
+                            Spacer(Modifier.height(8.dp))
+                            LoggerClearButton(modifier = Modifier.fillMaxWidth(), onClear = { clearAll() })
+                            Spacer(Modifier.height(8.dp))
+                            LoggerExportButton(modifier = Modifier.fillMaxWidth()) { exportLauncher.launch(exportName) }
+                            Spacer(Modifier.height(6.dp))
+                            LoggerExportName(exportName)
+                        }
+                        Box(
+                            modifier = Modifier
+                                .padding(horizontal = 10.dp)
+                                .width(1.dp)
+                                .fillMaxHeight()
+                                .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.14f))
+                        )
+                        Column(
+                            modifier = Modifier
+                                .weight(0.58f)
+                                .fillMaxHeight()
+                        ) {
+                            LoggerListHeader(onJumpLatest = { jumpToLatest() }, jumpEnabled = filtered.isNotEmpty())
+                            Spacer(Modifier.height(4.dp))
+                            LoggerList(
+                                entries = filtered,
+                                allEmpty = entries.isEmpty(),
+                                expanded = expanded,
+                                onToggle = { toggleEntry(it) },
+                                listState = listState,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f)
                             )
                         }
                     }
-                    Spacer(Modifier.width(10.dp))
+                } else {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = stringResource(R.string.logger_title),
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = stringResource(R.string.logger_line_count, filtered.size, entries.size),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
-                        Icon(
-                            imageVector = TablerIcons.X,
-                            contentDescription = stringResource(R.string.logger_close),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
-
-                Spacer(Modifier.height(12.dp))
-
-                Row(modifier = Modifier.weight(1f)) {
-                    Column(
-                        modifier = Modifier
-                            .weight(0.42f)
-                            .fillMaxHeight()
-                            .verticalScroll(rememberScrollState())
-                    ) {
-                        Text(
-                            text = stringResource(R.string.logger_filters),
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        LoggerSearchField(query = query, onQueryChange = { query = it })
+                        Spacer(Modifier.height(8.dp))
+                        LoggerLevelChips(selected = levelFilter, onSelect = { levelFilter = it })
                         Spacer(Modifier.height(6.dp))
-                        OutlinedTextField(
-                            value = query,
-                            onValueChange = { query = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                            placeholder = {
-                                Text(
-                                    text = stringResource(R.string.logger_search_placeholder),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            },
-                            trailingIcon = {
-                                if (query.isNotEmpty()) {
-                                    IconButton(onClick = { query = "" }, modifier = Modifier.size(30.dp)) {
-                                        Icon(
-                                            imageVector = TablerIcons.X,
-                                            contentDescription = stringResource(R.string.logger_clear_filter),
-                                            modifier = Modifier.size(15.dp)
-                                        )
-                                    }
-                                }
-                            },
-                            shape = RoundedCornerShape(14.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f),
-                                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f),
-                                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f)
-                            )
-                        )
+                        LoggerAutoScrollRow(autoScroll = autoScroll, onAutoScrollChange = { setAutoScroll(it) })
                         Spacer(Modifier.height(8.dp))
-                        FlowRow(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            FilterChip(
-                                selected = levelFilter == null,
-                                onClick = { levelFilter = null },
-                                label = {
-                                    Text(
-                                        text = stringResource(R.string.logger_level_all),
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            )
-                            LogLevel.entries.forEach { level ->
-                                val color = logLevelColor(level)
-                                FilterChip(
-                                    selected = levelFilter == level,
-                                    onClick = { levelFilter = level },
-                                    label = {
-                                        Text(
-                                            text = level.letter.toString(),
-                                            fontSize = 10.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    },
-                                    colors = FilterChipDefaults.filterChipColors(
-                                        labelColor = color,
-                                        selectedContainerColor = color.copy(alpha = 0.22f),
-                                        selectedLabelColor = color
-                                    )
-                                )
-                            }
-                        }
-                        Spacer(Modifier.height(10.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = stringResource(R.string.logger_autoscroll),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.weight(1f)
-                            )
-                            Switch(
-                                checked = autoScroll,
-                                onCheckedChange = { enabled ->
-                                    autoScroll = enabled
-                                    Logger.setAutoScroll(context, enabled)
-                                },
-                                colors = SwitchDefaults.colors(
-                                    checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
-                                    checkedTrackColor = MaterialTheme.colorScheme.primary,
-                                    uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant
-                                )
-                            )
-                        }
-                        Spacer(Modifier.height(12.dp))
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.14f))
-                        Spacer(Modifier.height(12.dp))
-                        Text(
-                            text = stringResource(R.string.logger_actions),
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        OutlinedButton(
-                            onClick = {
-                                Logger.clear()
-                                entries = emptyList()
-                                expanded = emptySet()
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
-                        ) {
-                            Icon(TablerIcons.Trash, contentDescription = null, modifier = Modifier.size(15.dp))
-                            Spacer(Modifier.width(6.dp))
-                            Text(
-                                text = stringResource(R.string.logger_clear),
-                                style = MaterialTheme.typography.labelSmall,
-                                maxLines = 1
-                            )
-                        }
-                        Spacer(Modifier.height(8.dp))
-                        Button(
-                            onClick = { exportLauncher.launch(exportName) },
-                            modifier = Modifier.fillMaxWidth(),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
-                        ) {
-                            Icon(TablerIcons.FileDownload, contentDescription = null, modifier = Modifier.size(15.dp))
-                            Spacer(Modifier.width(6.dp))
-                            Text(
-                                text = stringResource(R.string.logger_export),
-                                style = MaterialTheme.typography.labelSmall,
-                                maxLines = 1
-                            )
-                        }
-                        Spacer(Modifier.height(6.dp))
-                        Text(
-                            text = exportName,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontFamily = FontFamily.Monospace,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .padding(horizontal = 10.dp)
-                            .width(1.dp)
-                            .fillMaxHeight()
-                            .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.14f))
-                    )
-
-                    Column(
-                        modifier = Modifier
-                            .weight(0.58f)
-                            .fillMaxHeight()
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = stringResource(R.string.logger_entries),
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.weight(1f)
-                            )
-                            IconButton(
-                                onClick = {
-                                    if (filtered.isNotEmpty()) {
-                                        scope.launch { listState.scrollToItem(filtered.size - 1) }
-                                    }
-                                },
-                                enabled = filtered.isNotEmpty(),
-                                modifier = Modifier.size(28.dp)
-                            ) {
-                                Icon(
-                                    imageVector = TablerIcons.ArrowDown,
-                                    contentDescription = stringResource(R.string.logger_scroll_latest),
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(15.dp)
-                                )
-                            }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            LoggerClearButton(modifier = Modifier.weight(1f), onClear = { clearAll() })
+                            LoggerExportButton(modifier = Modifier.weight(1f)) { exportLauncher.launch(exportName) }
                         }
                         Spacer(Modifier.height(4.dp))
-                        Surface(
+                        LoggerExportName(exportName)
+                        Spacer(Modifier.height(8.dp))
+                        LoggerListHeader(onJumpLatest = { jumpToLatest() }, jumpEnabled = filtered.isNotEmpty())
+                        Spacer(Modifier.height(4.dp))
+                        LoggerList(
+                            entries = filtered,
+                            allEmpty = entries.isEmpty(),
+                            expanded = expanded,
+                            onToggle = { toggleEntry(it) },
+                            listState = listState,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .weight(1f),
-                            shape = RoundedCornerShape(14.dp),
-                            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.35f)
-                        ) {
-                            LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-                                if (filtered.isEmpty()) {
-                                    item {
-                                        Text(
-                                            text = if (entries.isEmpty()) stringResource(R.string.logger_empty_waiting)
-                                            else stringResource(R.string.logger_empty_no_match),
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.padding(12.dp)
-                                        )
-                                    }
-                                }
-                                items(filtered, key = { it.id }) { entry ->
-                                    LogRow(
-                                        entry = entry,
-                                        expanded = expanded.contains(entry.id),
-                                        onToggle = {
-                                            expanded = if (expanded.contains(entry.id)) expanded - entry.id
-                                            else expanded + entry.id
-                                        }
-                                    )
-                                }
-                            }
-                        }
+                                .weight(1f)
+                        )
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LoggerHeader(shown: Int, total: Int, onDismiss: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Surface(
+            modifier = Modifier.size(32.dp),
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.primaryContainer
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = TablerIcons.Terminal2,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.size(17.dp)
+                )
+            }
+        }
+        Spacer(Modifier.width(10.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.logger_title),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = stringResource(R.string.logger_line_count, shown, total),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
+            Icon(
+                imageVector = TablerIcons.X,
+                contentDescription = stringResource(R.string.logger_close),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun LoggerSectionLabel(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+}
+
+@Composable
+private fun LoggerSearchField(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    OutlinedTextField(
+        value = query,
+        onValueChange = onQueryChange,
+        modifier = modifier.fillMaxWidth(),
+        singleLine = true,
+        textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+        placeholder = {
+            Text(
+                text = stringResource(R.string.logger_search_placeholder),
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        },
+        trailingIcon = {
+            if (query.isNotEmpty()) {
+                IconButton(onClick = { onQueryChange("") }, modifier = Modifier.size(30.dp)) {
+                    Icon(
+                        imageVector = TablerIcons.X,
+                        contentDescription = stringResource(R.string.logger_clear_filter),
+                        modifier = Modifier.size(15.dp)
+                    )
+                }
+            }
+        },
+        shape = RoundedCornerShape(14.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = MaterialTheme.colorScheme.primary,
+            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f),
+            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f),
+            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f)
+        )
+    )
+}
+
+@Composable
+private fun LoggerLevelChips(selected: LogLevel?, onSelect: (LogLevel?) -> Unit) {
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        FilterChip(
+            selected = selected == null,
+            onClick = { onSelect(null) },
+            label = {
+                Text(
+                    text = stringResource(R.string.logger_level_all),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        )
+        LogLevel.entries.forEach { level ->
+            val color = logLevelColor(level)
+            FilterChip(
+                selected = selected == level,
+                onClick = { onSelect(level) },
+                label = {
+                    Text(
+                        text = level.letter.toString(),
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                colors = FilterChipDefaults.filterChipColors(
+                    labelColor = color,
+                    selectedContainerColor = color.copy(alpha = 0.22f),
+                    selectedLabelColor = color
+                )
+            )
+        }
+    }
+}
+
+@Composable
+private fun LoggerAutoScrollRow(autoScroll: Boolean, onAutoScrollChange: (Boolean) -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = stringResource(R.string.logger_autoscroll),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f)
+        )
+        Switch(
+            checked = autoScroll,
+            onCheckedChange = onAutoScrollChange,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                checkedTrackColor = MaterialTheme.colorScheme.primary,
+                uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+        )
+    }
+}
+
+@Composable
+private fun LoggerClearButton(modifier: Modifier = Modifier, onClear: () -> Unit) {
+    OutlinedButton(
+        onClick = onClear,
+        modifier = modifier,
+        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+    ) {
+        Icon(TablerIcons.Trash, contentDescription = null, modifier = Modifier.size(15.dp))
+        Spacer(Modifier.width(6.dp))
+        Text(
+            text = stringResource(R.string.logger_clear),
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@Composable
+private fun LoggerExportButton(modifier: Modifier = Modifier, onExport: () -> Unit) {
+    Button(
+        onClick = onExport,
+        modifier = modifier,
+        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+    ) {
+        Icon(TablerIcons.FileDownload, contentDescription = null, modifier = Modifier.size(15.dp))
+        Spacer(Modifier.width(6.dp))
+        Text(
+            text = stringResource(R.string.logger_export),
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@Composable
+private fun LoggerExportName(name: String) {
+    Text(
+        text = name,
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        fontFamily = FontFamily.Monospace,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis
+    )
+}
+
+@Composable
+private fun LoggerListHeader(onJumpLatest: () -> Unit, jumpEnabled: Boolean) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        LoggerSectionLabel(stringResource(R.string.logger_entries))
+        Spacer(Modifier.weight(1f))
+        IconButton(onClick = onJumpLatest, enabled = jumpEnabled, modifier = Modifier.size(28.dp)) {
+            Icon(
+                imageVector = TablerIcons.ArrowDown,
+                contentDescription = stringResource(R.string.logger_scroll_latest),
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(15.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun LoggerList(
+    entries: List<LogEntry>,
+    allEmpty: Boolean,
+    expanded: Set<Long>,
+    onToggle: (Long) -> Unit,
+    listState: LazyListState,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.35f)
+    ) {
+        LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+            if (entries.isEmpty()) {
+                item {
+                    Text(
+                        text = if (allEmpty) stringResource(R.string.logger_empty_waiting)
+                        else stringResource(R.string.logger_empty_no_match),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(12.dp)
+                    )
+                }
+            }
+            items(entries, key = { it.id }) { entry ->
+                LogRow(
+                    entry = entry,
+                    expanded = expanded.contains(entry.id),
+                    onToggle = { onToggle(entry.id) }
+                )
             }
         }
     }

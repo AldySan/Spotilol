@@ -859,7 +859,6 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
             repeat = isRepeat,
             position = currentPosition,
             duration = currentDuration,
-            accent = accent(),
             source = WidgetState.SOURCE_WEB,
             cover = coverBitmap
         )

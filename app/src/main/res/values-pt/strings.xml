@@ -132,9 +132,6 @@
     <string name="settings_open_logger">Abrir o logger</string>
     <string name="settings_open_logger_on">Logs ao vivo: verbose, debug, info, warn e error</string>
     <string name="settings_open_logger_off">O registro está desligado, apenas entradas antigas são exibidas</string>
-    <string name="settings_crash_test">Teste de falha</string>
-    <string name="settings_crash_test_subtitle">Lança uma exceção de teste e abre a tela de falha</string>
-    <string name="settings_crash_test_exception">Teste de falha do Spotilol</string>
     <string name="settings_debug_unlocked">Ferramentas de depuração desbloqueadas</string>
     <string name="settings_debug_tap_one_left">Falta 1 toque para desbloquear a depuração</string>
     <string name="settings_debug_taps_left">Faltam %1$d toques para desbloquear a depuração</string>

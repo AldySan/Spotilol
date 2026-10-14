@@ -81,6 +81,7 @@
     <string name="settings_lyrics_animation">Subtle animation</string>
     <string name="settings_lyrics_animation_hint">Fade and weight transitions on the active line</string>
     <string name="settings_lyrics_custom_presets">Custom</string>
+    <string name="settings_lyrics_actions">Actions</string>
     <string name="settings_lyrics_save_preset">Save as preset</string>
     <string name="settings_lyrics_preset_name">Preset name</string>
     <string name="settings_lyrics_preset_saved">Preset saved</string>

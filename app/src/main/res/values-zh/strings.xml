@@ -137,9 +137,6 @@
     <string name="settings_open_logger">打开日志记录器</string>
     <string name="settings_open_logger_on">实时显示详细、调试、信息、警告和错误日志</string>
     <string name="settings_open_logger_off">日志记录已关闭，仅显示旧条目</string>
-    <string name="settings_crash_test">崩溃测试</string>
-    <string name="settings_crash_test_subtitle">抛出测试异常并打开崩溃界面</string>
-    <string name="settings_crash_test_exception">Spotilol 崩溃测试</string>
     <string name="settings_debug_unlocked">调试工具已解锁</string>
     <string name="settings_debug_tap_one_left">再点击 1 次即可解锁调试工具</string>
     <string name="settings_debug_taps_left">再点击 %1$d 次即可解锁调试工具</string>

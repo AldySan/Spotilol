@@ -18,7 +18,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -60,18 +59,25 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -146,9 +152,13 @@ import com.project.lol.ui.components.SleepTimerDialog
 import com.project.lol.ui.theme.schemeFromSeed
 import com.project.lol.util.BuildInfo
 import compose.icons.TablerIcons
+import compose.icons.tablericons.AlertTriangle
+import compose.icons.tablericons.Check
 import compose.icons.tablericons.ChevronDown
 import compose.icons.tablericons.ChevronLeft
 import compose.icons.tablericons.CloudOff
+import compose.icons.tablericons.DotsVertical
+import compose.icons.tablericons.Filter
 import compose.icons.tablericons.Folder
 import compose.icons.tablericons.Logout
 import compose.icons.tablericons.Menu2
@@ -258,9 +268,11 @@ fun OfflineScreen(
     var albumFilters by remember { mutableStateOf<Set<String>>(emptySet()) }
     var yearFilters by remember { mutableStateOf<Set<String>>(emptySet()) }
     var formatFilters by remember { mutableStateOf<Set<String>>(emptySet()) }
-    var filterDialog by remember { mutableStateOf<OfflineFilterKind?>(null) }
+    var showFilterSheet by remember { mutableStateOf(false) }
+    var headerMenuOpen by remember { mutableStateOf(false) }
     var verifying by remember { mutableStateOf(false) }
     var integrityReport by remember { mutableStateOf<IntegrityReport?>(null) }
+    var showIntegrityDialog by remember { mutableStateOf(false) }
 
     val searchEngine = remember { GenericSearchEngine<OfflineSong>(maxResult = 100) }
     val songExtractor = remember {
@@ -322,6 +334,16 @@ fun OfflineScreen(
             }
         }
     }
+    LaunchedEffect(songs) {
+        if (songs.isEmpty()) {
+            integrityReport = null
+            return@LaunchedEffect
+        }
+        verifying = true
+        integrityReport = LibraryIntegrity.scan(context, songs)
+        verifying = false
+    }
+
     val artistOptions = remember(songs) {
         songs.map { it.artist.ifBlank { it.ytArtist } }.distinct()
             .sortedWith(compareBy({ it.isBlank() }, { it.lowercase() }))
@@ -557,9 +579,10 @@ fun OfflineScreen(
         if (verifying) return
         verifying = true
         scope.launch {
-            val result = withContext(Dispatchers.IO) { LibraryIntegrity.scan(context, songs) }
+            val result = LibraryIntegrity.scan(context, songs)
             verifying = false
             integrityReport = result
+            showIntegrityDialog = true
         }
     }
 
@@ -812,15 +835,32 @@ fun OfflineScreen(
                             )
                         } else {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                OfflineTabPill(
-                                    label = stringResource(R.string.offline_tab_songs),
-                                    selected = libraryTab == OfflineLibraryTab.SONGS
-                                ) { libraryTab = OfflineLibraryTab.SONGS }
-                                Spacer(Modifier.width(8.dp))
-                                OfflineTabPill(
-                                    label = stringResource(R.string.offline_tab_playlists),
-                                    selected = libraryTab == OfflineLibraryTab.PLAYLISTS
-                                ) { libraryTab = OfflineLibraryTab.PLAYLISTS }
+                                SingleChoiceSegmentedButtonRow {
+                                    SegmentedButton(
+                                        selected = libraryTab == OfflineLibraryTab.SONGS,
+                                        onClick = { libraryTab = OfflineLibraryTab.SONGS },
+                                        shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                                        label = {
+                                            Text(
+                                                text = stringResource(R.string.offline_tab_songs),
+                                                style = MaterialTheme.typography.labelMedium,
+                                                maxLines = 1
+                                            )
+                                        }
+                                    )
+                                    SegmentedButton(
+                                        selected = libraryTab == OfflineLibraryTab.PLAYLISTS,
+                                        onClick = { libraryTab = OfflineLibraryTab.PLAYLISTS },
+                                        shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                                        label = {
+                                            Text(
+                                                text = stringResource(R.string.offline_tab_playlists),
+                                                style = MaterialTheme.typography.labelMedium,
+                                                maxLines = 1
+                                            )
+                                        }
+                                    )
+                                }
                                 Spacer(Modifier.weight(1f))
                                 if (importing || verifying) {
                                     CircularProgressIndicator(
@@ -828,10 +868,58 @@ fun OfflineScreen(
                                         strokeWidth = 2.dp,
                                         color = MaterialTheme.colorScheme.primary
                                     )
+                                    Spacer(Modifier.width(8.dp))
+                                }
+                                if (libraryTab == OfflineLibraryTab.SONGS && songs.isNotEmpty()) {
+                                    OfflineFiltersButton(
+                                        count = artistFilters.size + albumFilters.size + yearFilters.size + formatFilters.size,
+                                        onClick = { showFilterSheet = true }
+                                    )
+                                }
+                                Spacer(Modifier.width(4.dp))
+                                Box {
+                                    CompactIconButton(
+                                        icon = TablerIcons.DotsVertical,
+                                        contentDescription = stringResource(R.string.offline_desc_more),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        onClick = { headerMenuOpen = true },
+                                        boxSize = 34.dp,
+                                        iconSize = 18.dp
+                                    )
+                                    DropdownMenu(
+                                        expanded = headerMenuOpen,
+                                        onDismissRequest = { headerMenuOpen = false }
+                                    ) {
+                                        DropdownMenuItem(
+                                            text = { Text(stringResource(R.string.offline_desc_verify)) },
+                                            leadingIcon = { Icon(TablerIcons.ShieldCheck, null) },
+                                            onClick = {
+                                                headerMenuOpen = false
+                                                runIntegrityCheck()
+                                            }
+                                        )
+                                        if (songs.any { !LocalImportStore.isImported(it) }) {
+                                            DropdownMenuItem(
+                                                text = {
+                                                    Text(
+                                                        text = stringResource(R.string.offline_desc_delete_all_downloads),
+                                                        color = MaterialTheme.colorScheme.error
+                                                    )
+                                                },
+                                                leadingIcon = { Icon(TablerIcons.Trash, null, tint = MaterialTheme.colorScheme.error) },
+                                                onClick = {
+                                                    headerMenuOpen = false
+                                                    confirmDeleteAll = true
+                                                }
+                                            )
+                                        }
+                                    }
                                 }
                             }
                             Spacer(Modifier.height(8.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
+                                modifier = Modifier.weight(1f),
                                 text = when {
                                     loading -> stringResource(R.string.offline_status_loading)
                                     libraryTab == OfflineLibraryTab.PLAYLISTS -> when {
@@ -859,6 +947,16 @@ fun OfflineScreen(
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
+                            val issues = integrityReport
+                            if (!loading && libraryTab == OfflineLibraryTab.SONGS && issues != null && issues.entries.isNotEmpty()) {
+                                Spacer(Modifier.width(8.dp))
+                                IntegrityChip(
+                                    damaged = issues.damaged.size,
+                                    total = issues.entries.size,
+                                    onClick = { showIntegrityDialog = true }
+                                )
+                            }
+                            }
                             AnimatedContent(
                                 targetState = libraryTab,
                                 modifier = Modifier.fillMaxWidth(),
@@ -880,15 +978,6 @@ fun OfflineScreen(
                                     }
                                     Spacer(Modifier.width(8.dp))
                                     CompactIconButton(
-                                        icon = TablerIcons.ShieldCheck,
-                                        contentDescription = stringResource(R.string.offline_desc_verify),
-                                        tint = if (verifying) MaterialTheme.colorScheme.onSurfaceVariant
-                                        else MaterialTheme.colorScheme.primary,
-                                        onClick = { runIntegrityCheck() },
-                                        boxSize = 40.dp,
-                                        iconSize = 20.dp
-                                    )
-                                    CompactIconButton(
                                         icon = TablerIcons.Plus,
                                         contentDescription = stringResource(R.string.offline_desc_import),
                                         tint = if (importing) MaterialTheme.colorScheme.onSurfaceVariant
@@ -897,58 +986,6 @@ fun OfflineScreen(
                                         boxSize = 40.dp,
                                         iconSize = 20.dp
                                     )
-                                    if (songs.any { !LocalImportStore.isImported(it) }) {
-                                        CompactIconButton(
-                                            icon = TablerIcons.Trash,
-                                            contentDescription = stringResource(R.string.offline_desc_delete_all_downloads),
-                                            tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
-                                            onClick = { confirmDeleteAll = true },
-                                            boxSize = 40.dp,
-                                            iconSize = 20.dp
-                                        )
-                                    }
-                                }
-                                Spacer(Modifier.height(8.dp))
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Row(
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .horizontalScroll(rememberScrollState()),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        OfflineFilterPill(
-                                            label = stringResource(R.string.offline_filter_artist),
-                                            count = artistFilters.size
-                                        ) { filterDialog = OfflineFilterKind.ARTIST }
-                                        OfflineFilterPill(
-                                            label = stringResource(R.string.offline_filter_album),
-                                            count = albumFilters.size
-                                        ) { filterDialog = OfflineFilterKind.ALBUM }
-                                        OfflineFilterPill(
-                                            label = stringResource(R.string.offline_filter_year),
-                                            count = yearFilters.size
-                                        ) { filterDialog = OfflineFilterKind.YEAR }
-                                        OfflineFilterPill(
-                                            label = stringResource(R.string.offline_filter_format),
-                                            count = formatFilters.size
-                                        ) { filterDialog = OfflineFilterKind.FORMAT }
-                                    }
-                                    if (filtersActive) {
-                                        Spacer(Modifier.width(4.dp))
-                                        CompactIconButton(
-                                            icon = TablerIcons.X,
-                                            contentDescription = stringResource(R.string.offline_filter_clear),
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            onClick = {
-                                                artistFilters = emptySet()
-                                                albumFilters = emptySet()
-                                                yearFilters = emptySet()
-                                                formatFilters = emptySet()
-                                            },
-                                            boxSize = 36.dp,
-                                            iconSize = 18.dp
-                                        )
-                                    }
                                 }
                                 if (importing && importLabel.isNotBlank()) {
                                     Spacer(Modifier.height(4.dp))
@@ -1788,13 +1825,13 @@ fun OfflineScreen(
                 }
 
     val report = integrityReport
-    if (report != null) {
+    if (showIntegrityDialog && report != null) {
         IntegrityReportDialog(
             report = report,
-            onDismiss = { integrityReport = null },
+            onDismiss = { showIntegrityDialog = false },
             onRemoveDamaged = {
                 val damaged = report.damaged.map { it.song }
-                integrityReport = null
+                showIntegrityDialog = false
                 val current = queueSongs.getOrNull(currentIndex)
                 if (current != null && damaged.any { it.id == current.id && it.uri == current.uri }) {
                     stopAndClear()
@@ -1812,48 +1849,34 @@ fun OfflineScreen(
         )
     }
 
-    val filterKind = filterDialog
-    if (filterKind != null) {
+    if (showFilterSheet) {
         val unknownArtist = stringResource(R.string.offline_unknown_artist)
         val unknownAlbum = stringResource(R.string.offline_unknown_album)
         val unknownValue = stringResource(R.string.offline_filter_unknown)
-        val (titleRes, options) = when (filterKind) {
-            OfflineFilterKind.ARTIST -> R.string.offline_filter_artist to
-                artistOptions.map { it to it.ifBlank { unknownArtist } }
-            OfflineFilterKind.ALBUM -> R.string.offline_filter_album to
-                albumOptions.map { it to it.ifBlank { unknownAlbum } }
-            OfflineFilterKind.YEAR -> R.string.offline_filter_year to
-                yearOptions.map { it to it.ifBlank { unknownValue } }
-            OfflineFilterKind.FORMAT -> R.string.offline_filter_format to
-                formatOptions.map { it to it.ifBlank { unknownValue }.uppercase() }
-        }
-        val selected = when (filterKind) {
-            OfflineFilterKind.ARTIST -> artistFilters
-            OfflineFilterKind.ALBUM -> albumFilters
-            OfflineFilterKind.YEAR -> yearFilters
-            OfflineFilterKind.FORMAT -> formatFilters
-        }
-        OfflineFilterDialog(
-            title = stringResource(titleRes),
-            options = options,
-            selected = selected,
-            onToggle = { value ->
-                when (filterKind) {
+        OfflineFilterSheet(
+            artistOptions = artistOptions.map { it to it.ifBlank { unknownArtist } },
+            albumOptions = albumOptions.map { it to it.ifBlank { unknownAlbum } },
+            yearOptions = yearOptions.map { it to it.ifBlank { unknownValue } },
+            formatOptions = formatOptions.map { it to it.ifBlank { unknownValue }.uppercase() },
+            artistFilters = artistFilters,
+            albumFilters = albumFilters,
+            yearFilters = yearFilters,
+            formatFilters = formatFilters,
+            onToggle = { kind, value ->
+                when (kind) {
                     OfflineFilterKind.ARTIST -> artistFilters = artistFilters.toggle(value)
                     OfflineFilterKind.ALBUM -> albumFilters = albumFilters.toggle(value)
                     OfflineFilterKind.YEAR -> yearFilters = yearFilters.toggle(value)
                     OfflineFilterKind.FORMAT -> formatFilters = formatFilters.toggle(value)
                 }
             },
-            onClear = {
-                when (filterKind) {
-                    OfflineFilterKind.ARTIST -> artistFilters = emptySet()
-                    OfflineFilterKind.ALBUM -> albumFilters = emptySet()
-                    OfflineFilterKind.YEAR -> yearFilters = emptySet()
-                    OfflineFilterKind.FORMAT -> formatFilters = emptySet()
-                }
+            onClearAll = {
+                artistFilters = emptySet()
+                albumFilters = emptySet()
+                yearFilters = emptySet()
+                formatFilters = emptySet()
             },
-            onDismiss = { filterDialog = null }
+            onDismiss = { showFilterSheet = false }
         )
     }
 
@@ -2219,6 +2242,7 @@ private fun OfflineSongRow(
     onAddToPlaylist: (() -> Unit)? = null,
     onDelete: () -> Unit
 ) {
+    var menuOpen by remember { mutableStateOf(false) }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
@@ -2246,34 +2270,49 @@ private fun OfflineSongRow(
                 overflow = TextOverflow.Ellipsis
             )
         }
-        if (onLocate != null) {
+        Box {
             CompactIconButton(
-                icon = TablerIcons.Folder,
-                contentDescription = stringResource(R.string.offline_desc_locate_track),
+                icon = TablerIcons.DotsVertical,
+                contentDescription = stringResource(R.string.offline_desc_more),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                onClick = onLocate,
-                boxSize = 30.dp,
-                iconSize = 17.dp
+                onClick = { menuOpen = true },
+                boxSize = 34.dp,
+                iconSize = 18.dp
             )
+            DropdownMenu(
+                expanded = menuOpen,
+                onDismissRequest = { menuOpen = false }
+            ) {
+                if (onLocate != null) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.offline_desc_locate_track)) },
+                        leadingIcon = { Icon(TablerIcons.Folder, null) },
+                        onClick = {
+                            menuOpen = false
+                            onLocate()
+                        }
+                    )
+                }
+                if (onAddToPlaylist != null) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.offline_desc_add_to_playlist)) },
+                        leadingIcon = { Icon(TablerIcons.Plus, null) },
+                        onClick = {
+                            menuOpen = false
+                            onAddToPlaylist()
+                        }
+                    )
+                }
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.offline_desc_delete), color = MaterialTheme.colorScheme.error) },
+                    leadingIcon = { Icon(TablerIcons.Trash, null, tint = MaterialTheme.colorScheme.error) },
+                    onClick = {
+                        menuOpen = false
+                        onDelete()
+                    }
+                )
+            }
         }
-        if (onAddToPlaylist != null) {
-            CompactIconButton(
-                icon = TablerIcons.Plus,
-                contentDescription = stringResource(R.string.offline_desc_add_to_playlist),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                onClick = onAddToPlaylist,
-                boxSize = 30.dp,
-                iconSize = 17.dp
-            )
-        }
-        CompactIconButton(
-            icon = TablerIcons.Trash,
-            contentDescription = stringResource(R.string.offline_desc_delete),
-            tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
-            onClick = onDelete,
-            boxSize = 30.dp,
-            iconSize = 17.dp
-        )
     }
 }
 
@@ -2290,42 +2329,7 @@ private fun songSubtitle(song: OfflineSong): String {
 }
 
 @Composable
-private fun OfflineTabPill(label: String, selected: Boolean, onClick: () -> Unit) {
-    val container by animateColorAsState(
-        if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
-        else MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.5f),
-        animationSpec = tween(220),
-        label = "tabPillContainer"
-    )
-    val borderColor by animateColorAsState(
-        if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
-        else MaterialTheme.colorScheme.outline.copy(alpha = 0.15f),
-        animationSpec = tween(220),
-        label = "tabPillBorder"
-    )
-    val contentColor by animateColorAsState(
-        if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-        animationSpec = tween(220),
-        label = "tabPillContent"
-    )
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(50),
-        color = container,
-        border = BorderStroke(1.dp, borderColor)
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
-            color = contentColor,
-            modifier = Modifier.padding(horizontal = 18.dp, vertical = 7.dp)
-        )
-    }
-}
-
-@Composable
-private fun OfflineFilterPill(label: String, count: Int, onClick: () -> Unit) {
+private fun OfflineFiltersButton(count: Int, onClick: () -> Unit) {
     val active = count > 0
     Surface(
         onClick = onClick,
@@ -2338,81 +2342,157 @@ private fun OfflineFilterPill(label: String, count: Int, onClick: () -> Unit) {
             else MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
         )
     ) {
-        Text(
-            text = if (active) "$label · $count" else label,
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium,
-            color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp)
+        ) {
+            Icon(
+                imageVector = TablerIcons.Filter,
+                contentDescription = null,
+                tint = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(15.dp)
+            )
+            Spacer(Modifier.width(6.dp))
+            Text(
+                text = if (active) "${stringResource(R.string.offline_filter_title)} · $count" else stringResource(R.string.offline_filter_title),
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium,
+                color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun OfflineFilterSheet(
+    artistOptions: List<Pair<String, String>>,
+    albumOptions: List<Pair<String, String>>,
+    yearOptions: List<Pair<String, String>>,
+    formatOptions: List<Pair<String, String>>,
+    artistFilters: Set<String>,
+    albumFilters: Set<String>,
+    yearFilters: Set<String>,
+    formatFilters: Set<String>,
+    onToggle: (OfflineFilterKind, String) -> Unit,
+    onClearAll: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val anyActive = artistFilters.isNotEmpty() || albumFilters.isNotEmpty() ||
+        yearFilters.isNotEmpty() || formatFilters.isNotEmpty()
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 24.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = stringResource(R.string.offline_filter_title),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.weight(1f))
+                if (anyActive) {
+                    TextButton(onClick = onClearAll) {
+                        Text(stringResource(R.string.offline_filter_clear))
+                    }
+                }
+            }
+            FilterGroup(
+                title = stringResource(R.string.offline_filter_artist),
+                options = artistOptions,
+                selected = artistFilters
+            ) { onToggle(OfflineFilterKind.ARTIST, it) }
+            FilterGroup(
+                title = stringResource(R.string.offline_filter_album),
+                options = albumOptions,
+                selected = albumFilters
+            ) { onToggle(OfflineFilterKind.ALBUM, it) }
+            FilterGroup(
+                title = stringResource(R.string.offline_filter_year),
+                options = yearOptions,
+                selected = yearFilters
+            ) { onToggle(OfflineFilterKind.YEAR, it) }
+            FilterGroup(
+                title = stringResource(R.string.offline_filter_format),
+                options = formatOptions,
+                selected = formatFilters
+            ) { onToggle(OfflineFilterKind.FORMAT, it) }
+            Spacer(Modifier.height(20.dp))
+            Button(
+                onClick = onDismiss,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(stringResource(R.string.offline_filter_done))
+            }
+        }
     }
 }
 
 @Composable
-private fun OfflineFilterDialog(
+private fun FilterGroup(
     title: String,
     options: List<Pair<String, String>>,
     selected: Set<String>,
     onToggle: (String) -> Unit,
-    onClear: () -> Unit,
-    onDismiss: () -> Unit,
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(28.dp),
-        title = {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-        },
-        text = {
-            if (options.isEmpty()) {
-                Text(
-                    text = stringResource(R.string.offline_filter_none),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            } else {
-                LazyColumn(modifier = Modifier.heightIn(max = 420.dp)) {
-                    items(options, key = { it.first }) { (value, label) ->
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(10.dp))
-                                .clickable { onToggle(value) }
-                                .padding(end = 4.dp)
-                        ) {
-                            Checkbox(checked = value in selected, onCheckedChange = { onToggle(value) })
-                            Spacer(Modifier.width(4.dp))
-                            Text(
-                                text = label,
-                                style = MaterialTheme.typography.bodyMedium,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.offline_filter_done), fontWeight = FontWeight.Bold)
-            }
-        },
-        dismissButton = {
-            if (selected.isNotEmpty()) {
-                TextButton(onClick = onClear) {
-                    Text(stringResource(R.string.offline_filter_clear), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-        }
+    if (options.isEmpty()) return
+    Spacer(Modifier.height(16.dp))
+    Text(
+        text = title,
+        style = MaterialTheme.typography.labelLarge,
+        fontWeight = FontWeight.SemiBold
     )
+    Spacer(Modifier.height(8.dp))
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        options.forEach { (value, label) ->
+            FilterChip(
+                selected = value in selected,
+                onClick = { onToggle(value) },
+                label = { Text(label, maxLines = 1) },
+                leadingIcon = if (value in selected) {
+                    { Icon(TablerIcons.Check, null, modifier = Modifier.size(16.dp)) }
+                } else {
+                    null
+                }
+            )
+        }
+    }
+}
+
+@Composable
+private fun IntegrityChip(damaged: Int, total: Int, onClick: () -> Unit) {
+    val error = damaged > 0
+    val container = if (error) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.secondaryContainer
+    val content = if (error) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSecondaryContainer
+    Surface(onClick = onClick, shape = RoundedCornerShape(50), color = container) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+        ) {
+            Icon(
+                imageVector = if (error) TablerIcons.AlertTriangle else TablerIcons.Check,
+                contentDescription = null,
+                tint = content,
+                modifier = Modifier.size(14.dp)
+            )
+            Spacer(Modifier.width(5.dp))
+            Text(
+                text = "$total",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = content
+            )
+        }
+    }
 }
 
 @Composable

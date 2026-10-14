@@ -4,9 +4,15 @@ import android.content.Context
 import android.content.Intent
 import androidx.glance.GlanceId
 import androidx.glance.action.ActionParameters
+import androidx.glance.appwidget.GlanceAppWidget
+import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.action.ActionCallback
 import com.project.lol.service.MediaNotificationService
 import com.project.lol.service.OfflineMediaService
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 internal enum class WidgetCommand { PLAY_PAUSE, NEXT, PREV, SHUFFLE, REPEAT, FAVORITE }
 
@@ -27,6 +33,8 @@ internal object WidgetSource {
 
 internal object WidgetActions {
 
+    private val refreshScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
     fun send(context: Context, command: WidgetCommand) {
         val action = if (WidgetSource.get(context) == WidgetState.SOURCE_OFFLINE) {
             offlineAction(command)
@@ -43,6 +51,29 @@ internal object WidgetActions {
             MediaNotificationService.ACTION_WIDGET_REFRESH
         }
         context.sendBroadcast(Intent(action).setPackage(context.packageName))
+    }
+
+    fun refreshAll(context: Context) {
+        val app = context.applicationContext
+        refreshScope.launch {
+            val manager = GlanceAppWidgetManager(app)
+            redraw(app, manager, SpotilolPlayerWidget::class.java) { SpotilolPlayerWidget() }
+            redraw(app, manager, SpotilolArtWidget::class.java) { SpotilolArtWidget() }
+        }
+    }
+
+    private suspend fun redraw(
+        context: Context,
+        manager: GlanceAppWidgetManager,
+        cls: Class<out GlanceAppWidget>,
+        factory: () -> GlanceAppWidget
+    ) {
+        val ids = runCatching { manager.getGlanceIds(cls) }.getOrNull() ?: return
+        if (ids.isEmpty()) return
+        val widget = factory()
+        for (id in ids) {
+            runCatching { widget.update(context, id) }
+        }
     }
 
     private fun webAction(command: WidgetCommand): String? = when (command) {

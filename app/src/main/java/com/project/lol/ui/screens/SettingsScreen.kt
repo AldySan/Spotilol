@@ -139,7 +139,6 @@ import com.project.lol.util.Telemetry
 import com.project.lol.webview.helpers.LyricsTheme
 import com.project.lol.widget.WidgetStudioActivity
 import compose.icons.TablerIcons
-import compose.icons.tablericons.AlertTriangle
 import compose.icons.tablericons.ArrowsMinimize
 import compose.icons.tablericons.ArrowsSort
 import compose.icons.tablericons.ArrowsUpDown
@@ -1037,14 +1036,6 @@ fun SettingsContent(
 
                         HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
                         DeviceInfoExportTile()
-                        HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
-
-                        SettingTile(
-                            title = stringResource(R.string.settings_crash_test),
-                            subtitle = stringResource(R.string.settings_crash_test_subtitle),
-                            icon = TablerIcons.AlertTriangle,
-                            onClick = { throw IllegalStateException(resources.getString(R.string.settings_crash_test_exception)) }
-                        )
                     }
                 }
             }

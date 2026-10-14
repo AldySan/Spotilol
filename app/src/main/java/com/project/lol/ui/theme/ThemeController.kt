@@ -18,6 +18,7 @@ object ThemeController {
     private const val KEY_PRESET = "ThemePreset"
     private const val KEY_DYNAMIC = "MaterialYou"
     private const val KEY_AMOLED = "AmoledTheme"
+    private const val KEY_SECONDARY = "ThemeSecondary"
     private const val BRIGHTEN_FACTOR = 0.12f
 
     var presetId by mutableStateOf(ThemePresets.DEFAULT_ID)
@@ -25,6 +26,8 @@ object ThemeController {
     var dynamicColor by mutableStateOf(false)
         private set
     var amoled by mutableStateOf(false)
+        private set
+    var secondary by mutableStateOf<Color?>(null)
         private set
 
     private var prefs: SharedPreferences? = null
@@ -34,10 +37,12 @@ object ThemeController {
         if (prefs != null) return
         appContext = context.applicationContext
         prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        CustomThemes.init(context)
         val p = prefs!!
         presetId = p.getString(KEY_PRESET, ThemePresets.DEFAULT_ID)
             ?.takeIf { ThemePresets.byId.containsKey(it) }
             ?: ThemePresets.DEFAULT_ID
+        secondary = ThemeHarmony.parseHex(p.getString(KEY_SECONDARY, null))
         dynamicColor = p.getBoolean(KEY_DYNAMIC, false)
         amoled = p.getBoolean(KEY_AMOLED, false)
     }
@@ -46,6 +51,19 @@ object ThemeController {
         presetId = if (ThemePresets.byId.containsKey(id)) id else ThemePresets.DEFAULT_ID
         save()
         refreshWidgets()
+    }
+
+    fun updateSecondary(color: Color?) {
+        secondary = color
+        save()
+        refreshWidgets()
+    }
+
+    fun importThemes(themes: List<ThemePreset>): List<ThemePreset> = themes.map { CustomThemes.add(it) }
+
+    fun removeCustomTheme(id: String) {
+        CustomThemes.remove(id)
+        if (presetId == id) updatePreset(ThemePresets.DEFAULT_ID)
     }
 
     fun updateDynamicColor(value: Boolean) {
@@ -60,7 +78,7 @@ object ThemeController {
         refreshWidgets()
     }
 
-    fun resolvePalette(): ThemePalette = ThemePresets.resolve(presetId)
+    fun resolvePalette(): ThemePalette = ThemePresets.resolve(presetId).harmonized(secondary)
 
     fun accentColor(context: Context): Color =
         if (dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -95,6 +113,7 @@ object ThemeController {
             ?.putString(KEY_PRESET, presetId)
             ?.putBoolean(KEY_DYNAMIC, dynamicColor)
             ?.putBoolean(KEY_AMOLED, amoled)
+            ?.putString(KEY_SECONDARY, secondary?.let { ThemeHarmony.toHex(it) })
             ?.apply()
     }
 

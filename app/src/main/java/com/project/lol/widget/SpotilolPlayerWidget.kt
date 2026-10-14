@@ -165,8 +165,9 @@ private fun StandardContent(state: WidgetState, config: WidgetConfig, version: L
     val cover = if (config.showCover) CoverCache.load(context, version) else null
     Box(modifier = frame(if (config.useCoverArt) cover else null)) {
         Column(modifier = scrim().padding(10.dp)) {
-            val showFavorite = config.showFavorite && state.supportsExtras
-            if (config.hasInfo || config.showThumbnail || showFavorite) {
+            val showFavorite = config.showFavorite && state.supportsFavorite
+            val showBadge = state.offline
+            if (config.hasInfo || config.showThumbnail || showFavorite || showBadge) {
                 Row(
                     modifier = GlanceModifier.fillMaxWidth().defaultWeight(),
                     verticalAlignment = Alignment.Vertical.CenterVertically
@@ -204,7 +205,10 @@ private fun StandardContent(state: WidgetState, config: WidgetConfig, version: L
                             }
                         }
                     }
-                    if (showFavorite) {
+                    if (showBadge) {
+                        Spacer(GlanceModifier.width(8.dp))
+                        OfflineBadge()
+                    } else if (showFavorite) {
                         Spacer(GlanceModifier.width(8.dp))
                         CircleIconButton(
                             resId = state.favoriteIcon,
@@ -218,7 +222,7 @@ private fun StandardContent(state: WidgetState, config: WidgetConfig, version: L
                 }
             }
             if (config.hasControls) {
-                if (config.hasInfo || config.showThumbnail || showFavorite) Spacer(GlanceModifier.height(6.dp))
+                if (config.hasInfo || config.showThumbnail || showFavorite || showBadge) Spacer(GlanceModifier.height(6.dp))
                 Controls(state, config, context)
             }
         }
@@ -393,11 +397,11 @@ private fun ProgressBar(state: WidgetState) {
 
 @Composable
 private fun Controls(state: WidgetState, config: WidgetConfig, context: Context) {
-    val showShuffle = config.showShuffleRepeat && state.supportsExtras
-    val showRepeat = showShuffle
+    val showShuffle = config.showShuffleRepeat
+    val showRepeat = config.showShuffleRepeat && state.supportsRepeat
     val showPlay = config.showPlayPause
     val showSkip = config.showSkip
-    if (!showShuffle && !showSkip && !showPlay) return
+    if (!showShuffle && !showRepeat && !showSkip && !showPlay) return
 
     Row(
         modifier = GlanceModifier.fillMaxWidth(),
@@ -461,6 +465,26 @@ private fun Controls(state: WidgetState, config: WidgetConfig, context: Context)
             )
             Spacer(GlanceModifier.defaultWeight())
         }
+    }
+}
+
+@Composable
+private fun OfflineBadge() {
+    Box(
+        modifier = GlanceModifier
+            .background(withAlpha(GlanceTheme.colors.onSurface, WIDGET_BUTTON_ALPHA))
+            .cornerRadius(11.dp)
+            .padding(horizontal = 8.dp, vertical = 3.dp)
+    ) {
+        Text(
+            text = LocalContext.current.getString(R.string.widget_badge_offline),
+            maxLines = 1,
+            style = TextStyle(
+                color = GlanceTheme.colors.onSurfaceVariant,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Medium
+            )
+        )
     }
 }
 

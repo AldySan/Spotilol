@@ -138,9 +138,6 @@
     <string name="settings_open_logger">Günlüğü Aç</string>
     <string name="settings_open_logger_on">Canlı ayrıntılı, hata ayıklama, bilgi, uyarı ve hata günlükleri</string>
     <string name="settings_open_logger_off">Günlük kaydı kapalı, yalnızca eski kayıtlar gösteriliyor</string>
-    <string name="settings_crash_test">Çökme testi</string>
-    <string name="settings_crash_test_subtitle">Bir test istisnası oluştur ve çökme ekranını aç</string>
-    <string name="settings_crash_test_exception">Spotilol çökme testi</string>
     <string name="settings_debug_unlocked">Hata ayıklama araçları açıldı</string>
     <string name="settings_debug_tap_one_left">Hata ayıklamayı açmak için 1 dokunma kaldı</string>
     <string name="settings_debug_taps_left">Hata ayıklamayı açmak için %1$d dokunma kaldı</string>

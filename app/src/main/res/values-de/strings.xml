@@ -117,6 +117,12 @@
     <string name="settings_download_folder_subtitle">Speichert in %1$s</string>
     <string name="settings_download_folder_hint">Wähle einen beschreibbaren Ordner, auch eine SD-Karte ist möglich. Bereits gespeicherte Titel bleiben in der Bibliothek.</string>
     <string name="settings_download_folder_default">Standardordner verwenden (Musik/%1$s)</string>
+    <string name="settings_innertube_cache">InnerTube-Cachegröße</string>
+    <string name="settings_innertube_cache_subtitle">Limit %1$s · verwendet %2$s</string>
+    <string name="settings_innertube_cache_mb">%1$d MB</string>
+    <string name="settings_innertube_cache_unlimited">Unbegrenzt</string>
+    <string name="settings_innertube_cache_applied">Cachegröße übernommen</string>
+    <string name="settings_innertube_cache_restart_hint">Wird nach einem Neustart der App angewendet</string>
     <string name="settings_choose_folder">Ordner wählen</string>
     <string name="settings_write_tags">Tags und Cover schreiben</string>
     <string name="settings_write_tags_subtitle">Metadaten und Cover in die Datei einbetten</string>

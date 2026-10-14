@@ -117,6 +117,12 @@
     <string name="settings_download_folder_subtitle">Menyimpan ke %1$s</string>
     <string name="settings_download_folder_hint">Pilih folder mana pun yang bisa Anda tulis, termasuk kartu SD. Trek yang sudah tersimpan tetap ada di pustaka.</string>
     <string name="settings_download_folder_default">Gunakan default (Musik/%1$s)</string>
+    <string name="settings_innertube_cache">Ukuran Cache InnerTube</string>
+    <string name="settings_innertube_cache_subtitle">Batas %1$s · digunakan %2$s</string>
+    <string name="settings_innertube_cache_mb">%1$d MB</string>
+    <string name="settings_innertube_cache_unlimited">Tidak terbatas</string>
+    <string name="settings_innertube_cache_applied">Ukuran cache diterapkan</string>
+    <string name="settings_innertube_cache_restart_hint">Diterapkan setelah aplikasi dimulai ulang</string>
     <string name="settings_choose_folder">Pilih folder</string>
     <string name="settings_write_tags">Tulis tag dan sampul</string>
     <string name="settings_write_tags_subtitle">Sematkan metadata dan sampul ke dalam berkas</string>

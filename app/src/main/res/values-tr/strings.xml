@@ -121,6 +121,12 @@
     <string name="settings_download_folder_subtitle">%1$s konumuna kaydeder</string>
     <string name="settings_download_folder_hint">SD kart dahil, yazabildiğiniz herhangi bir klasörü seçin. Zaten kaydedilmiş parçalar kitaplıkta kalır.</string>
     <string name="settings_download_folder_default">Varsayılanı kullan (Music/%1$s)</string>
+    <string name="settings_innertube_cache">InnerTube Önbellek Boyutu</string>
+    <string name="settings_innertube_cache_subtitle">Sınır %1$s · kullanılan %2$s</string>
+    <string name="settings_innertube_cache_mb">%1$d MB</string>
+    <string name="settings_innertube_cache_unlimited">Sınırsız</string>
+    <string name="settings_innertube_cache_applied">Önbellek boyutu uygulandı</string>
+    <string name="settings_innertube_cache_restart_hint">Uygulama yeniden başlatıldıktan sonra uygulanır</string>
     <string name="settings_choose_folder">Klasör seç</string>
     <string name="settings_write_tags">Etiketleri ve Kapak Resmini Yaz</string>
     <string name="settings_write_tags_subtitle">Meta verileri ve kapak resmini dosyaya göm</string>

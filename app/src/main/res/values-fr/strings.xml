@@ -122,6 +122,12 @@
     <string name="settings_download_folder_subtitle">Enregistre dans %1$s</string>
     <string name="settings_download_folder_hint">Choisissez n\'importe quel dossier accessible en écriture, carte SD incluse. Les morceaux déjà enregistrés restent dans la bibliothèque.</string>
     <string name="settings_download_folder_default">Utiliser l\'emplacement par défaut (Musique/%1$s)</string>
+    <string name="settings_innertube_cache">Taille du cache InnerTube</string>
+    <string name="settings_innertube_cache_subtitle">Limite %1$s · utilisé %2$s</string>
+    <string name="settings_innertube_cache_mb">%1$d Mo</string>
+    <string name="settings_innertube_cache_unlimited">Illimité</string>
+    <string name="settings_innertube_cache_applied">Taille du cache appliquée</string>
+    <string name="settings_innertube_cache_restart_hint">Sera appliqué au redémarrage de l’application</string>
     <string name="settings_choose_folder">Choisir un dossier</string>
     <string name="settings_write_tags">Inscrire les tags et la pochette</string>
     <string name="settings_write_tags_subtitle">Intégrer les métadonnées et la pochette dans le fichier</string>

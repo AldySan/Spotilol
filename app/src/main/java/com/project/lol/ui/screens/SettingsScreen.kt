@@ -7,9 +7,6 @@ import android.content.SharedPreferences
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
-import android.webkit.CookieManager
-import android.webkit.WebStorage
-import android.webkit.WebView
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -34,7 +31,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
@@ -86,14 +82,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalClipboard
-import androidx.compose.ui.platform.toClipEntry
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.platform.toClipEntry
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
@@ -110,6 +105,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.webkit.WebViewCompat
 import com.project.lol.R
+import com.project.lol.innertube.YouTube
 import com.project.lol.offline.DownloadFolder
 import com.project.lol.offline.DownloadFormat
 import com.project.lol.offline.DownloadPrefs
@@ -133,15 +129,13 @@ import com.project.lol.ui.theme.harmonized
 import com.project.lol.util.AppLocale
 import com.project.lol.util.BuildInfo
 import com.project.lol.util.DeviceInfo
-import com.project.lol.util.GitHubApi
-import com.project.lol.util.GitHubRelease
+import com.project.lol.util.InnertubeCachePrefs
 import com.project.lol.util.LogEntry
 import com.project.lol.util.LogExport
 import com.project.lol.util.LogFilter
 import com.project.lol.util.LogLevel
 import com.project.lol.util.Logger
 import com.project.lol.util.Logger.isAutoScroll
-import com.project.lol.util.MarkdownText
 import com.project.lol.util.Telemetry
 import com.project.lol.webview.helpers.LyricsStyle
 import com.project.lol.webview.helpers.LyricsTheme
@@ -163,6 +157,7 @@ import compose.icons.tablericons.CloudOff
 import compose.icons.tablericons.Code
 import compose.icons.tablericons.ColorSwatch
 import compose.icons.tablericons.Copy
+import compose.icons.tablericons.Database
 import compose.icons.tablericons.DeviceMobile
 import compose.icons.tablericons.Devices
 import compose.icons.tablericons.Download
@@ -183,8 +178,8 @@ import compose.icons.tablericons.PlayerPlay
 import compose.icons.tablericons.Playlist
 import compose.icons.tablericons.Plus
 import compose.icons.tablericons.Power
-import compose.icons.tablericons.RotateClockwise2
 import compose.icons.tablericons.Rocket
+import compose.icons.tablericons.RotateClockwise2
 import compose.icons.tablericons.Search
 import compose.icons.tablericons.Shield
 import compose.icons.tablericons.Terminal2
@@ -195,14 +190,13 @@ import compose.icons.tablericons.UserPlus
 import compose.icons.tablericons.Video
 import compose.icons.tablericons.WaveSine
 import compose.icons.tablericons.X
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import kotlin.math.abs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.Date
+import kotlin.math.abs
 
 private const val DEBUG_UNLOCK_TAPS = 5
 private const val LOGGER_WIDE_BREAKPOINT = 600
@@ -317,6 +311,17 @@ fun SettingsContent(
         dlFolderPath = DownloadPrefs.folderDisplayPath(context)
         dlFolderLabel = DownloadPrefs.folderLabel(context)
     }
+    fun applyInnertubeCacheLimit() {
+        val bytes = InnertubeCachePrefs.maxBytes(context)
+        val applied = runCatching { YouTube.setCacheLimit(bytes) }.isSuccess
+        Toast.makeText(context,
+            resources.getString(
+                if (applied) R.string.settings_innertube_cache_applied
+                else R.string.settings_innertube_cache_restart_hint
+            ),
+            Toast.LENGTH_SHORT
+        ).show()
+    }
     fun applyLanguageRestart() {
         runCatching { context.stopService(Intent(context, MediaNotificationService::class.java)) }
         runCatching { context.stopService(Intent(context, OfflineMediaService::class.java)) }
@@ -342,6 +347,16 @@ fun SettingsContent(
     var dlLyricsEmbed by remember { mutableStateOf(DownloadPrefs.lyricsEmbed(context)) }
     var dlLyricsSidecar by remember { mutableStateOf(DownloadPrefs.lyricsSidecar(context)) }
     var showLyricsSourceDialog by remember { mutableStateOf(false) }
+
+    var innertubeCacheMb by remember { mutableStateOf(InnertubeCachePrefs.mb(context)) }
+    var innertubeCacheUsed by remember { mutableStateOf(0L) }
+    var showInnertubeCacheDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(innertubeCacheMb) {
+        innertubeCacheUsed = withContext(Dispatchers.IO) {
+            InnertubeCachePrefs.usedBytes(context)
+        }
+    }
 
     fun onDebugSecretTap() {
         if (debugUnlocked) return
@@ -909,6 +924,22 @@ fun SettingsContent(
                             }
                         )
                     }
+
+                    val innertubeCacheLimitLabel = if (innertubeCacheMb == InnertubeCachePrefs.UNLIMITED) {
+                        stringResource(R.string.settings_innertube_cache_unlimited)
+                    } else {
+                        stringResource(R.string.settings_innertube_cache_mb, innertubeCacheMb)
+                    }
+                    SettingTile(
+                        title = stringResource(R.string.settings_innertube_cache),
+                        subtitle = stringResource(
+                            R.string.settings_innertube_cache_subtitle,
+                            innertubeCacheLimitLabel,
+                            InnertubeCachePrefs.formatBytes(innertubeCacheUsed)
+                        ),
+                        icon = TablerIcons.Database,
+                        onClick = { showInnertubeCacheDialog = true }
+                    )
                 }
 
                 SettingSectionCard(
@@ -1361,6 +1392,29 @@ fun SettingsContent(
                 DownloadPrefs.setLyricsSource(context, source)
             },
             onDismiss = { showLyricsSourceDialog = false }
+        )
+    }
+
+    if (showInnertubeCacheDialog) {
+        SingleChoiceDialog(
+            title = stringResource(R.string.settings_innertube_cache),
+            options = InnertubeCachePrefs.OPTIONS_MB.map { mb ->
+                mb.toString() to if (mb == InnertubeCachePrefs.UNLIMITED) {
+                    stringResource(R.string.settings_innertube_cache_unlimited)
+                } else {
+                    stringResource(R.string.settings_innertube_cache_mb, mb)
+                }
+            },
+            selected = innertubeCacheMb.toString(),
+            onSelect = { value ->
+                val mb = value.toIntOrNull() ?: InnertubeCachePrefs.DEFAULT_MB
+                if (mb != innertubeCacheMb) {
+                    innertubeCacheMb = mb
+                    InnertubeCachePrefs.setMb(context, mb)
+                    applyInnertubeCacheLimit()
+                }
+            },
+            onDismiss = { showInnertubeCacheDialog = false }
         )
     }
 

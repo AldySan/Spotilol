@@ -117,6 +117,12 @@
     <string name="settings_download_folder_subtitle">Salva em %1$s</string>
     <string name="settings_download_folder_hint">Escolha qualquer pasta com permissão de gravação, incluindo um cartão SD. As faixas já salvas permanecem na biblioteca.</string>
     <string name="settings_download_folder_default">Usar a pasta padrão (Música/%1$s)</string>
+    <string name="settings_innertube_cache">Tamanho do cache do InnerTube</string>
+    <string name="settings_innertube_cache_subtitle">Limite %1$s · em uso %2$s</string>
+    <string name="settings_innertube_cache_mb">%1$d MB</string>
+    <string name="settings_innertube_cache_unlimited">Ilimitado</string>
+    <string name="settings_innertube_cache_applied">Tamanho do cache aplicado</string>
+    <string name="settings_innertube_cache_restart_hint">Aplicado após reiniciar o aplicativo</string>
     <string name="settings_choose_folder">Escolher pasta</string>
     <string name="settings_write_tags">Gravar tags e capa</string>
     <string name="settings_write_tags_subtitle">Incorporar metadados e capa no arquivo</string>

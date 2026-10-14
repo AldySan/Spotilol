@@ -7,6 +7,7 @@ import com.project.lol.ui.lyrics.CustomLyricsPresets
 import com.project.lol.ui.theme.ThemeController
 import com.project.lol.util.AppLocale
 import com.project.lol.util.CrashHandler
+import com.project.lol.util.InnertubeCachePrefs
 import com.project.lol.util.Logger
 import com.project.lol.util.PlaybackDiagnostics
 import com.project.lol.yt.cipher.CipherDeobfuscator
@@ -22,7 +23,7 @@ class SpotilolApp : Application() {
         migrateProxyEraPrefs()
         CrashHandler.install(this)
         CipherDeobfuscator.initialize(this)
-        YouTube.setCacheDir(File(cacheDir, "innertube_http"))
+        YouTube.setCacheDir(File(cacheDir, "innertube_http"), InnertubeCachePrefs.maxBytes(this))
         Thread { runCatching { PlaybackDiagnostics.log(this@SpotilolApp) } }.start()
         Logger.s("app", "started")
     }

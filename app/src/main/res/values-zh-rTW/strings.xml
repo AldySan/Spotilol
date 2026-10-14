@@ -120,6 +120,12 @@
     <string name="settings_download_folder_subtitle">儲存至 %1$s</string>
     <string name="settings_download_folder_hint">選擇任何您有寫入權限的資料夾，包括 SD 卡。已儲存的曲目將保留在媒體庫中</string>
     <string name="settings_download_folder_default">使用預設（Music/%1$s）</string>
+    <string name="settings_innertube_cache">InnerTube 快取大小</string>
+    <string name="settings_innertube_cache_subtitle">上限 %1$s · 已使用 %2$s</string>
+    <string name="settings_innertube_cache_mb">%1$d MB</string>
+    <string name="settings_innertube_cache_unlimited">無限制</string>
+    <string name="settings_innertube_cache_applied">已套用快取大小</string>
+    <string name="settings_innertube_cache_restart_hint">重新啟動應用程式後生效</string>
     <string name="settings_choose_folder">選擇資料夾</string>
     <string name="settings_write_tags">寫入標籤與封面</string>
     <string name="settings_write_tags_subtitle">將中繼資料與封面嵌入檔案中</string>

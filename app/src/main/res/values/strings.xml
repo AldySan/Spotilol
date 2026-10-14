@@ -121,6 +121,12 @@
     <string name="settings_download_folder_subtitle">Saves to %1$s</string>
     <string name="settings_download_folder_hint">Pick any folder you can write to, an SD card included. Tracks already saved stay in the library.</string>
     <string name="settings_download_folder_default">Use default (Music/%1$s)</string>
+    <string name="settings_innertube_cache">InnerTube Cache Size</string>
+    <string name="settings_innertube_cache_subtitle">Limit %1$s · using %2$s</string>
+    <string name="settings_innertube_cache_mb">%1$d MB</string>
+    <string name="settings_innertube_cache_unlimited">Unlimited</string>
+    <string name="settings_innertube_cache_applied">Cache size applied</string>
+    <string name="settings_innertube_cache_restart_hint">Applies after the app restarts</string>
     <string name="settings_choose_folder">Choose folder</string>
     <string name="settings_write_tags">Write Tags and Cover Art</string>
     <string name="settings_write_tags_subtitle">Embed metadata and cover art into the file</string>

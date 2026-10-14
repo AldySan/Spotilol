@@ -471,6 +471,7 @@ class SpotifyWebViewClient(
             append(ContextMenuSheet.CONTENT)
             append(WatchFeed.CONTENT)
             append(ModalFix.CONTENT)
+            append(NpHeaderFix.CONTENT)
             append(ErrorDialogRestyle.CONTENT)
             append(ToastFix.CONTENT)
             append(LyricsSyncFix.CONTENT)

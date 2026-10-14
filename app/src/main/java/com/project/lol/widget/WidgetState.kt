@@ -23,7 +23,8 @@ data class WidgetState(
     val hasTrack: Boolean get() = title.isNotEmpty()
 
     val offline: Boolean get() = source == SOURCE_OFFLINE
-    val supportsExtras: Boolean get() = !offline
+    val supportsRepeat: Boolean get() = !offline
+    val supportsFavorite: Boolean get() = !offline
 
     val shuffleOn: Boolean get() = shuffle == "shuffle" || shuffle == "smart"
     val smartShuffle: Boolean get() = shuffle == "smart"

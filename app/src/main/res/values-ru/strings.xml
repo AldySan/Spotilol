@@ -466,4 +466,22 @@
 
     <string name="settings_theme">Тема</string>
     <string name="settings_theme_dynamic">Динамическая (системные цвета)</string>
+    <string name="settings_theme_secondary">Дополнительный цвет</string>
+    <string name="settings_theme_secondary_auto">Автоматически, из темы</string>
+    <string name="theme_search">Поиск тем</string>
+    <string name="theme_no_results">Нет тем по запросу</string>
+    <string name="theme_preview">Предпросмотр</string>
+    <string name="theme_secondary_title">Дополнительный цвет</string>
+    <string name="theme_secondary_hint">Привязан к тону темы, поэтому палитра остаётся согласованной</string>
+    <string name="theme_hue">Оттенок</string>
+    <string name="theme_strength">Насыщенность</string>
+    <string name="theme_secondary_reset">Вернуть цвет темы</string>
+    <string name="theme_export">Экспорт</string>
+    <string name="theme_import">Импорт</string>
+    <string name="theme_export_done">Тема экспортирована</string>
+    <string name="theme_export_failed">Не удалось экспортировать тему</string>
+    <string name="theme_import_done">Импортировано тем: %1$d</string>
+    <string name="theme_import_failed">Не удалось прочитать этот файл темы</string>
+    <string name="theme_custom">Своя</string>
+    <string name="theme_delete">Удалить тему</string>
 </resources>

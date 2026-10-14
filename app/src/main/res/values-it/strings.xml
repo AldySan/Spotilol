@@ -132,9 +132,6 @@
     <string name="settings_open_logger">Apri il logger</string>
     <string name="settings_open_logger_on">Log in tempo reale: verbose, debug, info, warn ed error</string>
     <string name="settings_open_logger_off">La registrazione è disattivata, vengono mostrate solo le vecchie voci</string>
-    <string name="settings_crash_test">Test di arresto anomalo</string>
-    <string name="settings_crash_test_subtitle">Genera un\'eccezione di test e apre la schermata di arresto</string>
-    <string name="settings_crash_test_exception">Test di arresto anomalo di Spotilol</string>
     <string name="settings_debug_unlocked">Strumenti di debug sbloccati</string>
     <string name="settings_debug_tap_one_left">Ancora 1 tocco per sbloccare il debug</string>
     <string name="settings_debug_taps_left">Ancora %1$d tocchi per sbloccare il debug</string>

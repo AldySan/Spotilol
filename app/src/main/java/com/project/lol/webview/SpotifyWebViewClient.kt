@@ -472,6 +472,7 @@ class SpotifyWebViewClient(
                 })();
             """.trimIndent())
             append(CssHack.CONTENT)
+            append(ScrollbarAutoHide.CONTENT)
             append(ContextMenuSheet.CONTENT)
             append(WatchFeed.CONTENT)
             append(ModalFix.CONTENT)

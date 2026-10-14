@@ -123,6 +123,7 @@ import com.project.lol.util.Logger.isAutoScroll
 import com.project.lol.util.MarkdownText
 import com.project.lol.util.Telemetry
 import com.project.lol.webview.helpers.LyricsTheme
+import com.project.lol.widget.WidgetStudioActivity
 import compose.icons.TablerIcons
 import compose.icons.tablericons.AlertTriangle
 import compose.icons.tablericons.ArrowsMinimize
@@ -140,6 +141,7 @@ import compose.icons.tablericons.CloudOff
 import compose.icons.tablericons.Code
 import compose.icons.tablericons.ColorSwatch
 import compose.icons.tablericons.DeviceMobile
+import compose.icons.tablericons.Devices
 import compose.icons.tablericons.Download
 import compose.icons.tablericons.EyeOff
 import compose.icons.tablericons.Flask
@@ -462,6 +464,23 @@ fun SettingsContent(
                         onCheckedChange = { enabled ->
                             onHideTopBarChange(enabled)
                             prefs.edit().putBoolean("HideTopBar", enabled).apply()
+                        }
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(start = 44.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+
+                    val widgetStudioContext = LocalContext.current
+                    SettingTile(
+                        title = stringResource(R.string.settings_widget_studio),
+                        subtitle = stringResource(R.string.settings_widget_studio_subtitle),
+                        icon = TablerIcons.Devices,
+                        onClick = {
+                            runCatching {
+                                widgetStudioContext.startActivity(
+                                    Intent(widgetStudioContext, WidgetStudioActivity::class.java)
+                                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                )
+                            }
                         }
                     )
 

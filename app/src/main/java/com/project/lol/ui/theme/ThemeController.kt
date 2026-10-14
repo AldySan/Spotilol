@@ -9,6 +9,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import com.project.lol.widget.WidgetActions
 import java.util.Locale
 
 object ThemeController {
@@ -27,9 +28,11 @@ object ThemeController {
         private set
 
     private var prefs: SharedPreferences? = null
+    private var appContext: Context? = null
 
     fun init(context: Context) {
         if (prefs != null) return
+        appContext = context.applicationContext
         prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val p = prefs!!
         presetId = p.getString(KEY_PRESET, ThemePresets.DEFAULT_ID)
@@ -42,16 +45,19 @@ object ThemeController {
     fun updatePreset(id: String) {
         presetId = if (ThemePresets.byId.containsKey(id)) id else ThemePresets.DEFAULT_ID
         save()
+        refreshWidgets()
     }
 
     fun updateDynamicColor(value: Boolean) {
         dynamicColor = value
         save()
+        refreshWidgets()
     }
 
     fun updateAmoled(value: Boolean) {
         amoled = value
         save()
+        refreshWidgets()
     }
 
     fun resolvePalette(): ThemePalette = ThemePresets.resolve(presetId)
@@ -90,5 +96,9 @@ object ThemeController {
             ?.putBoolean(KEY_DYNAMIC, dynamicColor)
             ?.putBoolean(KEY_AMOLED, amoled)
             ?.apply()
+    }
+
+    private fun refreshWidgets() {
+        appContext?.let { WidgetActions.refreshAll(it) }
     }
 }

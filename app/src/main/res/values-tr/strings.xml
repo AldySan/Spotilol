@@ -480,4 +480,22 @@
 
     <string name="settings_theme">Tema</string>
     <string name="settings_theme_dynamic">Dinamik (sistem renkleri)</string>
+    <string name="settings_theme_secondary">İkincil renk</string>
+    <string name="settings_theme_secondary_auto">Otomatik, temadan</string>
+    <string name="theme_search">Tema ara</string>
+    <string name="theme_no_results">Aramanızla eşleşen tema yok</string>
+    <string name="theme_preview">Önizleme</string>
+    <string name="theme_secondary_title">İkincil renk</string>
+    <string name="theme_secondary_hint">Temanın tonuna bağlıdır, palet tutarlı kalır</string>
+    <string name="theme_hue">Ton</string>
+    <string name="theme_strength">Yoğunluk</string>
+    <string name="theme_secondary_reset">Tema rengine sıfırla</string>
+    <string name="theme_export">Dışa aktar</string>
+    <string name="theme_import">İçe aktar</string>
+    <string name="theme_export_done">Tema dışa aktarıldı</string>
+    <string name="theme_export_failed">Tema dışa aktarılamadı</string>
+    <string name="theme_import_done">%1$d tema içe aktarıldı</string>
+    <string name="theme_import_failed">Bu tema dosyası okunamadı</string>
+    <string name="theme_custom">Özel</string>
+    <string name="theme_delete">Temayı sil</string>
 </resources>

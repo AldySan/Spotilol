@@ -53,6 +53,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -749,14 +750,6 @@ fun OfflineScreen(
                             }
                         },
                         actions = {
-                            IconButton(onClick = { showSleepTimerDialog = true }) {
-                                Icon(
-                                    painter = painterResource(R.drawable.ic_timer),
-                                    contentDescription = stringResource(R.string.timer_desc_open),
-                                    tint = if (sleepTimerState.active) MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.onSurface
-                                )
-                            }
                             IconButton(onClick = onExit) {
                                 Icon(
                                     imageVector = TablerIcons.Logout,
@@ -1343,6 +1336,8 @@ fun OfflineScreen(
                             repeatMode = repeatMode,
                             onCycleRepeat = { cycleRepeat() },
                             onEnterPip = onEnterPip,
+                            onOpenSleepTimer = { showSleepTimerDialog = true },
+                            sleepTimerActive = sleepTimerState.active,
                             hideTopBar = hideTopBar
                         )
                     }
@@ -2861,6 +2856,8 @@ private fun FullScreenPlayer(
     repeatMode: RepeatMode,
     onCycleRepeat: () -> Unit,
     onEnterPip: () -> Unit,
+    onOpenSleepTimer: () -> Unit,
+    sleepTimerActive: Boolean,
     hideTopBar: Boolean
 ) {
     val context = LocalContext.current
@@ -2927,14 +2924,6 @@ private fun FullScreenPlayer(
                     maxLines = 1
                 )
                 Spacer(Modifier.weight(1f))
-                CompactIconButton(
-                    icon = TablerIcons.PictureInPicture,
-                    contentDescription = stringResource(R.string.offline_desc_enter_pip),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    onClick = onEnterPip,
-                    boxSize = 40.dp,
-                    iconSize = 18.dp
-                )
                 CompactIconButton(
                     icon = TablerIcons.X,
                     contentDescription = stringResource(R.string.offline_desc_close_player),
@@ -3078,7 +3067,24 @@ private fun FullScreenPlayer(
                         }
                         volumeFraction = level.toFloat() / maxVolume
                     },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.widthIn(max = 160.dp)
+                )
+                Spacer(Modifier.weight(1f))
+                CompactIconButton(
+                    icon = TablerIcons.PictureInPicture,
+                    contentDescription = stringResource(R.string.offline_desc_enter_pip),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    onClick = onEnterPip,
+                    boxSize = 44.dp,
+                    iconSize = 20.dp
+                )
+                CompactIconButton(
+                    painter = painterResource(R.drawable.ic_timer),
+                    contentDescription = stringResource(R.string.timer_desc_open),
+                    tint = if (sleepTimerActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    onClick = onOpenSleepTimer,
+                    boxSize = 44.dp,
+                    iconSize = 20.dp
                 )
             }
         }

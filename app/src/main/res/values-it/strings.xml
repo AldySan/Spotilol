@@ -79,6 +79,7 @@
     <string name="settings_lyrics_animation">Animazione sottile</string>
     <string name="settings_lyrics_animation_hint">Transizioni di opacità e spessore sulla riga attiva</string>
     <string name="settings_lyrics_custom_presets">Personalizzati</string>
+    <string name="settings_lyrics_actions">Azioni</string>
     <string name="settings_lyrics_save_preset">Salva come preset</string>
     <string name="settings_lyrics_preset_name">Nome del preset</string>
     <string name="settings_lyrics_preset_saved">Preset salvato</string>

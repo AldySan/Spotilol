@@ -78,6 +78,17 @@
     <string name="settings_lyrics_align_end">Derecha</string>
     <string name="settings_lyrics_animation">Animación sutil</string>
     <string name="settings_lyrics_animation_hint">Transiciones de opacidad y grosor en la línea activa</string>
+    <string name="settings_lyrics_custom_presets">Personalizados</string>
+    <string name="settings_lyrics_save_preset">Guardar como preset</string>
+    <string name="settings_lyrics_preset_name">Nombre del preset</string>
+    <string name="settings_lyrics_preset_saved">Preset guardado</string>
+    <string name="settings_lyrics_export">Exportar</string>
+    <string name="settings_lyrics_import">Importar</string>
+    <string name="settings_lyrics_export_done">Presets exportados</string>
+    <string name="settings_lyrics_export_failed">No se pudo exportar</string>
+    <string name="settings_lyrics_export_empty">No hay presets personalizados para exportar</string>
+    <string name="settings_lyrics_import_done">Presets importados</string>
+    <string name="settings_lyrics_import_failed">No se pudo importar</string>
     <string name="settings_spicylyrics">SpicyLyrics</string>
     <string name="settings_spicylyrics_subtitle">Rellenar las letras que faltan en Spotify (API de SpicyLyrics)</string>
     <string name="settings_take_control">Tomar el control del reproductor</string>

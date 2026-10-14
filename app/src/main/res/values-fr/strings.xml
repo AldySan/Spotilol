@@ -82,6 +82,7 @@
     <string name="settings_lyrics_animation">Animation subtile</string>
     <string name="settings_lyrics_animation_hint">Transitions d’opacité et de graisse sur la ligne active</string>
     <string name="settings_lyrics_custom_presets">Personnalisés</string>
+    <string name="settings_lyrics_actions">Actions</string>
     <string name="settings_lyrics_save_preset">Enregistrer comme préréglage</string>
     <string name="settings_lyrics_preset_name">Nom du préréglage</string>
     <string name="settings_lyrics_preset_saved">Préréglage enregistré</string>

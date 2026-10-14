@@ -2487,6 +2487,11 @@ private fun LyricsPresetList(
         }
 
         Spacer(Modifier.height(6.dp))
+        Text(
+            text = stringResource(R.string.settings_lyrics_actions),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
         OutlinedButton(
             onClick = onSaveCurrent,
             modifier = Modifier.fillMaxWidth(),
@@ -2612,7 +2617,7 @@ private fun LyricsTuning(
             LyricsTuningLabel(stringResource(R.string.settings_lyrics_size), "${"%.2f".format(scaleState.value)}×")
             Slider(
                 state = scaleState,
-                onValueChange = { },
+                onValueChange = { scaleState.value = it },
                 onValueChangeFinished = { onScaleChange(scaleState.value) },
                 modifier = Modifier.fillMaxWidth()
             )
@@ -2622,7 +2627,7 @@ private fun LyricsTuning(
             LyricsTuningLabel(stringResource(R.string.settings_lyrics_spacing), "${"%.2f".format(spacingState.value)}×")
             Slider(
                 state = spacingState,
-                onValueChange = { },
+                onValueChange = { spacingState.value = it },
                 onValueChangeFinished = { onSpacingChange(spacingState.value) },
                 modifier = Modifier.fillMaxWidth()
             )

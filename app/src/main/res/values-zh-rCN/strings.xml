@@ -79,6 +79,17 @@
     <string name="settings_lyrics_align_end">右</string>
     <string name="settings_lyrics_animation">轻微动画</string>
     <string name="settings_lyrics_animation_hint">当前歌词行的透明度与字重过渡</string>
+    <string name="settings_lyrics_custom_presets">自定义</string>
+    <string name="settings_lyrics_save_preset">保存为预设</string>
+    <string name="settings_lyrics_preset_name">预设名称</string>
+    <string name="settings_lyrics_preset_saved">预设已保存</string>
+    <string name="settings_lyrics_export">导出</string>
+    <string name="settings_lyrics_import">导入</string>
+    <string name="settings_lyrics_export_done">预设已导出</string>
+    <string name="settings_lyrics_export_failed">导出失败</string>
+    <string name="settings_lyrics_export_empty">没有可导出的自定义预设</string>
+    <string name="settings_lyrics_import_done">预设已导入</string>
+    <string name="settings_lyrics_import_failed">导入失败</string>
     <string name="settings_spicylyrics">SpicyLyrics</string>
     <string name="settings_spicylyrics_subtitle">补全Spotify缺失的歌词（SpicyLyrics API）</string>
     <string name="settings_take_control">获取播放器控制权</string>

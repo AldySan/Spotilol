@@ -132,9 +132,6 @@
     <string name="settings_open_logger">Abrir el registro</string>
     <string name="settings_open_logger_on">Registros en directo: verbose, debug, info, advertencias y errores</string>
     <string name="settings_open_logger_off">El registro está desactivado, solo se muestran las entradas antiguas</string>
-    <string name="settings_crash_test">Prueba de fallos</string>
-    <string name="settings_crash_test_subtitle">Lanza una excepción de prueba y abre la pantalla de fallos</string>
-    <string name="settings_crash_test_exception">Prueba de fallos de Spotilol</string>
     <string name="settings_debug_unlocked">Herramientas de depuración desbloqueadas</string>
     <string name="settings_debug_tap_one_left">Queda 1 toque para desbloquear la depuración</string>
     <string name="settings_debug_taps_left">Quedan %1$d toques para desbloquear la depuración</string>

@@ -466,4 +466,22 @@
 
     <string name="settings_theme">Tema</string>
     <string name="settings_theme_dynamic">Dinamis (warna sistem)</string>
+    <string name="settings_theme_secondary">Warna sekunder</string>
+    <string name="settings_theme_secondary_auto">Otomatis, dari tema</string>
+    <string name="theme_search">Cari tema</string>
+    <string name="theme_no_results">Tidak ada tema yang cocok</string>
+    <string name="theme_preview">Pratinjau</string>
+    <string name="theme_secondary_title">Warna sekunder</string>
+    <string name="theme_secondary_hint">Terikat pada nada tema, jadi palet tetap selaras</string>
+    <string name="theme_hue">Hue</string>
+    <string name="theme_strength">Intensitas</string>
+    <string name="theme_secondary_reset">Kembalikan ke warna tema</string>
+    <string name="theme_export">Ekspor</string>
+    <string name="theme_import">Impor</string>
+    <string name="theme_export_done">Tema diekspor</string>
+    <string name="theme_export_failed">Gagal mengekspor tema</string>
+    <string name="theme_import_done">%1$d tema diimpor</string>
+    <string name="theme_import_failed">Gagal membaca berkas tema itu</string>
+    <string name="theme_custom">Kustom</string>
+    <string name="theme_delete">Hapus tema</string>
 </resources>

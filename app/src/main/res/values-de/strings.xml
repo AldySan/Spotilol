@@ -132,9 +132,6 @@
     <string name="settings_open_logger">Protokoll öffnen</string>
     <string name="settings_open_logger_on">Live-Protokolle: verbose, debug, info, warn und error</string>
     <string name="settings_open_logger_off">Die Protokollierung ist aus, nur alte Einträge werden angezeigt</string>
-    <string name="settings_crash_test">Absturztest</string>
-    <string name="settings_crash_test_subtitle">Eine Testausnahme auslösen und den Absturzbildschirm öffnen</string>
-    <string name="settings_crash_test_exception">Spotilol-Absturztest</string>
     <string name="settings_debug_unlocked">Debug-Werkzeuge entsperrt</string>
     <string name="settings_debug_tap_one_left">Noch 1 Fingertipp bis Debug entsperrt wird</string>
     <string name="settings_debug_taps_left">Noch %1$d Fingertipps bis Debug entsperrt wird</string>

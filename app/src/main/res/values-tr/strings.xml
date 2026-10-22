@@ -398,7 +398,7 @@
     <string name="timer_desc_open">Uyku zamanlayıcısı</string>
 
     <string name="battery_dialog_title">Müzik çalmaya devam etsin</string>
-    <string name="battery_dialog_intro">Android, pil tasarrufu yapmak için Spotilol'u arka planda çalışırken durdurabilir. Bu yüzden ekran kapandığında müzik bazen kendiliğinden duraklar. Tek bir ayarı değiştirerek bunu düzeltebilirsin.</string>
+    <string name="battery_dialog_intro">Android, pil tasarrufu yapmak için Spotilol\'u arka planda çalışırken durdurabilir. Bu yüzden ekran kapandığında müzik bazen kendiliğinden duraklar. Tek bir ayarı değiştirerek bunu düzeltebilirsin.</string>
     <string name="battery_dialog_benefit_playback">Ekran kapalıyken müzik çalmaya devam eder</string>
     <string name="battery_dialog_benefit_controls">Bildirimdeki medya kontrolleri yanıt vermeye devam eder</string>
     <string name="battery_dialog_benefit_downloads">İndirmeler kesintisiz tamamlanır</string>
@@ -410,7 +410,7 @@
     <string name="settings_battery_background">Arka Planda Oynatma</string>
     <string name="settings_battery_background_on">İzin verildi — müzik arka planda çalmaya devam eder</string>
     <string name="settings_battery_background_off">Kısıtlandı — Android arka plandaki oynatmayı duraklatabilir</string>
-    <string name="settings_battery_info">Android'in pil optimizasyonu, Spotilol arka planda çalışırken uygulamayı durdurabilir. Bu seçenek, uygulamanın çalışmasına izin verebileceğin sistem pil ayarları ekranını açar.</string>
+    <string name="settings_battery_info">Android\'in pil optimizasyonu, Spotilol arka planda çalışırken uygulamayı durdurabilir. Bu seçenek, uygulamanın çalışmasına izin verebileceğin sistem pil ayarları ekranını açar.</string>
     <string name="settings_battery_already_allowed">Arka planda oynatmaya zaten izin verildi</string>
     <string name="settings_battery_prompt_unavailable">Pil iletişim kutusu açılamadı. Bunun yerine uygulama ayarları açılıyor.</string>
 

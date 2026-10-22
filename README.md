@@ -1,3 +1,12 @@
+> [!NOTE]
+> **Archived Repository — Spotilol v1.2.3**
+>
+> This repository is an archived clone of **Spotilol v1.2.3**, originally created and maintained by **lyssadev**, based on **Spotifuck by deviato**.
+>
+> The original project is no longer available at its former repository location. This repository is preserved for historical reference only and is **no longer under active development**. No further updates, fixes, or releases are planned.
+>
+> **All original credits, copyrights, and intellectual property rights remain with their respective owners.** This archive does not claim ownership of the original project or imply affiliation with or endorsement by its original authors.
+
 <div align="center">
   <img src="art/bgwelcome.png" alt="Spotilol" style="width: 100%; max-width: 900px; margin-bottom: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.5);">
 </div>
@@ -131,3 +140,18 @@ contributions are welcome. open issues, throw PRs, suggest stuff. free for all.
 **deviato** reverse-engineered the original Spotifuck. **lyssadev** ported the core logic from smali to Kotlin and maintains this project.
 
 all rights reserved. lyssadev and deviato.
+
+
+---
+
+## Disclaimer
+
+This repository is an unofficial archival copy of Spotilol v1.2.3, preserved for historical and educational reference only.
+
+- **No longer maintained:** This project is archived and will not receive further development, updates, bug fixes, or releases.
+- **No affiliation:** This repository is not affiliated with, endorsed by, or officially connected to Spotify, its subsidiaries, or the original project maintainers.
+- **Ownership and copyright:** All original credits, copyrights, trademarks, and intellectual property rights remain with their respective owners. Archiving this project does not transfer ownership or claim authorship of the original work.
+- **As-is:** This repository is provided "as is", without warranties of any kind. Compatibility, functionality, and availability of third-party services are not guaranteed.
+- **Third-party services:** Spotify and other third-party services may change or discontinue features at any time. Use of those services remains subject to their respective terms and policies.
+
+Please refer to the original project's license and notices, where available, for applicable terms and permissions.

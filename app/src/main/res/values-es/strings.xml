@@ -371,6 +371,14 @@
     <string name="main_pip_play">Reproducir</string>
     <string name="main_pip_pause">Pausar</string>
     <string name="main_pip_next">Siguiente</string>
+
+    <string name="main_volume_title">Volumen</string>
+    <string name="main_volume_muted">Silenciado</string>
+    <string name="main_volume_percent">%1$d%%</string>
+    <string name="volume_preset_mute">Silenciar</string>
+    <string name="volume_preset_half">50%</string>
+    <string name="volume_preset_max">100%</string>
+
     <string name="timer_quick_select">Selección rápida</string>
     <string name="timer_preset_minutes">%1$d min</string>
     <string name="timer_end_of_song">Fin de la canción</string>

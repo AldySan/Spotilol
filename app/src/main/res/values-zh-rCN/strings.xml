@@ -377,6 +377,13 @@
     <string name="main_pip_pause">暂停</string>
     <string name="main_pip_next">下一首</string>
 
+    <string name="main_volume_title">音量</string>
+    <string name="main_volume_muted">已静音</string>
+    <string name="main_volume_percent">%1$d%%</string>
+    <string name="volume_preset_mute">静音</string>
+    <string name="volume_preset_half">50%</string>
+    <string name="volume_preset_max">100%</string>
+
     <string name="timer_quick_select">快速选择</string>
     <string name="timer_preset_minutes">%1$d分钟</string>
     <string name="timer_end_of_song">歌曲结束时</string>

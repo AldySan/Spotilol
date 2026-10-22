@@ -20,12 +20,17 @@ import com.project.lol.offline.DownloadManager
 import com.project.lol.spicy.SpicyLyricsClient
 import com.project.lol.util.Logger
 import com.project.lol.webview.helpers.NavToken
-
+import com.project.lol.webview.WebViewHost
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 class SpotifyBridge(activityRef: WeakReference<Activity>) {
 
     companion object {
         private const val DESKTOP_UA =
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+
+        private const val CONNECT_TIMEOUT_MS = 10_000
+        private const val READ_TIMEOUT_MS = 10_000
 
         private val FILTERED_HEADERS = setOf(
             "x-requested-with",
@@ -33,13 +38,31 @@ class SpotifyBridge(activityRef: WeakReference<Activity>) {
             "sec-ch-ua-platform-version",
             "sec-ch-ua-arch",
             "sec-ch-ua-bitness",
-            "sec-ch-ua-model"
+            "sec-ch-ua-model",
+            "accept-encoding",
+            "content-length",
+            "transfer-encoding",
+            "connection",
+            "host"
         )
+
+        private val COMMAND_MARKERS = arrayOf("connect-state", "/melody/", "track-playback")
+
+        private val commandExecutor: ExecutorService =
+            Executors.newSingleThreadExecutor { r ->
+                Thread(r, "nfetch-command").apply { isDaemon = true }
+            }
+        private val queryExecutor: ExecutorService =
+            Executors.newFixedThreadPool(4) { r ->
+                Thread(r, "nfetch-query").apply { isDaemon = true }
+            }
+
+        private fun executorFor(url: String): ExecutorService =
+            if (COMMAND_MARKERS.any { url.contains(it) }) commandExecutor else queryExecutor
 
         private const val TAG = "bridge"
         private const val CALL = "bridge.call"
     }
-
     private var activityRef = activityRef
     private val mainHandler = Handler(Looper.getMainLooper())
 
@@ -315,88 +338,162 @@ class SpotifyBridge(activityRef: WeakReference<Activity>) {
 
     @Suppress("unused")
     @JavascriptInterface
-    fun nFetch(url: String, optsJson: String?): String {
-        val errorResult = { e: Exception ->
-            try {
-                JSONObject().apply {
-                    put("status", 0)
-                    put("body", e.toString())
-                    put("headers", JSONObject())
-                }.toString()
-            } catch (_: Exception) {
-                "{\"status\":0,\"body\":\"error\",\"headers\":{}}"
+    fun nFetchAsync(url: String, optsJson: String?, reqId: Int) {
+        executorFor(url).execute {
+            val envelope = fetchEnvelope(url, optsJson)
+            mainHandler.post {
+                val view = WebViewHost.webView ?: return@post
+                val quoted = JSONObject.quote(envelope)
+                try {
+                    view.evaluateJavascript(
+                        "window.__splNfSettle&&window.__splNfSettle($reqId,$quoted)",
+                        null
+                    )
+                } catch (e: Exception) {
+                    Logger.w(TAG, "nFetchAsync callback failed id=$reqId", e)
+                }
             }
         }
+    }
 
+    @Suppress("unused")
+    @Deprecated("Use nFetchAsync - this blocks the JS thread")
+    @JavascriptInterface
+    fun nFetch(url: String, optsJson: String?): String = fetchEnvelope(url, optsJson)
+
+    private fun fetchEnvelope(url: String, optsJson: String?): String {
         var conn: HttpURLConnection? = null
-        return try {
+        var drained = false
+        try {
             val opts = if (optsJson.isNullOrBlank()) JSONObject() else JSONObject(optsJson)
             val method = opts.optString("method", "GET")
             val body = if (opts.has("body") && !opts.isNull("body")) opts.getString("body") else null
             val headersJson =
                 if (opts.has("headers") && !opts.isNull("headers")) opts.getJSONObject("headers") else JSONObject()
 
-            Logger.d(TAG, "nFetch $method ${url.take(140)} body=${body?.length ?: 0} headers=${headersJson.length()}")
+            if (Logger.isEnabled()) {
+                Logger.d(
+                    TAG,
+                    "nFetch $method ${url.take(140)} body=${body?.length ?: 0} headers=${headersJson.length()}"
+                )
+            }
 
             conn = URL(url).openConnection() as HttpURLConnection
-            conn.apply {
-                requestMethod = method
-                connectTimeout = 10000
-                readTimeout = 10000
-                val keys = headersJson.keys()
-                while (keys.hasNext()) {
-                    val key = keys.next()
-                    if (!FILTERED_HEADERS.contains(key.lowercase(Locale.ROOT))) {
-                        setRequestProperty(key, headersJson.getString(key))
-                    }
+            conn.requestMethod = method
+            conn.connectTimeout = CONNECT_TIMEOUT_MS
+            conn.readTimeout = READ_TIMEOUT_MS
+            val keys = headersJson.keys()
+            while (keys.hasNext()) {
+                val key = keys.next()
+                val value = headersJson.opt(key)
+                if (value is String && key.lowercase(Locale.ROOT) !in FILTERED_HEADERS) {
+                    conn.setRequestProperty(key, value)
                 }
-                setRequestProperty("User-Agent", DESKTOP_UA)
-                setRequestProperty("sec-ch-ua-platform", "\"Windows\"")
-                setRequestProperty("sec-ch-ua-mobile", "?0")
-                setRequestProperty("sec-ch-ua", "\"Not;A=Brand\";v=\"8\", \"Chromium\";v=\"150\", \"Google Chrome\";v=\"150\"")
-                if (url.contains("spclient.spotify.com") || url.contains("scdn.co") || url.contains("spotify.com")) {
-                    setRequestProperty("Origin", "https://open.spotify.com")
-                    setRequestProperty("Referer", "https://open.spotify.com/")
-                }
-                val cookie = CookieManager.getInstance().getCookie(url)
-                if (!cookie.isNullOrEmpty()) setRequestProperty("Cookie", cookie)
-                if (!body.isNullOrEmpty()) {
-                    doOutput = true
-                    outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
-                }
+            }
+            conn.setRequestProperty("User-Agent", DESKTOP_UA)
+            conn.setRequestProperty("sec-ch-ua-platform", "\"Windows\"")
+            conn.setRequestProperty("sec-ch-ua-mobile", "?0")
+            conn.setRequestProperty(
+                "sec-ch-ua",
+                "\"Not;A=Brand\";v=\"8\", \"Chromium\";v=\"150\", \"Google Chrome\";v=\"150\""
+            )
+            if (url.contains("spotify.com") || url.contains("scdn.co")) {
+                conn.setRequestProperty("Origin", "https://open.spotify.com")
+                conn.setRequestProperty("Referer", "https://open.spotify.com/")
+            }
+            val cookie = CookieManager.getInstance().getCookie(url)
+            if (!cookie.isNullOrEmpty()) conn.setRequestProperty("Cookie", cookie)
+
+            if (!body.isNullOrEmpty()) {
+                val bytes = body.toByteArray(Charsets.UTF_8)
+                conn.doOutput = true
+                conn.setFixedLengthStreamingMode(bytes.size)
+                conn.outputStream.use { it.write(bytes) }
             }
 
             val code = conn.responseCode
-            val headerFields = conn.headerFields
-            headerFields.forEach { (key, values) ->
-                if (key != null && key.equals("Set-Cookie", ignoreCase = true)) {
-                    values.forEach { CookieManager.getInstance().setCookie(url, it) }
+            val headerFields = conn.headerFields ?: emptyMap()
+
+            val responseHeaders = JSONObject()
+            val cookieManager = CookieManager.getInstance()
+            var sawSetCookie = false
+            for ((key, values) in headerFields) {
+                if (key == null || values.isNullOrEmpty()) continue
+                if (key.equals("Set-Cookie", ignoreCase = true)) {
+                    sawSetCookie = true
+                    for (value in values) cookieManager.setCookie(url, value)
+                } else {
+                    responseHeaders.put(key, values.first())
                 }
             }
-            CookieManager.getInstance().flush()
+            if (sawSetCookie) cookieManager.flush()
 
             val stream = if (code >= 400) conn.errorStream else conn.inputStream
             val responseBody = stream?.use { it.readBytes().toString(Charsets.UTF_8) } ?: ""
-            Logger.d(TAG, "nFetch <- $code ${responseBody.length} bytes ${url.take(100)}")
+            drained = stream != null
 
-            val responseHeaders = JSONObject()
-            headerFields.forEach { (key, values) ->
-                if (key != null && values.isNotEmpty()) responseHeaders.put(key, values.first())
+            if (Logger.isEnabled()) {
+                Logger.d(TAG, "nFetch <- $code ${responseBody.length} bytes ${url.take(100)}")
             }
-            JSONObject().apply {
-                put("status", code)
-                put("body", responseBody)
-                put("headers", responseHeaders)
-            }.toString()
+
+            return JSONObject()
+                .put("status", code)
+                .put("body", responseBody)
+                .put("headers", responseHeaders)
+                .toString()
         } catch (e: Exception) {
             Logger.e(TAG, "nFetch failed ${url.take(140)}", e)
-            errorResult(e)
+            return JSONObject()
+                .put("status", 0)
+                .put("body", e.toString())
+                .put("headers", JSONObject())
+                .toString()
         } finally {
-            try { conn?.disconnect() } catch (_: Exception) {}
+            val c = conn
+            if (c != null && !drained) {
+                try { c.disconnect() } catch (_: Exception) {}
+            }
         }
     }
 
     @Suppress("unused")
+    @JavascriptInterface
+    fun spicyLyricsAsync(trackId: String?, title: String?, artist: String?, duration: Int, reqId: Int) {
+        queryExecutor.execute {
+            val id = trackId?.trim().orEmpty()
+            val payload = if (id.length != 22) {
+                "null"
+            } else {
+                try {
+                    SpicyLyricsClient.fetch(id, title?.trim(), artist?.trim(), duration) ?: "null"
+                } catch (e: Exception) {
+                    Logger.e(TAG, "spicyLyrics failed $id", e)
+                    "null"
+                }
+            }
+            if (Logger.isEnabled()) {
+                Logger.d(
+                    TAG,
+                    "spicyLyrics $id [${title ?: "-"}] dur=$duration -> " +
+                            if (payload == "null") "miss" else "${payload.length} bytes"
+                )
+            }
+            mainHandler.post {
+                val view = WebViewHost.webView ?: return@post
+                try {
+                    view.evaluateJavascript(
+                        "window.__splSpicySettle&&window.__splSpicySettle($reqId,${JSONObject.quote(payload)})",
+                        null
+                    )
+                } catch (e: Exception) {
+                    Logger.w(TAG, "spicyLyrics callback failed id=$reqId", e)
+                }
+            }
+        }
+    }
+
+    @Suppress("unused")
+    @Deprecated("Use spicyLyricsAsync - this blocks the WebView's JS thread")
     @JavascriptInterface
     fun spicyLyrics(trackId: String?, title: String?, artist: String?, duration: Int): String {
         val id = trackId?.trim().orEmpty()
@@ -405,7 +502,8 @@ class SpotifyBridge(activityRef: WeakReference<Activity>) {
             val payload = SpicyLyricsClient.fetch(id, title?.trim(), artist?.trim(), duration)
             Logger.d(
                 TAG,
-                "spicyLyrics $id [${title ?: "-"}] dur=$duration -> ${if (payload == null) "miss" else "${payload.length} bytes"}"
+                "spicyLyrics(sync) $id [${title ?: "-"}] dur=$duration -> " +
+                        if (payload == null) "miss" else "${payload.length} bytes"
             )
             payload ?: "null"
         } catch (e: Exception) {

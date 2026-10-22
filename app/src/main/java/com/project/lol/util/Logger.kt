@@ -68,6 +68,7 @@ object Logger {
     private const val LEGACY_PREF_KEY = "DebugOverlay"
     private const val PREF_KEY_AUTOSCROLL = "LoggerAutoScroll"
     private const val MAX_MESSAGE = 4000
+    private const val MAX_ENTRIES = 4000
     private const val APP_TAG = "app"
 
     private val timeFmt: DateTimeFormatter =
@@ -136,6 +137,7 @@ object Logger {
             )
             synchronized(lock) {
                 buf.addLast(entry)
+                while (buf.size > MAX_ENTRIES) buf.removeFirst()
             }
         }
         val detail = throwable?.let { LogRedactor.redact(it.stackTraceToString()) }

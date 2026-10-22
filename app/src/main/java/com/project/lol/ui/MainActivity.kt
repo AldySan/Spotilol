@@ -809,16 +809,18 @@ class MainActivity : ComponentActivity(), WebViewHost.UiHost {
     }
 
     private fun handleSleepTimerExpire() {
-        when (SleepTimerManager.action) {
-            SleepTimerAction.PAUSE -> {
-                Logger.i(TAG, "sleep timer expired: pausing playback")
-                webView?.evaluateJavascript("actPlayPause(false)", null)
-            }
+        runOnUiThread {
+            when (SleepTimerManager.action) {
+                SleepTimerAction.PAUSE -> {
+                    Logger.i(TAG, "sleep timer expired: pausing playback")
+                    webView?.evaluateJavascript("actPlayPause(false)", null)
+                }
 
-            SleepTimerAction.QUIT -> {
-                Logger.i(TAG, "sleep timer expired: quitting app")
-                webView?.evaluateJavascript("actPlayPause(false)", null)
-                AppQuit.quit(this)
+                SleepTimerAction.QUIT -> {
+                    Logger.i(TAG, "sleep timer expired: quitting app")
+                    webView?.evaluateJavascript("actPlayPause(false)", null)
+                    AppQuit.quit(this)
+                }
             }
         }
     }
@@ -1493,7 +1495,7 @@ class MainActivity : ComponentActivity(), WebViewHost.UiHost {
         val js = """
             (function() {
                 try {
-                    var target = '$path';
+                    var target = ${JSONObject.quote(path)};
                     if (window.location.pathname === target) return 'same';
                     window.history.pushState({}, '', target);
                     window.dispatchEvent(new PopStateEvent('popstate'));

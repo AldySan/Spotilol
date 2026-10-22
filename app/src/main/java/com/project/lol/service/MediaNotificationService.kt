@@ -62,6 +62,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
+private fun jsString(value: String?): String = org.json.JSONObject.quote(value ?: "")
+
 class MediaNotificationService : MediaBrowserServiceCompat() {
 
     companion object {
@@ -100,7 +102,7 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
             Logger.i(TAG, "player ready: retrying ${parents.size} pending media loads")
             parents.forEach { parentId ->
                 instance?.wakeAndRun(
-                    "if (typeof window.fetchMediaItems === 'function') window.fetchMediaItems('$parentId');"
+                    "if (typeof window.fetchMediaItems === 'function') window.fetchMediaItems(${jsString(parentId)});"
                 )
             }
         }
@@ -523,10 +525,13 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
             lastActiveContextId = parentId
         }
         result.detach()
+        pendingCallbacks.remove(parentId)?.sendResult(mutableListOf())
         pendingCallbacks[parentId] = result
-        wakeAndRun("if (typeof window.fetchMediaItems === 'function') window.fetchMediaItems('$parentId');")
+        wakeAndRun("if (typeof window.fetchMediaItems === 'function') window.fetchMediaItems(${jsString(parentId)});")
         Handler(Looper.getMainLooper()).postDelayed({
-            pendingCallbacks.remove(parentId)?.sendResult(mutableListOf())
+            if (pendingCallbacks.remove(parentId, result)) {
+                result.sendResult(mutableListOf())
+            }
         }, if (playerLoaded) 20000L else 60000L)
     }
 
@@ -553,8 +558,9 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
             return
         }
         result.detach()
+        pendingSearchCallbacks.remove(query)?.sendResult(mutableListOf())
         pendingSearchCallbacks[query] = result
-        wakeAndRun("if (typeof window.searchMediaItems === 'function') window.searchMediaItems('$query');")
+        wakeAndRun("if (typeof window.searchMediaItems === 'function') window.searchMediaItems(${jsString(query)});")
     }
 
     private fun wakeAndRun(js: String) {
@@ -683,10 +689,11 @@ class MediaNotificationService : MediaBrowserServiceCompat() {
 
         override fun onPlayFromMediaId(mediaId: String?, extras: Bundle?) {
             val context = lastActiveContextId
+            val safeId = jsString(mediaId)
             if (context != null && mediaId != null) {
-                wakeAndRun("playFromUri('$mediaId', '$context');")
+                wakeAndRun("playFromUri($safeId, ${jsString(context)});")
             } else {
-                wakeAndRun("playFromUri('$mediaId');")
+                wakeAndRun("playFromUri($safeId);")
             }
         }
     }
